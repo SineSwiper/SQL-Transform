@@ -1,0 +1,2850 @@
+%pure -parser 
+%expect 0 %name -prefix ="base_yy "%locations %parse -param %lex -param 
+%union %type<node >stmt schema_stmt AlterDatabaseStmt AlterDatabaseSetStmt AlterDomainStmt AlterEnumStmt AlterFdwStmt AlterForeignServerStmt AlterGroupStmt AlterObjectSchemaStmt AlterOwnerStmt AlterSeqStmt AlterTableStmt AlterExtensionStmt AlterExtensionContentsStmt AlterForeignTableStmt AlterCompositeTypeStmt AlterUserStmt AlterUserMappingStmt AlterUserSetStmt AlterRoleStmt AlterRoleSetStmt AlterDefaultPrivilegesStmt DefACLAction AnalyzeStmt ClosePortalStmt ClusterStmt CommentStmt ConstraintsSetStmt CopyStmt CreateAsStmt CreateCastStmt CreateDomainStmt CreateExtensionStmt CreateGroupStmt CreateOpClassStmt CreateOpFamilyStmt AlterOpFamilyStmt CreatePLangStmt CreateSchemaStmt CreateSeqStmt CreateStmt CreateTableSpaceStmt CreateFdwStmt CreateForeignServerStmt CreateForeignTableStmt CreateAssertStmt CreateTrigStmt CreateUserStmt CreateUserMappingStmt CreateRoleStmt CreatedbStmt DeclareCursorStmt DefineStmt DeleteStmt DiscardStmt DoStmt DropGroupStmt DropOpClassStmt DropOpFamilyStmt DropPLangStmt DropStmt DropAssertStmt DropTrigStmt DropRuleStmt DropCastStmt DropRoleStmt DropUserStmt DropdbStmt DropTableSpaceStmt DropFdwStmt DropForeignServerStmt DropUserMappingStmt ExplainStmt FetchStmt GrantStmt GrantRoleStmt IndexStmt InsertStmt ListenStmt LoadStmt LockStmt NotifyStmt ExplainableStmt PreparableStmt CreateFunctionStmt AlterFunctionStmt ReindexStmt RemoveAggrStmt RemoveFuncStmt RemoveOperStmt RenameStmt RevokeStmt RevokeRoleStmt RuleActionStmt RuleActionStmtOrEmpty RuleStmt SecLabelStmt SelectStmt TransactionStmt TruncateStmt UnlistenStmt UpdateStmt VacuumStmt VariableResetStmt VariableSetStmt VariableShowStmt ViewStmt CheckPointStmt CreateConversionStmt DeallocateStmt PrepareStmt ExecuteStmt DropOwnedStmt ReassignOwnedStmt AlterTSConfigurationStmt AlterTSDictionaryStmt %type<node >select_no_parens select_with_parens select_clause simple_select values_clause %type<node >alter_column_default opclass_item opclass_drop alter_using %type<ival >add_drop opt_asc_desc opt_nulls_order %type<node >alter_table_cmd alter_type_cmd opt_collate_clause %type<list >alter_table_cmds alter_type_cmds %type<dbehavior >opt_drop_behavior %type<list >createdb_opt_list alterdb_opt_list copy_opt_list transaction_mode_list create_extension_opt_list alter_extension_opt_list %type<defelt >createdb_opt_item alterdb_opt_item copy_opt_item transaction_mode_item create_extension_opt_item alter_extension_opt_item %type<ival >opt_lock lock_type cast_context %type<ival >vacuum_option_list vacuum_option_elem %type<boolean >opt_force opt_or_replace opt_grant_grant_option opt_grant_admin_option opt_nowait opt_if_exists opt_with_data %type<list >OptRoleList AlterOptRoleList %type<defelt >CreateOptRoleElem AlterOptRoleElem %type<str >opt_type %type<str >foreign_server_version opt_foreign_server_version %type<str >auth_ident %type<str >opt_in_database %type<str >OptSchemaName %type<list >OptSchemaEltList %type<boolean >TriggerForSpec TriggerForType %type<ival >TriggerActionTime %type<list >TriggerEvents TriggerOneEvent %type<value >TriggerFuncArg %type<node >TriggerWhen %type<str >copy_file_name database_name access_method_clause access_method attr_name name cursor_name file_name index_name opt_index_name cluster_index_specification %type<list >func_name handler_name qual_Op qual_all_Op subquery_Op opt_class opt_inline_handler opt_validator validator_clause opt_collate %type<range >qualified_name OptConstrFromTable %type<str >all_Op MathOp %type<str >iso_level opt_encoding %type<node >grantee %type<list >grantee_list %type<accesspriv >privilege %type<list >privileges privilege_list %type<privtarget >privilege_target %type<funwithargs >function_with_argtypes %type<list >function_with_argtypes_list %type<ival >defacl_privilege_target %type<defelt >DefACLOption %type<list >DefACLOptionList %type<list >stmtblock stmtmulti OptTableElementList TableElementList OptInherit definition OptTypedTableElementList TypedTableElementList OptForeignTableElementList ForeignTableElementList reloptions opt_reloptions OptWith opt_distinct opt_definition func_args func_args_list func_args_with_defaults func_args_with_defaults_list func_as createfunc_opt_list alterfunc_opt_list aggr_args old_aggr_definition old_aggr_list oper_argtypes RuleActionList RuleActionMulti opt_column_list columnList opt_name_list sort_clause opt_sort_clause sortby_list index_params name_list from_clause from_list opt_array_bounds qualified_name_list any_name any_name_list any_operator expr_list attrs target_list insert_column_list set_target_list set_clause_list set_clause multiple_set_clause ctext_expr_list ctext_row def_list indirection opt_indirection reloption_list group_clause TriggerFuncArgs select_limit opt_select_limit opclass_item_list opclass_drop_list opclass_purpose opt_opfamily transaction_mode_list_or_empty OptTableFuncElementList TableFuncElementList opt_type_modifiers prep_type_clause execute_param_clause using_clause returning_clause opt_enum_val_list enum_val_list table_func_column_list create_generic_options alter_generic_options relation_expr_list dostmt_opt_list %type<list >opt_fdw_options fdw_options %type<defelt >fdw_option %type<range >OptTempTableName %type<into >into_clause create_as_target %type<defelt >createfunc_opt_item common_func_opt_item dostmt_opt_item %type<fun_param >func_arg func_arg_with_default table_func_column %type<fun_param_mode >arg_class %type<typnam >func_return func_type %type<boolean >opt_trusted opt_restart_seqs %type<ival >OptTemp %type<oncommit >OnCommitOption %type<node >for_locking_item %type<list >for_locking_clause opt_for_locking_clause for_locking_items %type<list >locked_rels_list %type<boolean >opt_all %type<node >join_outer join_qual %type<jtype >join_type %type<list >extract_list overlay_list position_list %type<list >substr_list trim_list %type<list >opt_interval interval_second %type<node >overlay_placing substr_from substr_for %type<boolean >opt_instead %type<boolean >opt_unique opt_concurrently opt_verbose opt_full %type<boolean >opt_freeze opt_default opt_recheck %type<defelt >opt_binary opt_oids copy_delimiter %type<boolean >copy_from %type<ival >opt_column event cursor_options opt_hold opt_set_data %type<objtype >reindex_type drop_type comment_type security_label_type %type<node >fetch_args limit_clause select_limit_value offset_clause select_offset_value select_offset_value2 opt_select_fetch_first_value %type<ival >row_or_rows first_or_next %type<list >OptSeqOptList SeqOptList %type<defelt >SeqOptElem %type<istmt >insert_rest %type<vsetstmt >set_rest SetResetClause %type<node >TableElement TypedTableElement ConstraintElem TableFuncElement ForeignTableElement %type<node >columnDef columnOptions %type<defelt >def_elem reloption_elem old_aggr_elem %type<node >def_arg columnElem where_clause where_or_current_clause a_expr b_expr c_expr func_expr AexprConst indirection_el columnref in_expr having_clause func_table array_expr ExclusionWhereClause %type<list >ExclusionConstraintList ExclusionConstraintElem %type<list >func_arg_list %type<node >func_arg_expr %type<list >row type_list array_expr_list %type<node >case_expr case_arg when_clause case_default %type<list >when_clause_list %type<ival >sub_type %type<list >OptCreateAs CreateAsList %type<node >CreateAsElement ctext_expr %type<value >NumericOnly %type<list >NumericOnly_list %type<alias >alias_clause %type<sortby >sortby %type<ielem >index_elem %type<node >table_ref %type<jexpr >joined_table %type<range >relation_expr %type<range >relation_expr_opt_alias %type<target >target_el single_set_clause set_target insert_column_item %type<str >generic_option_name %type<node >generic_option_arg %type<defelt >generic_option_elem alter_generic_option_elem %type<list >generic_option_list alter_generic_option_list %type<str >explain_option_name %type<node >explain_option_arg %type<defelt >explain_option_elem %type<list >explain_option_list %type<node >copy_generic_opt_arg copy_generic_opt_arg_list_item %type<defelt >copy_generic_opt_elem %type<list >copy_generic_opt_list copy_generic_opt_arg_list %type<list >copy_options %type<typnam >Typename SimpleTypename ConstTypename GenericType Numeric opt_float Character ConstCharacter CharacterWithLength CharacterWithoutLength ConstDatetime ConstInterval Bit ConstBit BitWithLength BitWithoutLength %type<str >character %type<str >extract_arg %type<str >opt_charset %type<boolean >opt_varying opt_timezone %type<ival >Iconst SignedIconst %type<str >Sconst comment_text notify_payload %type<str >RoleId opt_granted_by opt_boolean_or_string ColId_or_Sconst %type<list >var_list %type<str >ColId ColLabel var_name type_function_name param_name %type<node >var_value zone_value %type<keyword >unreserved_keyword type_func_name_keyword %type<keyword >col_name_keyword reserved_keyword %type<node >TableConstraint TableLikeClause %type<ival >TableLikeOptionList TableLikeOption %type<list >ColQualList %type<node >ColConstraint ColConstraintElem ConstraintAttr %type<ival >key_actions key_delete key_match key_update key_action %type<ival >ConstraintAttributeSpec ConstraintAttributeElem %type<str >ExistingIndex %type<list >constraints_set_list %type<boolean >constraints_set_mode %type<str >OptTableSpace OptConsTableSpace OptTableSpaceOwner %type<list >opt_check_option %type<str >opt_provider security_label %type<target >xml_attribute_el %type<list >xml_attribute_list xml_attributes %type<node >xml_root_version opt_xml_root_standalone %type<node >xmlexists_argument %type<ival >document_or_content %type<boolean >xml_whitespace_option %type<node >common_table_expr %type<with >with_clause opt_with_clause %type<list >cte_list %type<list >window_clause window_definition_list opt_partition_clause %type<windef >window_definition over_clause window_specification opt_frame_clause frame_extent frame_bound %type<str >opt_existing_window_name 
+%token <str >IDENT FCONST SCONST BCONST XCONST Op 
+%token <ival >ICONST PARAM 
+%token TYPECAST DOT_DOT COLON_EQUALS 
+%token <keyword >ABORT_P ABSOLUTE_P ACCESS ACTION ADD_P ADMIN AFTER AGGREGATE ALL ALSO ALTER ALWAYS ANALYSE ANALYZE AND ANY ARRAY AS ASC ASSERTION ASSIGNMENT ASYMMETRIC AT ATTRIBUTE AUTHORIZATION BACKWARD BEFORE BEGIN_P BETWEEN BIGINT BINARY BIT BOOLEAN_P BOTH BY CACHE CALLED CASCADE CASCADED CASE CAST CATALOG_P CHAIN CHAR_P CHARACTER CHARACTERISTICS CHECK CHECKPOINT CLASS CLOSE CLUSTER COALESCE COLLATE COLLATION COLUMN COMMENT COMMENTS COMMIT COMMITTED CONCURRENTLY CONFIGURATION CONNECTION CONSTRAINT CONSTRAINTS CONTENT_P CONTINUE_P CONVERSION_P COPY COST CREATE CROSS CSV CURRENT_P CURRENT_CATALOG CURRENT_DATE CURRENT_ROLE CURRENT_SCHEMA CURRENT_TIME CURRENT_TIMESTAMP CURRENT_USER CURSOR CYCLE DATA_P DATABASE DAY_P DEALLOCATE DEC DECIMAL_P DECLARE DEFAULT DEFAULTS DEFERRABLE DEFERRED DEFINER DELETE_P DELIMITER DELIMITERS DESC DICTIONARY DISABLE_P DISCARD DISTINCT DO DOCUMENT_P DOMAIN_P DOUBLE_P DROP EACH ELSE ENABLE_P ENCODING ENCRYPTED END_P ENUM_P ESCAPE EXCEPT EXCLUDE EXCLUDING EXCLUSIVE EXECUTE EXISTS EXPLAIN EXTENSION EXTERNAL EXTRACT FALSE_P FAMILY FETCH FIRST_P FLOAT_P FOLLOWING FOR FORCE FOREIGN FORWARD FREEZE FROM FULL FUNCTION FUNCTIONS GLOBAL GRANT GRANTED GREATEST GROUP_P HANDLER HAVING HEADER_P HOLD HOUR_P IDENTITY_P IF_P ILIKE IMMEDIATE IMMUTABLE IMPLICIT_P IN_P INCLUDING INCREMENT INDEX INDEXES INHERIT INHERITS INITIALLY INLINE_P INNER_P INOUT INPUT_P INSENSITIVE INSERT INSTEAD INT_P INTEGER INTERSECT INTERVAL INTO INVOKER IS ISNULL ISOLATION JOIN KEY LABEL LANGUAGE LARGE_P LAST_P LC_COLLATE_P LC_CTYPE_P LEADING LEAST LEFT LEVEL LIKE LIMIT LISTEN LOAD LOCAL LOCALTIME LOCALTIMESTAMP LOCATION LOCK_P MAPPING MATCH MAXVALUE MINUTE_P MINVALUE MODE MONTH_P MOVE NAME_P NAMES NATIONAL NATURAL NCHAR NEXT NO NONE NOT NOTHING NOTIFY NOTNULL NOWAIT NULL_P NULLIF NULLS_P NUMERIC OBJECT_P OF OFF OFFSET OIDS ON ONLY OPERATOR OPTION OPTIONS OR ORDER OUT_P OUTER_P OVER OVERLAPS OVERLAY OWNED OWNER PARSER PARTIAL PARTITION PASSING PASSWORD PLACING PLANS POSITION PRECEDING PRECISION PRESERVE PREPARE PREPARED PRIMARY PRIOR PRIVILEGES PROCEDURAL PROCEDURE QUOTE RANGE READ REAL REASSIGN RECHECK RECURSIVE REF REFERENCES REINDEX RELATIVE_P RELEASE RENAME REPEATABLE REPLACE REPLICA RESET RESTART RESTRICT RETURNING RETURNS REVOKE RIGHT ROLE ROLLBACK ROW ROWS RULE SAVEPOINT SCHEMA SCROLL SEARCH SECOND_P SECURITY SELECT SEQUENCE SEQUENCES SERIALIZABLE SERVER SESSION SESSION_USER SET SETOF SHARE SHOW SIMILAR SIMPLE SMALLINT SOME STABLE STANDALONE_P START STATEMENT STATISTICS STDIN STDOUT STORAGE STRICT_P STRIP_P SUBSTRING SYMMETRIC SYSID SYSTEM_P TABLE TABLES TABLESPACE TEMP TEMPLATE TEMPORARY TEXT_P THEN TIME TIMESTAMP TO TRAILING TRANSACTION TREAT TRIGGER TRIM TRUE_P TRUNCATE TRUSTED TYPE_P UNBOUNDED UNCOMMITTED UNENCRYPTED UNION UNIQUE UNKNOWN UNLISTEN UNLOGGED UNTIL UPDATE USER USING VACUUM VALID VALIDATE VALIDATOR VALUE_P VALUES VARCHAR VARIADIC VARYING VERBOSE VERSION_P VIEW VOLATILE WHEN WHERE WHITESPACE_P WINDOW WITH WITHOUT WORK WRAPPER WRITE XML_P XMLATTRIBUTES XMLCONCAT XMLELEMENT XMLEXISTS XMLFOREST XMLPARSE XMLPI XMLROOT XMLSERIALIZE YEAR_P YES_P ZONE 
+%token NULLS_FIRST NULLS_LAST WITH_TIME 
+%nonassoc SET 
+%left UNION EXCEPT 
+%left INTERSECT 
+%left OR 
+%left AND 
+%right NOT 
+%right '=' 
+%nonassoc '<' '>' 
+%nonassoc LIKE ILIKE SIMILAR 
+%nonassoc ESCAPE 
+%nonassoc OVERLAPS 
+%nonassoc BETWEEN 
+%nonassoc IN_P 
+%left POSTFIXOP 
+%nonassoc UNBOUNDED 
+%nonassoc IDENT NULL_P PARTITION RANGE ROWS PRECEDING FOLLOWING 
+%left Op OPERATOR 
+%nonassoc NOTNULL 
+%nonassoc ISNULL 
+%nonassoc IS 
+%left '+' '-' 
+%left '*' '/' '%' 
+%left '^' 
+%left AT 
+%left COLLATE 
+%right UMINUS 
+%left '[' ']' 
+%left '(' ')' 
+%left TYPECAST 
+%left '.' 
+%left JOIN CROSS LEFT FULL RIGHT INNER_P NATURAL 
+%right PRESERVE STRIP_P 
+
+%%
+
+stmtblock:
+      stmtmulti 
+;
+stmtmulti:
+      stmtmulti ';' stmt
+    | stmt 
+;
+stmt:
+      AlterDatabaseStmt
+    | AlterDatabaseSetStmt
+	 | AlterDomainStmt
+    | AlterFunctionStmt
+    | AlterSeqStmt
+    | AlterTableStmt
+    | AlterRoleSetStmt
+    | AlterRoleStmt
+    | AlterUserSetStmt
+    | AlterUserStmt
+    | AnalyzeStmt
+    | CheckPointStmt
+    | ClosePortalStmt
+    | ConstraintsSetStmt
+    | CreateAsStmt
+    | CreateAssertStmt
+    | CreateCastStmt
+    | CreateConversionStmt
+    | CreateDomainStmt
+    | CreateFunctionStmt
+    | CreateGroupStmt
+    | CreateSchemaStmt
+    | CreateSeqStmt
+    | CreateStmt
+    | CreateTableSpaceStmt
+    | CreateTrigStmt
+    | CreateRoleStmt
+    | CreateUserStmt
+    | CreatedbStmt
+    | DeallocateStmt
+    | DeclareCursorStmt
+    | DefineStmt
+    | DeleteStmt
+    | DiscardStmt
+    | DoStmt
+    | DropAssertStmt
+    | DropCastStmt
+    | DropGroupStmt
+    | DropStmt
+    | DropTableSpaceStmt
+    | DropTrigStmt
+    | DropRoleStmt
+    | DropUserStmt
+    | DropdbStmt
+    | ExecuteStmt
+    | ExplainStmt
+    | FetchStmt
+    | GrantStmt
+    | GrantRoleStmt
+    | IndexStmt
+    | InsertStmt
+    | LoadStmt
+    | LockStmt
+    | PrepareStmt
+    | RemoveAggrStmt
+    | RemoveFuncStmt
+    | RenameStmt
+    | RevokeStmt
+    | RevokeRoleStmt
+    | SelectStmt
+    | TransactionStmt
+    | TruncateStmt
+    | UpdateStmt
+    | VariableSetStmt
+    | VariableShowStmt
+    | ViewStmt
+    | /* empty */
+;
+CreateRoleStmt:
+      CREATE ROLE RoleId opt_with OptRoleList 
+;
+opt_with:
+      WITH
+    | /* empty */
+;
+OptRoleList:
+      OptRoleList CreateOptRoleElem
+    | /* empty */
+;
+AlterOptRoleList:
+      AlterOptRoleList AlterOptRoleElem
+    | /* empty */
+;
+AlterOptRoleElem:
+      PASSWORD Sconst
+    | PASSWORD NULL_P
+    | ENCRYPTED PASSWORD Sconst
+    | UNENCRYPTED PASSWORD Sconst
+    | INHERIT
+    | CONNECTION LIMIT SignedIconst
+    | VALID UNTIL Sconst
+    | USER name_list
+    | IDENT 
+;
+CreateOptRoleElem:
+      AlterOptRoleElem
+    | SYSID Iconst
+    | ADMIN name_list
+    | ROLE name_list
+    | IN_P ROLE name_list
+    | IN_P GROUP_P name_list 
+;
+CreateUserStmt:
+      CREATE USER RoleId opt_with OptRoleList 
+;
+AlterRoleStmt:
+      ALTER ROLE RoleId opt_with AlterOptRoleList 
+;
+opt_in_database:
+    | IN_P DATABASE database_name 
+;
+AlterRoleSetStmt:
+      ALTER ROLE RoleId opt_in_database SetResetClause 
+;
+AlterUserStmt:
+      ALTER USER RoleId opt_with AlterOptRoleList 
+;
+AlterUserSetStmt:
+      ALTER USER RoleId SetResetClause 
+;
+DropRoleStmt:
+      DROP ROLE name_list
+    | DROP ROLE IF_P EXISTS name_list 
+;
+DropUserStmt:
+      DROP USER name_list
+    | DROP USER IF_P EXISTS name_list 
+;
+add_drop:
+      ADD_P
+    | DROP 
+;
+DropGroupStmt:
+      DROP GROUP_P name_list
+    | DROP GROUP_P IF_P EXISTS name_list 
+;
+CreateSchemaStmt:
+      CREATE SCHEMA OptSchemaName AUTHORIZATION RoleId OptSchemaEltList
+    | CREATE SCHEMA ColId OptSchemaEltList 
+;
+OptSchemaName:
+      ColId
+    | /* empty */
+;
+OptSchemaEltList:
+      OptSchemaEltList schema_stmt
+    | /* empty */
+;
+schema_stmt:
+      CreateStmt
+    | IndexStmt
+    | CreateSeqStmt
+    | CreateTrigStmt
+    | GrantStmt
+    | ViewStmt 
+;
+VariableSetStmt:
+      SET set_rest
+    | SET LOCAL set_rest
+    | SET SESSION set_rest 
+;
+set_rest:
+      var_name TO var_list
+    | var_name '=' var_list
+    | var_name TO DEFAULT
+    | var_name '=' DEFAULT
+    | var_name FROM CURRENT_P
+    | TIME ZONE zone_value
+    | TRANSACTION transaction_mode_list
+    | SESSION CHARACTERISTICS AS TRANSACTION transaction_mode_list
+    | CATALOG_P Sconst
+    | SCHEMA Sconst
+    | NAMES opt_encoding
+    | ROLE ColId_or_Sconst
+    | SESSION AUTHORIZATION ColId_or_Sconst
+    | SESSION AUTHORIZATION DEFAULT
+    | XML_P OPTION document_or_content 
+;
+var_name:
+      ColId
+    | var_name '.' ColId 
+;
+var_list:
+      var_value
+    | var_list ',' var_value 
+;
+var_value:
+      opt_boolean_or_string
+    | NumericOnly 
+;
+iso_level:
+      READ UNCOMMITTED
+    | READ COMMITTED
+    | REPEATABLE READ
+    | SERIALIZABLE 
+;
+opt_boolean_or_string:
+      TRUE_P
+    | FALSE_P
+    | ON
+    | ColId_or_Sconst 
+;
+zone_value:
+      Sconst
+    | IDENT
+    | ConstInterval Sconst opt_interval
+    | ConstInterval '(' Iconst ')' Sconst opt_interval
+    | NumericOnly
+    | DEFAULT
+    | LOCAL 
+;
+opt_encoding:
+      Sconst
+    | DEFAULT
+    | /* empty */
+;
+ColId_or_Sconst:
+      ColId
+    | Sconst 
+;
+SetResetClause:
+      SET set_rest
+;
+ConstraintsSetStmt:
+      SET CONSTRAINTS constraints_set_list constraints_set_mode 
+;
+constraints_set_list:
+      ALL
+    | qualified_name_list 
+;
+constraints_set_mode:
+      DEFERRED
+    | IMMEDIATE 
+;
+CheckPointStmt:
+      CHECKPOINT 
+;
+DiscardStmt:
+      DISCARD ALL
+    | DISCARD TEMP
+    | DISCARD TEMPORARY
+    | DISCARD PLANS 
+;
+AlterTableStmt:
+      ALTER TABLE relation_expr alter_table_cmds
+    | ALTER INDEX qualified_name alter_table_cmds
+    | ALTER SEQUENCE qualified_name alter_table_cmds
+    | ALTER VIEW qualified_name alter_table_cmds 
+;
+alter_table_cmds:
+      alter_table_cmd
+    | alter_table_cmds ',' alter_table_cmd 
+;
+alter_table_cmd:
+      ADD_P columnDef
+    | ADD_P COLUMN columnDef
+    | ALTER opt_column ColId alter_column_default
+    | ALTER opt_column ColId DROP NOT NULL_P
+    | ALTER opt_column ColId SET NOT NULL_P
+    | ALTER opt_column ColId SET STATISTICS SignedIconst
+    | ALTER opt_column ColId SET reloptions
+    | ALTER opt_column ColId RESET reloptions
+    | ALTER opt_column ColId SET STORAGE ColId
+    | DROP opt_column IF_P EXISTS ColId opt_drop_behavior
+    | DROP opt_column ColId opt_drop_behavior
+    | ALTER opt_column ColId opt_set_data TYPE_P Typename opt_collate_clause alter_using
+    | ADD_P TableConstraint
+    | VALIDATE CONSTRAINT name
+    | DROP CONSTRAINT IF_P EXISTS name opt_drop_behavior
+    | DROP CONSTRAINT name opt_drop_behavior
+    | SET WITH OIDS
+    | SET WITHOUT OIDS
+    | CLUSTER ON name
+    | SET WITHOUT CLUSTER
+    | ENABLE_P TRIGGER name
+    | ENABLE_P ALWAYS TRIGGER name
+    | ENABLE_P REPLICA TRIGGER name
+    | ENABLE_P TRIGGER ALL
+    | ENABLE_P TRIGGER USER
+    | DISABLE_P TRIGGER name
+    | DISABLE_P TRIGGER ALL
+    | DISABLE_P TRIGGER USER
+    | ENABLE_P RULE name
+    | ENABLE_P ALWAYS RULE name
+    | ENABLE_P REPLICA RULE name
+    | DISABLE_P RULE name
+    | INHERIT qualified_name
+    | NO INHERIT qualified_name
+    | OF any_name
+    | NOT OF
+    | OWNER TO RoleId
+    | SET TABLESPACE name
+    | SET reloptions
+    | RESET reloptions
+    | alter_generic_options 
+;
+alter_column_default:
+      SET DEFAULT a_expr
+    | DROP DEFAULT 
+;
+opt_drop_behavior:
+      CASCADE
+    | RESTRICT
+    | /* empty */
+;
+opt_collate_clause:
+      COLLATE any_name
+    | /* empty */
+;
+alter_using:
+      USING a_expr
+    | /* empty */
+;
+reloptions:
+      '(' reloption_list ')' 
+;
+opt_reloptions:
+      WITH reloptions
+    | /* empty */
+;
+reloption_list:
+      reloption_elem
+    | reloption_list ',' reloption_elem 
+;
+reloption_elem:
+      ColLabel '=' def_arg
+    | ColLabel
+    | ColLabel '.' ColLabel '=' def_arg
+    | ColLabel '.' ColLabel 
+;
+ClosePortalStmt:
+      CLOSE cursor_name
+    | CLOSE ALL 
+;
+CreateStmt:
+      CREATE OptTemp TABLE qualified_name '(' OptTableElementList ')' OptInherit OptWith OnCommitOption OptTableSpace
+    | CREATE OptTemp TABLE IF_P NOT EXISTS qualified_name '(' OptTableElementList ')' OptInherit OptWith OnCommitOption OptTableSpace
+    | CREATE OptTemp TABLE qualified_name OF any_name OptTypedTableElementList OptWith OnCommitOption OptTableSpace
+    | CREATE OptTemp TABLE IF_P NOT EXISTS qualified_name OF any_name OptTypedTableElementList OptWith OnCommitOption OptTableSpace 
+;
+OptTemp:
+      TEMPORARY
+    | TEMP
+    | LOCAL TEMPORARY
+    | LOCAL TEMP
+    | GLOBAL TEMPORARY
+    | GLOBAL TEMP
+    | UNLOGGED
+    | /* empty */
+;
+OptTableElementList:
+      TableElementList
+    | /* empty */
+;
+OptTypedTableElementList:
+      '(' TypedTableElementList ')'
+    | /* empty */
+;
+TableElementList:
+      TableElement
+    | TableElementList ',' TableElement 
+;
+TypedTableElementList:
+      TypedTableElement
+    | TypedTableElementList ',' TypedTableElement 
+;
+TableElement:
+      columnDef
+    | TableLikeClause
+    | TableConstraint 
+;
+TypedTableElement:
+      columnOptions
+    | TableConstraint 
+;
+columnDef:
+      ColId Typename ColQualList 
+;
+columnOptions:
+      ColId WITH OPTIONS ColQualList 
+;
+ColQualList:
+      ColQualList ColConstraint
+    | /* empty */
+;
+ColConstraint:
+      CONSTRAINT name ColConstraintElem
+    | ColConstraintElem
+    | ConstraintAttr
+    | COLLATE any_name 
+;
+ColConstraintElem:
+      NOT NULL_P
+    | NULL_P
+    | UNIQUE opt_definition OptConsTableSpace
+    | PRIMARY KEY opt_definition OptConsTableSpace
+    | CHECK '(' a_expr ')'
+    | DEFAULT b_expr
+    | REFERENCES qualified_name opt_column_list key_match key_actions 
+;
+ConstraintAttr:
+      DEFERRABLE
+    | NOT DEFERRABLE
+    | INITIALLY DEFERRED
+    | INITIALLY IMMEDIATE 
+;
+TableLikeClause:
+      LIKE qualified_name TableLikeOptionList 
+;
+TableLikeOptionList:
+      TableLikeOptionList INCLUDING TableLikeOption
+    | TableLikeOptionList EXCLUDING TableLikeOption
+    | /* empty */
+;
+TableLikeOption:
+      DEFAULTS
+    | CONSTRAINTS
+    | INDEXES
+    | STORAGE
+    | COMMENTS
+    | ALL 
+;
+TableConstraint:
+      CONSTRAINT name ConstraintElem
+    | ConstraintElem 
+;
+ConstraintElem:
+      CHECK '(' a_expr ')' ConstraintAttributeSpec
+    | UNIQUE '(' columnList ')' opt_definition OptConsTableSpace ConstraintAttributeSpec
+    | UNIQUE ExistingIndex ConstraintAttributeSpec
+    | PRIMARY KEY '(' columnList ')' opt_definition OptConsTableSpace ConstraintAttributeSpec
+    | PRIMARY KEY ExistingIndex ConstraintAttributeSpec
+    | EXCLUDE access_method_clause '(' ExclusionConstraintList ')' opt_definition OptConsTableSpace ExclusionWhereClause ConstraintAttributeSpec
+    | FOREIGN KEY '(' columnList ')' REFERENCES qualified_name opt_column_list key_match key_actions ConstraintAttributeSpec 
+;
+opt_column_list:
+      '(' columnList ')'
+    | /* empty */
+;
+columnList:
+      columnElem
+    | columnList ',' columnElem 
+;
+columnElem:
+      ColId 
+;
+key_match:
+      MATCH FULL
+    | MATCH PARTIAL
+    | MATCH SIMPLE
+    | /* empty */
+;
+ExclusionConstraintList:
+      ExclusionConstraintElem
+    | ExclusionConstraintList ',' ExclusionConstraintElem 
+;
+ExclusionConstraintElem:
+      index_elem WITH any_operator
+    | index_elem WITH OPERATOR '(' any_operator ')' 
+;
+ExclusionWhereClause:
+      WHERE '(' a_expr ')'
+    | /* empty */
+;
+key_actions:
+      key_update
+    | key_delete
+    | key_update key_delete
+    | key_delete key_update
+    | /* empty */
+;
+key_update:
+      ON UPDATE key_action 
+;
+key_delete:
+      ON DELETE_P key_action 
+;
+key_action:
+      NO ACTION
+    | RESTRICT
+    | CASCADE
+    | SET NULL_P
+    | SET DEFAULT 
+;
+OptInherit:
+      INHERITS '(' qualified_name_list ')'
+    | /* empty */
+;
+OptWith:
+      WITH reloptions
+    | WITH OIDS
+    | WITHOUT OIDS
+    | /* empty */
+;
+OnCommitOption:
+      ON COMMIT DROP
+    | ON COMMIT DELETE_P ROWS
+    | ON COMMIT PRESERVE ROWS
+    | /* empty */
+;
+OptTableSpace:
+      TABLESPACE name
+    | /* empty */
+;
+OptConsTableSpace:
+      USING INDEX TABLESPACE name
+    | /* empty */
+;
+ExistingIndex:
+      USING INDEX index_name 
+;
+CreateAsStmt:
+      CREATE OptTemp TABLE create_as_target AS SelectStmt opt_with_data 
+;
+create_as_target:
+      qualified_name OptCreateAs OptWith OnCommitOption OptTableSpace 
+;
+OptCreateAs:
+      '(' CreateAsList ')'
+    | /* empty */
+;
+CreateAsList:
+      CreateAsElement
+    | CreateAsList ',' CreateAsElement 
+;
+CreateAsElement:
+      ColId 
+;
+opt_with_data:
+      WITH DATA_P
+    | WITH NO DATA_P
+    | /* empty */
+;
+CreateSeqStmt:
+      CREATE OptTemp SEQUENCE qualified_name OptSeqOptList 
+;
+AlterSeqStmt:
+      ALTER SEQUENCE qualified_name SeqOptList 
+;
+OptSeqOptList:
+      SeqOptList
+    | /* empty */
+;
+SeqOptList:
+      SeqOptElem
+    | SeqOptList SeqOptElem 
+;
+SeqOptElem:
+      CACHE NumericOnly
+    | CYCLE
+    | NO CYCLE
+    | INCREMENT opt_by NumericOnly
+    | MAXVALUE NumericOnly
+    | MINVALUE NumericOnly
+    | NO MAXVALUE
+    | NO MINVALUE
+    | OWNED BY any_name
+    | START opt_with NumericOnly
+    | RESTART
+    | RESTART opt_with NumericOnly 
+;
+opt_by:
+      BY
+    | /* empty */
+;
+NumericOnly:
+      FCONST
+    | '-' FCONST
+    | SignedIconst 
+;
+NumericOnly_list:
+      NumericOnly
+    | NumericOnly_list ',' NumericOnly 
+;
+handler_name:
+      name
+    | name attrs 
+;
+opt_inline_handler:
+      INLINE_P handler_name
+    | /* empty */
+;
+validator_clause:
+      VALIDATOR handler_name
+    | NO VALIDATOR 
+;
+opt_validator:
+      validator_clause
+    | /* empty */
+;
+CreateTableSpaceStmt:
+      CREATE TABLESPACE name OptTableSpaceOwner LOCATION Sconst 
+;
+OptTableSpaceOwner:
+      OWNER name
+    | /* empty */
+;
+DropTableSpaceStmt:
+      DROP TABLESPACE name
+    | DROP TABLESPACE IF_P EXISTS name 
+;
+create_generic_options:
+      OPTIONS '(' generic_option_list ')'
+    | /* empty */
+;
+generic_option_list:
+      generic_option_elem
+    | generic_option_list ',' generic_option_elem 
+;
+alter_generic_options:
+      OPTIONS '(' alter_generic_option_list ')' 
+;
+alter_generic_option_list:
+      alter_generic_option_elem
+    | alter_generic_option_list ',' alter_generic_option_elem 
+;
+alter_generic_option_elem:
+      generic_option_elem
+    | SET generic_option_elem
+    | ADD_P generic_option_elem
+    | DROP generic_option_name 
+;
+generic_option_elem:
+      generic_option_name generic_option_arg 
+;
+generic_option_name:
+      ColLabel 
+;
+generic_option_arg:
+      Sconst 
+;
+CreateForeignServerStmt:
+      CREATE SERVER name opt_type opt_foreign_server_version FOREIGN DATA_P WRAPPER name create_generic_options 
+;
+opt_type:
+      TYPE_P Sconst
+    | /* empty */
+;
+foreign_server_version:
+      VERSION_P Sconst
+    | VERSION_P NULL_P 
+;
+opt_foreign_server_version:
+      foreign_server_version
+    | /* empty */
+;
+DropForeignServerStmt:
+      DROP SERVER name opt_drop_behavior
+    | DROP SERVER IF_P EXISTS name opt_drop_behavior 
+;
+AlterForeignServerStmt:
+      ALTER SERVER name foreign_server_version alter_generic_options
+    | ALTER SERVER name foreign_server_version
+    | ALTER SERVER name alter_generic_options 
+;
+CreateForeignTableStmt:
+      CREATE FOREIGN TABLE qualified_name OptForeignTableElementList SERVER name create_generic_options
+    | CREATE FOREIGN TABLE IF_P NOT EXISTS qualified_name OptForeignTableElementList SERVER name create_generic_options 
+;
+OptForeignTableElementList:
+      '(' ForeignTableElementList ')'
+    | '(' ')' 
+;
+ForeignTableElementList:
+      ForeignTableElement
+    | ForeignTableElementList ',' ForeignTableElement 
+;
+ForeignTableElement:
+      columnDef 
+;
+AlterForeignTableStmt:
+      ALTER FOREIGN TABLE relation_expr alter_table_cmds 
+;
+CreateUserMappingStmt:
+      CREATE USER MAPPING FOR auth_ident SERVER name create_generic_options 
+;
+auth_ident:
+      CURRENT_USER
+    | USER
+    | RoleId 
+;
+DropUserMappingStmt:
+      DROP USER MAPPING FOR auth_ident SERVER name
+    | DROP USER MAPPING IF_P EXISTS FOR auth_ident SERVER name 
+;
+AlterUserMappingStmt:
+      ALTER USER MAPPING FOR auth_ident SERVER name alter_generic_options 
+;
+CreateTrigStmt:
+      CREATE TRIGGER name TriggerActionTime TriggerEvents ON qualified_name TriggerForSpec TriggerWhen EXECUTE PROCEDURE func_name '(' TriggerFuncArgs ')'
+    | CREATE CONSTRAINT TRIGGER name AFTER TriggerEvents ON qualified_name OptConstrFromTable ConstraintAttributeSpec FOR EACH ROW TriggerWhen EXECUTE PROCEDURE func_name '(' TriggerFuncArgs ')' 
+;
+TriggerActionTime:
+      BEFORE
+    | AFTER
+    | INSTEAD OF 
+;
+TriggerEvents:
+      TriggerOneEvent
+    | TriggerEvents OR TriggerOneEvent 
+;
+TriggerOneEvent:
+      INSERT
+    | DELETE_P
+    | UPDATE
+    | UPDATE OF columnList
+    | TRUNCATE 
+;
+TriggerForSpec:
+      FOR TriggerForOptEach TriggerForType
+    | /* empty */
+;
+TriggerForOptEach:
+      EACH
+    | /* empty */
+;
+TriggerForType:
+      ROW
+    | STATEMENT 
+;
+TriggerWhen:
+      WHEN '(' a_expr ')'
+    | /* empty */
+;
+TriggerFuncArgs:
+      TriggerFuncArg
+    | TriggerFuncArgs ',' TriggerFuncArg
+    | /* empty */
+;
+TriggerFuncArg:
+      Iconst
+    | FCONST
+    | Sconst
+    | ColLabel 
+;
+OptConstrFromTable:
+      FROM qualified_name
+    | /* empty */
+;
+ConstraintAttributeSpec:
+    | ConstraintAttributeSpec ConstraintAttributeElem 
+;
+ConstraintAttributeElem:
+      NOT DEFERRABLE
+    | DEFERRABLE
+    | INITIALLY IMMEDIATE
+    | INITIALLY DEFERRED
+    | NOT VALID 
+;
+DropTrigStmt:
+      DROP TRIGGER name ON qualified_name opt_drop_behavior
+    | DROP TRIGGER IF_P EXISTS name ON qualified_name opt_drop_behavior 
+;
+CreateAssertStmt:
+      CREATE ASSERTION name CHECK '(' a_expr ')' ConstraintAttributeSpec 
+;
+DropAssertStmt:
+      DROP ASSERTION name opt_drop_behavior 
+;
+definition:
+      '(' def_list ')' 
+;
+def_list:
+      def_elem
+    | def_list ',' def_elem 
+;
+def_elem:
+      ColLabel '=' def_arg
+    | ColLabel 
+;
+def_arg:
+      func_type
+    | reserved_keyword
+    | qual_all_Op
+    | NumericOnly
+    | Sconst 
+;
+aggr_args:
+      '(' type_list ')'
+    | '(' '*' ')' 
+;
+opt_default:
+      DEFAULT
+    | /* empty */
+;
+DropStmt:
+      DROP drop_type IF_P EXISTS any_name_list opt_drop_behavior
+    | DROP drop_type any_name_list opt_drop_behavior 
+;
+drop_type:
+      TABLE
+    | SEQUENCE
+    | VIEW
+    | INDEX
+    | FOREIGN TABLE
+    | TYPE_P
+    | DOMAIN_P
+    | COLLATION
+    | CONVERSION_P
+    | SCHEMA
+    | EXTENSION
+    | TEXT_P SEARCH PARSER
+    | TEXT_P SEARCH DICTIONARY
+    | TEXT_P SEARCH TEMPLATE
+    | TEXT_P SEARCH CONFIGURATION 
+;
+any_name_list:
+      any_name
+    | any_name_list ',' any_name 
+;
+any_name:
+      ColId
+    | ColId attrs 
+;
+attrs:
+      '.' attr_name
+    | attrs '.' attr_name 
+;
+TruncateStmt:
+      TRUNCATE opt_table relation_expr_list opt_restart_seqs opt_drop_behavior 
+;
+opt_restart_seqs:
+      CONTINUE_P IDENTITY_P
+    | RESTART IDENTITY_P
+    | /* empty */
+;
+FetchStmt:
+      FETCH fetch_args
+    | MOVE fetch_args 
+;
+fetch_args:
+      cursor_name
+    | from_in cursor_name
+    | NEXT opt_from_in cursor_name
+    | PRIOR opt_from_in cursor_name
+    | FIRST_P opt_from_in cursor_name
+    | LAST_P opt_from_in cursor_name
+    | ABSOLUTE_P SignedIconst opt_from_in cursor_name
+    | RELATIVE_P SignedIconst opt_from_in cursor_name
+    | SignedIconst opt_from_in cursor_name
+    | ALL opt_from_in cursor_name
+    | FORWARD opt_from_in cursor_name
+    | FORWARD SignedIconst opt_from_in cursor_name
+    | FORWARD ALL opt_from_in cursor_name
+    | BACKWARD opt_from_in cursor_name
+    | BACKWARD SignedIconst opt_from_in cursor_name
+    | BACKWARD ALL opt_from_in cursor_name 
+;
+from_in:
+      FROM
+    | IN_P 
+;
+opt_from_in:
+      from_in
+    | /* empty */
+;
+GrantStmt:
+      GRANT privileges ON privilege_target TO grantee_list opt_grant_grant_option 
+;
+RevokeStmt:
+      REVOKE privileges ON privilege_target FROM grantee_list opt_drop_behavior
+    | REVOKE GRANT OPTION FOR privileges ON privilege_target FROM grantee_list opt_drop_behavior 
+;
+privileges:
+      privilege_list
+    | ALL
+    | ALL PRIVILEGES
+    | ALL '(' columnList ')'
+    | ALL PRIVILEGES '(' columnList ')' 
+;
+privilege_list:
+      privilege
+    | privilege_list ',' privilege 
+;
+privilege:
+      SELECT opt_column_list
+    | REFERENCES opt_column_list
+    | CREATE opt_column_list
+    | ColId opt_column_list 
+;
+privilege_target:
+      qualified_name_list
+    | TABLE qualified_name_list
+    | SEQUENCE qualified_name_list
+    | FOREIGN DATA_P WRAPPER name_list
+    | FOREIGN SERVER name_list
+    | FUNCTION function_with_argtypes_list
+    | DATABASE name_list
+    | LANGUAGE name_list
+    | LARGE_P OBJECT_P NumericOnly_list
+    | SCHEMA name_list
+    | TABLESPACE name_list
+    | ALL TABLES IN_P SCHEMA name_list
+    | ALL SEQUENCES IN_P SCHEMA name_list
+    | ALL FUNCTIONS IN_P SCHEMA name_list 
+;
+grantee_list:
+      grantee
+    | grantee_list ',' grantee 
+;
+grantee:
+      RoleId
+    | GROUP_P RoleId 
+;
+opt_grant_grant_option:
+      WITH GRANT OPTION
+    | /* empty */
+;
+function_with_argtypes_list:
+      function_with_argtypes
+    | function_with_argtypes_list ',' function_with_argtypes 
+;
+function_with_argtypes:
+      func_name func_args 
+;
+GrantRoleStmt:
+      GRANT privilege_list TO name_list opt_grant_admin_option opt_granted_by 
+;
+RevokeRoleStmt:
+      REVOKE privilege_list FROM name_list opt_granted_by opt_drop_behavior
+    | REVOKE ADMIN OPTION FOR privilege_list FROM name_list opt_granted_by opt_drop_behavior 
+;
+opt_grant_admin_option:
+      WITH ADMIN OPTION
+    | /* empty */
+;
+opt_granted_by:
+      GRANTED BY RoleId
+    | /* empty */
+;
+AlterDefaultPrivilegesStmt:
+      ALTER DEFAULT PRIVILEGES DefACLOptionList DefACLAction 
+;
+DefACLOptionList:
+      DefACLOptionList DefACLOption
+    | /* empty */
+;
+DefACLOption:
+      IN_P SCHEMA name_list
+    | FOR ROLE name_list
+    | FOR USER name_list 
+;
+DefACLAction:
+      GRANT privileges ON defacl_privilege_target TO grantee_list opt_grant_grant_option
+    | REVOKE privileges ON defacl_privilege_target FROM grantee_list opt_drop_behavior
+    | REVOKE GRANT OPTION FOR privileges ON defacl_privilege_target FROM grantee_list opt_drop_behavior 
+;
+defacl_privilege_target:
+      TABLES
+    | FUNCTIONS
+    | SEQUENCES 
+;
+IndexStmt:
+      CREATE opt_unique INDEX opt_concurrently opt_index_name ON qualified_name access_method_clause '(' index_params ')' opt_reloptions OptTableSpace where_clause 
+;
+opt_unique:
+      UNIQUE
+    | /* empty */
+;
+opt_concurrently:
+      CONCURRENTLY
+    | /* empty */
+;
+opt_index_name:
+      index_name
+    | /* empty */
+;
+access_method_clause:
+      USING access_method
+    | /* empty */
+;
+index_params:
+      index_elem
+    | index_params ',' index_elem 
+;
+index_elem:
+      ColId opt_collate opt_class opt_asc_desc opt_nulls_order
+    | func_expr opt_collate opt_class opt_asc_desc opt_nulls_order
+    | '(' a_expr ')' opt_collate opt_class opt_asc_desc opt_nulls_order 
+;
+opt_collate:
+      COLLATE any_name
+    | /* empty */
+;
+opt_class:
+      any_name
+    | USING any_name
+    | /* empty */
+;
+opt_asc_desc:
+      ASC
+    | DESC
+    | /* empty */
+;
+opt_nulls_order:
+      NULLS_FIRST
+    | NULLS_LAST
+    | /* empty */
+;
+CreateFunctionStmt:
+      CREATE opt_or_replace FUNCTION func_name func_args_with_defaults RETURNS func_return createfunc_opt_list opt_definition
+    | CREATE opt_or_replace FUNCTION func_name func_args_with_defaults RETURNS TABLE '(' table_func_column_list ')' createfunc_opt_list opt_definition
+    | CREATE opt_or_replace FUNCTION func_name func_args_with_defaults createfunc_opt_list opt_definition 
+;
+opt_or_replace:
+      OR REPLACE
+    | /* empty */
+;
+func_args:
+      '(' func_args_list ')'
+    | '(' ')' 
+;
+func_args_list:
+      func_arg
+    | func_args_list ',' func_arg 
+;
+func_args_with_defaults:
+      '(' func_args_with_defaults_list ')'
+    | '(' ')' 
+;
+func_args_with_defaults_list:
+      func_arg_with_default
+    | func_args_with_defaults_list ',' func_arg_with_default 
+;
+func_arg:
+      arg_class param_name func_type
+    | param_name arg_class func_type
+    | param_name func_type
+    | arg_class func_type
+    | func_type 
+;
+arg_class:
+      IN_P
+    | OUT_P
+    | INOUT
+    | IN_P OUT_P
+    | VARIADIC 
+;
+param_name:
+      type_function_name 
+;
+func_return:
+      func_type 
+;
+func_type:
+      Typename
+    | type_function_name attrs '%' TYPE_P
+    | SETOF type_function_name attrs '%' TYPE_P 
+;
+func_arg_with_default:
+      func_arg
+    | func_arg DEFAULT a_expr
+    | func_arg '=' a_expr 
+;
+createfunc_opt_list:
+      createfunc_opt_item
+    | createfunc_opt_list createfunc_opt_item 
+;
+common_func_opt_item:
+      CALLED ON NULL_P INPUT_P
+    | RETURNS NULL_P ON NULL_P INPUT_P
+    | STRICT_P
+    | IMMUTABLE
+    | STABLE
+    | VOLATILE
+    | EXTERNAL SECURITY DEFINER
+    | EXTERNAL SECURITY INVOKER
+    | SECURITY DEFINER
+    | SECURITY INVOKER
+    | COST NumericOnly
+    | ROWS NumericOnly
+    | SetResetClause 
+;
+createfunc_opt_item:
+      AS func_as
+    | LANGUAGE ColId_or_Sconst
+    | WINDOW
+    | common_func_opt_item 
+;
+func_as:
+      Sconst
+    | Sconst ',' Sconst 
+;
+opt_definition:
+      WITH definition
+    | /* empty */
+;
+table_func_column:
+      param_name func_type 
+;
+table_func_column_list:
+      table_func_column
+    | table_func_column_list ',' table_func_column 
+;
+AlterFunctionStmt:
+      ALTER FUNCTION function_with_argtypes alterfunc_opt_list opt_restrict 
+;
+alterfunc_opt_list:
+      common_func_opt_item
+    | alterfunc_opt_list common_func_opt_item 
+;
+opt_restrict:
+      RESTRICT
+    | /* empty */
+;
+RemoveFuncStmt:
+      DROP FUNCTION func_name func_args opt_drop_behavior
+    | DROP FUNCTION IF_P EXISTS func_name func_args opt_drop_behavior 
+;
+RemoveAggrStmt:
+      DROP AGGREGATE func_name aggr_args opt_drop_behavior
+    | DROP AGGREGATE IF_P EXISTS func_name aggr_args opt_drop_behavior 
+;
+oper_argtypes:
+      '(' Typename ')'
+    | '(' Typename ',' Typename ')'
+    | '(' NONE ',' Typename ')'
+    | '(' Typename ',' NONE ')' 
+;
+any_operator:
+      all_Op
+    | ColId '.' any_operator 
+;
+DoStmt:
+      DO dostmt_opt_list 
+;
+dostmt_opt_list:
+      dostmt_opt_item
+    | dostmt_opt_list dostmt_opt_item 
+;
+dostmt_opt_item:
+      Sconst
+    | LANGUAGE ColId_or_Sconst 
+;
+CreateCastStmt:
+      CREATE CAST '(' Typename AS Typename ')' WITH FUNCTION function_with_argtypes cast_context
+    | CREATE CAST '(' Typename AS Typename ')' WITHOUT FUNCTION cast_context
+    | CREATE CAST '(' Typename AS Typename ')' WITH INOUT cast_context 
+;
+cast_context:
+      AS IMPLICIT_P
+    | AS ASSIGNMENT
+    | /* empty */
+;
+DropCastStmt:
+      DROP CAST opt_if_exists '(' Typename AS Typename ')' opt_drop_behavior 
+;
+opt_if_exists:
+      IF_P EXISTS
+    | /* empty */
+;
+RenameStmt:
+      ALTER AGGREGATE func_name aggr_args RENAME TO name
+    | ALTER COLLATION any_name RENAME TO name
+    | ALTER CONVERSION_P any_name RENAME TO name
+    | ALTER DATABASE database_name RENAME TO database_name
+    | ALTER FUNCTION function_with_argtypes RENAME TO name
+    | ALTER GROUP_P RoleId RENAME TO RoleId
+    | ALTER OPERATOR CLASS any_name USING access_method RENAME TO name
+    | ALTER OPERATOR FAMILY any_name USING access_method RENAME TO name
+    | ALTER SCHEMA name RENAME TO name
+    | ALTER TABLE relation_expr RENAME TO name
+    | ALTER SEQUENCE qualified_name RENAME TO name
+    | ALTER VIEW qualified_name RENAME TO name
+    | ALTER INDEX qualified_name RENAME TO name
+    | ALTER FOREIGN TABLE relation_expr RENAME TO name
+    | ALTER TABLE relation_expr RENAME opt_column name TO name
+    | ALTER FOREIGN TABLE relation_expr RENAME opt_column name TO name
+    | ALTER TRIGGER name ON qualified_name RENAME TO name
+    | ALTER ROLE RoleId RENAME TO RoleId
+    | ALTER USER RoleId RENAME TO RoleId
+    | ALTER TABLESPACE name RENAME TO name
+    | ALTER TABLESPACE name SET reloptions
+    | ALTER TABLESPACE name RESET reloptions
+    | ALTER TEXT_P SEARCH PARSER any_name RENAME TO name
+    | ALTER TEXT_P SEARCH DICTIONARY any_name RENAME TO name
+    | ALTER TEXT_P SEARCH TEMPLATE any_name RENAME TO name
+    | ALTER TEXT_P SEARCH CONFIGURATION any_name RENAME TO name
+    | ALTER TYPE_P any_name RENAME TO name
+    | ALTER TYPE_P any_name RENAME ATTRIBUTE name TO name opt_drop_behavior 
+;
+opt_column:
+      COLUMN
+    | /* empty */
+;
+opt_set_data:
+      SET DATA_P
+    | /* empty */
+;
+AlterObjectSchemaStmt:
+      ALTER AGGREGATE func_name aggr_args SET SCHEMA name
+    | ALTER COLLATION any_name SET SCHEMA name
+    | ALTER CONVERSION_P any_name SET SCHEMA name
+    | ALTER DOMAIN_P any_name SET SCHEMA name
+    | ALTER EXTENSION any_name SET SCHEMA name
+    | ALTER FUNCTION function_with_argtypes SET SCHEMA name
+    | ALTER OPERATOR any_operator oper_argtypes SET SCHEMA name
+    | ALTER OPERATOR CLASS any_name USING access_method SET SCHEMA name
+    | ALTER OPERATOR FAMILY any_name USING access_method SET SCHEMA name
+    | ALTER TABLE relation_expr SET SCHEMA name
+    | ALTER TEXT_P SEARCH PARSER any_name SET SCHEMA name
+    | ALTER TEXT_P SEARCH DICTIONARY any_name SET SCHEMA name
+    | ALTER TEXT_P SEARCH TEMPLATE any_name SET SCHEMA name
+    | ALTER TEXT_P SEARCH CONFIGURATION any_name SET SCHEMA name
+    | ALTER SEQUENCE qualified_name SET SCHEMA name
+    | ALTER VIEW qualified_name SET SCHEMA name
+    | ALTER FOREIGN TABLE relation_expr SET SCHEMA name
+    | ALTER TYPE_P any_name SET SCHEMA name 
+;
+AlterOwnerStmt:
+      ALTER AGGREGATE func_name aggr_args OWNER TO RoleId
+    | ALTER COLLATION any_name OWNER TO RoleId
+    | ALTER CONVERSION_P any_name OWNER TO RoleId
+    | ALTER DATABASE database_name OWNER TO RoleId
+    | ALTER DOMAIN_P any_name OWNER TO RoleId
+    | ALTER FUNCTION function_with_argtypes OWNER TO RoleId
+    | ALTER LARGE_P OBJECT_P NumericOnly OWNER TO RoleId
+    | ALTER OPERATOR any_operator oper_argtypes OWNER TO RoleId
+    | ALTER OPERATOR CLASS any_name USING access_method OWNER TO RoleId
+    | ALTER OPERATOR FAMILY any_name USING access_method OWNER TO RoleId
+    | ALTER SCHEMA name OWNER TO RoleId
+    | ALTER TYPE_P any_name OWNER TO RoleId
+    | ALTER TABLESPACE name OWNER TO RoleId
+    | ALTER TEXT_P SEARCH DICTIONARY any_name OWNER TO RoleId
+    | ALTER TEXT_P SEARCH CONFIGURATION any_name OWNER TO RoleId
+    | ALTER FOREIGN DATA_P WRAPPER name OWNER TO RoleId
+    | ALTER SERVER name OWNER TO RoleId 
+;
+TransactionStmt:
+      ABORT_P opt_transaction
+    | BEGIN_P opt_transaction transaction_mode_list_or_empty
+    | START TRANSACTION transaction_mode_list_or_empty
+    | COMMIT opt_transaction
+    | END_P opt_transaction
+    | ROLLBACK opt_transaction
+    | SAVEPOINT ColId
+    | RELEASE SAVEPOINT ColId
+    | RELEASE ColId
+    | ROLLBACK opt_transaction TO SAVEPOINT ColId
+    | ROLLBACK opt_transaction TO ColId
+    | PREPARE TRANSACTION Sconst
+    | COMMIT PREPARED Sconst
+    | ROLLBACK PREPARED Sconst 
+;
+opt_transaction:
+      WORK
+    | TRANSACTION
+    | /* empty */
+;
+transaction_mode_item:
+      ISOLATION LEVEL iso_level
+    | READ ONLY
+    | READ WRITE
+    | DEFERRABLE
+    | NOT DEFERRABLE 
+;
+transaction_mode_list:
+      transaction_mode_item
+    | transaction_mode_list ',' transaction_mode_item
+    | transaction_mode_list transaction_mode_item 
+;
+transaction_mode_list_or_empty:
+      transaction_mode_list
+    | /* empty */
+;
+ViewStmt:
+      CREATE OptTemp VIEW qualified_name opt_column_list AS SelectStmt opt_check_option
+    | CREATE OR REPLACE OptTemp VIEW qualified_name opt_column_list AS SelectStmt opt_check_option 
+;
+opt_check_option:
+      WITH CHECK OPTION
+    | WITH CASCADED CHECK OPTION
+    | WITH LOCAL CHECK OPTION
+    | /* empty */
+;
+LoadStmt:
+      LOAD file_name 
+;
+CreatedbStmt:
+      CREATE DATABASE database_name opt_with createdb_opt_list 
+;
+createdb_opt_list:
+      createdb_opt_list createdb_opt_item
+    | /* empty */
+;
+createdb_opt_item:
+      TABLESPACE opt_equal name
+    | TABLESPACE opt_equal DEFAULT
+    | LOCATION opt_equal Sconst
+    | LOCATION opt_equal DEFAULT
+    | TEMPLATE opt_equal name
+    | TEMPLATE opt_equal DEFAULT
+    | ENCODING opt_equal Sconst
+    | ENCODING opt_equal Iconst
+    | ENCODING opt_equal DEFAULT
+    | LC_COLLATE_P opt_equal Sconst
+    | LC_COLLATE_P opt_equal DEFAULT
+    | LC_CTYPE_P opt_equal Sconst
+    | LC_CTYPE_P opt_equal DEFAULT
+    | CONNECTION LIMIT opt_equal SignedIconst
+    | OWNER opt_equal name
+    | OWNER opt_equal DEFAULT 
+;
+opt_equal:
+      '='
+    | /* empty */
+;
+AlterDatabaseStmt:
+      ALTER DATABASE database_name opt_with alterdb_opt_list
+    | ALTER DATABASE database_name SET TABLESPACE name 
+;
+AlterDatabaseSetStmt:
+      ALTER DATABASE database_name SetResetClause 
+;
+alterdb_opt_list:
+      alterdb_opt_list alterdb_opt_item
+    | /* empty */
+;
+alterdb_opt_item:
+      CONNECTION LIMIT opt_equal SignedIconst 
+;
+DropdbStmt:
+      DROP DATABASE database_name
+    | DROP DATABASE IF_P EXISTS database_name 
+;
+CreateDomainStmt:
+      CREATE DOMAIN_P any_name opt_as Typename ColQualList 
+;
+AlterDomainStmt:
+      ALTER DOMAIN_P any_name alter_column_default
+    | ALTER DOMAIN_P any_name DROP NOT NULL_P
+    | ALTER DOMAIN_P any_name SET NOT NULL_P
+    | ALTER DOMAIN_P any_name ADD_P TableConstraint
+    | ALTER DOMAIN_P any_name DROP CONSTRAINT name opt_drop_behavior 
+;
+opt_as:
+      AS
+    | /* empty */
+;
+AlterTSDictionaryStmt:
+      ALTER TEXT_P SEARCH DICTIONARY any_name definition 
+;
+AlterTSConfigurationStmt:
+      ALTER TEXT_P SEARCH CONFIGURATION any_name ADD_P MAPPING FOR name_list WITH any_name_list
+    | ALTER TEXT_P SEARCH CONFIGURATION any_name ALTER MAPPING FOR name_list WITH any_name_list
+    | ALTER TEXT_P SEARCH CONFIGURATION any_name ALTER MAPPING REPLACE any_name WITH any_name
+    | ALTER TEXT_P SEARCH CONFIGURATION any_name ALTER MAPPING FOR name_list REPLACE any_name WITH any_name
+    | ALTER TEXT_P SEARCH CONFIGURATION any_name DROP MAPPING FOR name_list
+    | ALTER TEXT_P SEARCH CONFIGURATION any_name DROP MAPPING IF_P EXISTS FOR name_list 
+;
+CreateConversionStmt:
+      CREATE opt_default CONVERSION_P any_name FOR Sconst TO Sconst FROM any_name 
+;
+ClusterStmt:
+      CLUSTER opt_verbose qualified_name cluster_index_specification
+    | CLUSTER opt_verbose
+    | CLUSTER opt_verbose index_name ON qualified_name 
+;
+cluster_index_specification:
+      USING index_name
+    | /* empty */
+;
+AnalyzeStmt:
+      analyze_keyword opt_verbose
+    | analyze_keyword opt_verbose qualified_name opt_name_list 
+;
+analyze_keyword:
+      ANALYZE
+    | ANALYSE 
+;
+opt_verbose:
+      VERBOSE
+    | /* empty */
+;
+opt_full:
+      FULL
+    | /* empty */
+;
+opt_freeze:
+      FREEZE
+    | /* empty */
+;
+opt_name_list:
+      '(' name_list ')'
+    | /* empty */
+;
+ExplainStmt:
+      EXPLAIN ExplainableStmt
+    | EXPLAIN analyze_keyword opt_verbose ExplainableStmt
+    | EXPLAIN VERBOSE ExplainableStmt
+    | EXPLAIN '(' explain_option_list ')' ExplainableStmt 
+;
+ExplainableStmt:
+      SelectStmt
+    | InsertStmt
+    | UpdateStmt
+    | DeleteStmt
+    | DeclareCursorStmt
+    | CreateAsStmt
+    | ExecuteStmt 
+;
+explain_option_list:
+      explain_option_elem
+    | explain_option_list ',' explain_option_elem 
+;
+explain_option_elem:
+      explain_option_name explain_option_arg 
+;
+explain_option_name:
+      ColId
+    | analyze_keyword
+    | VERBOSE 
+;
+explain_option_arg:
+      opt_boolean_or_string
+    | NumericOnly
+    | /* empty */
+;
+PrepareStmt:
+      PREPARE name prep_type_clause AS PreparableStmt 
+;
+prep_type_clause:
+      '(' type_list ')'
+    | /* empty */
+;
+PreparableStmt:
+      SelectStmt
+    | InsertStmt
+    | UpdateStmt
+    | DeleteStmt 
+;
+ExecuteStmt:
+      EXECUTE name execute_param_clause
+    | CREATE OptTemp TABLE create_as_target AS EXECUTE name execute_param_clause 
+;
+execute_param_clause:
+      '(' expr_list ')'
+    | /* empty */
+;
+DeallocateStmt:
+      DEALLOCATE name
+    | DEALLOCATE PREPARE name
+    | DEALLOCATE ALL
+    | DEALLOCATE PREPARE ALL 
+;
+InsertStmt:
+      opt_with_clause INSERT INTO qualified_name insert_rest returning_clause 
+;
+insert_rest:
+      SelectStmt
+    | '(' insert_column_list ')' SelectStmt
+    | DEFAULT VALUES 
+;
+insert_column_list:
+      insert_column_item
+    | insert_column_list ',' insert_column_item 
+;
+insert_column_item:
+      ColId opt_indirection 
+;
+returning_clause:
+      RETURNING target_list
+    | /* empty */
+;
+DeleteStmt:
+      opt_with_clause DELETE_P FROM relation_expr_opt_alias using_clause where_or_current_clause returning_clause 
+;
+using_clause:
+      USING from_list
+    | /* empty */
+;
+LockStmt:
+      LOCK_P opt_table relation_expr_list opt_lock opt_nowait 
+;
+opt_lock:
+      IN_P lock_type MODE
+    | /* empty */
+;
+lock_type:
+      ACCESS SHARE
+    | ROW SHARE
+    | ROW EXCLUSIVE
+    | SHARE UPDATE EXCLUSIVE
+    | SHARE
+    | SHARE ROW EXCLUSIVE
+    | EXCLUSIVE
+    | ACCESS EXCLUSIVE 
+;
+opt_nowait:
+      NOWAIT
+    | /* empty */
+;
+UpdateStmt:
+      opt_with_clause UPDATE relation_expr_opt_alias SET set_clause_list from_clause where_or_current_clause returning_clause 
+;
+set_clause_list:
+      set_clause
+    | set_clause_list ',' set_clause 
+;
+set_clause:
+      single_set_clause
+    | multiple_set_clause 
+;
+single_set_clause:
+      set_target '=' ctext_expr 
+;
+multiple_set_clause:
+      '(' set_target_list ')' '=' ctext_row 
+;
+set_target:
+      ColId opt_indirection 
+;
+set_target_list:
+      set_target
+    | set_target_list ',' set_target 
+;
+DeclareCursorStmt:
+      DECLARE cursor_name cursor_options CURSOR opt_hold FOR SelectStmt 
+;
+cursor_name:
+      name 
+;
+cursor_options:
+    | cursor_options NO SCROLL
+    | cursor_options SCROLL
+    | cursor_options BINARY
+    | cursor_options INSENSITIVE 
+;
+opt_hold:
+    | WITH HOLD
+    | WITHOUT HOLD 
+;
+SelectStmt:
+      select_no_parens %prec UMINUS
+    | select_with_parens %prec UMINUS 
+;
+select_with_parens:
+      '(' select_no_parens ')'
+    | '(' select_with_parens ')' 
+;
+select_no_parens:
+      simple_select
+    | select_clause sort_clause
+    | select_clause opt_sort_clause for_locking_clause opt_select_limit
+    | select_clause opt_sort_clause select_limit opt_for_locking_clause
+    | with_clause select_clause
+    | with_clause select_clause sort_clause
+    | with_clause select_clause opt_sort_clause for_locking_clause opt_select_limit
+    | with_clause select_clause opt_sort_clause select_limit opt_for_locking_clause 
+;
+select_clause:
+      simple_select
+    | select_with_parens 
+;
+simple_select:
+      SELECT opt_distinct target_list into_clause from_clause where_clause group_clause having_clause window_clause
+    | values_clause
+    | TABLE relation_expr
+    | select_clause UNION opt_all select_clause
+    | select_clause INTERSECT opt_all select_clause
+    | select_clause EXCEPT opt_all select_clause 
+;
+with_clause:
+      WITH cte_list
+    | WITH RECURSIVE cte_list 
+;
+cte_list:
+      common_table_expr
+    | cte_list ',' common_table_expr 
+;
+common_table_expr:
+      name opt_name_list AS '(' PreparableStmt ')' 
+;
+opt_with_clause:
+      with_clause
+    | /* empty */
+;
+into_clause:
+      INTO OptTempTableName
+    | /* empty */
+;
+OptTempTableName:
+      TEMPORARY opt_table qualified_name
+    | TEMP opt_table qualified_name
+    | LOCAL TEMPORARY opt_table qualified_name
+    | LOCAL TEMP opt_table qualified_name
+    | GLOBAL TEMPORARY opt_table qualified_name
+    | GLOBAL TEMP opt_table qualified_name
+    | UNLOGGED opt_table qualified_name
+    | TABLE qualified_name
+    | qualified_name 
+;
+opt_table:
+      TABLE
+    | /* empty */
+;
+opt_all:
+      ALL
+    | DISTINCT
+    | /* empty */
+;
+opt_distinct:
+      DISTINCT
+    | DISTINCT ON '(' expr_list ')'
+    | ALL
+    | /* empty */
+;
+opt_sort_clause:
+      sort_clause
+    | /* empty */
+;
+sort_clause:
+      ORDER BY sortby_list 
+;
+sortby_list:
+      sortby
+    | sortby_list ',' sortby 
+;
+sortby:
+      a_expr USING qual_all_Op opt_nulls_order
+    | a_expr opt_asc_desc opt_nulls_order 
+;
+select_limit:
+      limit_clause offset_clause
+    | offset_clause limit_clause
+    | limit_clause
+    | offset_clause 
+;
+opt_select_limit:
+      select_limit
+    | /* empty */
+;
+limit_clause:
+      LIMIT select_limit_value
+    | LIMIT select_limit_value ',' select_offset_value
+    | FETCH first_or_next opt_select_fetch_first_value row_or_rows ONLY 
+;
+offset_clause:
+      OFFSET select_offset_value
+    | OFFSET select_offset_value2 row_or_rows 
+;
+select_limit_value:
+      a_expr
+    | ALL 
+;
+select_offset_value:
+      a_expr 
+;
+opt_select_fetch_first_value:
+      SignedIconst
+    | '(' a_expr ')'
+    | /* empty */
+;
+select_offset_value2:
+      c_expr 
+;
+row_or_rows:
+      ROW
+    | ROWS 
+;
+first_or_next:
+      FIRST_P
+    | NEXT 
+;
+group_clause:
+      GROUP_P BY expr_list
+    | /* empty */
+;
+having_clause:
+      HAVING a_expr
+    | /* empty */
+;
+for_locking_clause:
+      for_locking_items
+    | FOR READ ONLY 
+;
+opt_for_locking_clause:
+      for_locking_clause
+    | /* empty */
+;
+for_locking_items:
+      for_locking_item
+    | for_locking_items for_locking_item 
+;
+for_locking_item:
+      FOR UPDATE locked_rels_list opt_nowait
+    | FOR SHARE locked_rels_list opt_nowait 
+;
+locked_rels_list:
+      OF qualified_name_list
+    | /* empty */
+;
+values_clause:
+      VALUES ctext_row
+    | values_clause ',' ctext_row 
+;
+from_clause:
+      FROM from_list
+    | /* empty */
+;
+from_list:
+      table_ref
+    | from_list ',' table_ref 
+;
+table_ref:
+      relation_expr
+    | relation_expr alias_clause
+    | func_table
+    | func_table alias_clause
+    | func_table AS '(' TableFuncElementList ')'
+    | func_table AS ColId '(' TableFuncElementList ')'
+    | func_table ColId '(' TableFuncElementList ')'
+    | select_with_parens
+    | select_with_parens alias_clause
+    | joined_table
+    | '(' joined_table ')' alias_clause 
+;
+joined_table:
+      '(' joined_table ')'
+    | table_ref CROSS JOIN table_ref
+    | table_ref join_type JOIN table_ref join_qual
+    | table_ref JOIN table_ref join_qual
+    | table_ref NATURAL join_type JOIN table_ref
+    | table_ref NATURAL JOIN table_ref 
+;
+alias_clause:
+      AS ColId '(' name_list ')'
+    | AS ColId
+    | ColId '(' name_list ')'
+    | ColId 
+;
+join_type:
+      FULL join_outer
+    | LEFT join_outer
+    | RIGHT join_outer
+    | INNER_P 
+;
+join_outer:
+      OUTER_P
+    | /* empty */
+;
+join_qual:
+      USING '(' name_list ')'
+    | ON a_expr 
+;
+relation_expr:
+      qualified_name
+    | qualified_name '*'
+    | ONLY qualified_name
+    | ONLY '(' qualified_name ')' 
+;
+relation_expr_list:
+      relation_expr
+    | relation_expr_list ',' relation_expr 
+;
+relation_expr_opt_alias:
+      relation_expr %prec UMINUS
+    | relation_expr ColId
+    | relation_expr AS ColId 
+;
+func_table:
+      func_expr 
+;
+where_clause:
+      WHERE a_expr
+    | /* empty */
+;
+where_or_current_clause:
+      WHERE a_expr
+    | WHERE CURRENT_P OF cursor_name
+    | /* empty */
+;
+OptTableFuncElementList:
+      TableFuncElementList
+    | /* empty */
+;
+TableFuncElementList:
+      TableFuncElement
+    | TableFuncElementList ',' TableFuncElement 
+;
+TableFuncElement:
+      ColId Typename opt_collate_clause 
+;
+Typename:
+      SimpleTypename opt_array_bounds
+    | SETOF SimpleTypename opt_array_bounds
+    | SimpleTypename ARRAY '[' Iconst ']'
+    | SETOF SimpleTypename ARRAY '[' Iconst ']'
+    | SimpleTypename ARRAY
+    | SETOF SimpleTypename ARRAY 
+;
+opt_array_bounds:
+      opt_array_bounds '[' ']'
+    | opt_array_bounds '[' Iconst ']'
+    | /* empty */
+;
+SimpleTypename:
+      GenericType
+    | Numeric
+    | Bit
+    | Character
+    | ConstDatetime
+    | ConstInterval opt_interval
+    | ConstInterval '(' Iconst ')' opt_interval 
+;
+ConstTypename:
+      Numeric
+    | ConstBit
+    | ConstCharacter
+    | ConstDatetime 
+;
+GenericType:
+      type_function_name opt_type_modifiers
+    | type_function_name attrs opt_type_modifiers 
+;
+opt_type_modifiers:
+      '(' expr_list ')'
+    | /* empty */
+;
+Numeric:
+      INT_P
+    | INTEGER
+    | SMALLINT
+    | BIGINT
+    | REAL
+    | FLOAT_P opt_float
+    | DOUBLE_P PRECISION
+    | DECIMAL_P opt_type_modifiers
+    | DEC opt_type_modifiers
+    | NUMERIC opt_type_modifiers
+    | BOOLEAN_P 
+;
+opt_float:
+      '(' Iconst ')'
+    | /* empty */
+;
+Bit:
+      BitWithLength
+    | BitWithoutLength 
+;
+ConstBit:
+      BitWithLength
+    | BitWithoutLength 
+;
+BitWithLength:
+      BIT opt_varying '(' expr_list ')' 
+;
+BitWithoutLength:
+      BIT opt_varying 
+;
+Character:
+      CharacterWithLength
+    | CharacterWithoutLength 
+;
+ConstCharacter:
+      CharacterWithLength
+    | CharacterWithoutLength 
+;
+CharacterWithLength:
+      character '(' Iconst ')' opt_charset 
+;
+CharacterWithoutLength:
+      character opt_charset 
+;
+character:
+      CHARACTER opt_varying
+    | CHAR_P opt_varying
+    | VARCHAR
+    | NATIONAL CHARACTER opt_varying
+    | NATIONAL CHAR_P opt_varying
+    | NCHAR opt_varying 
+;
+opt_varying:
+      VARYING
+    | /* empty */
+;
+opt_charset:
+      CHARACTER SET ColId
+    | /* empty */
+;
+ConstDatetime:
+      TIMESTAMP '(' Iconst ')' opt_timezone
+    | TIMESTAMP opt_timezone
+    | TIME '(' Iconst ')' opt_timezone
+    | TIME opt_timezone 
+;
+ConstInterval:
+      INTERVAL 
+;
+opt_timezone:
+      WITH_TIME ZONE
+    | WITHOUT TIME ZONE
+    | /* empty */
+;
+opt_interval:
+      YEAR_P
+    | MONTH_P
+    | DAY_P
+    | HOUR_P
+    | MINUTE_P
+    | interval_second
+    | YEAR_P TO MONTH_P
+    | DAY_P TO HOUR_P
+    | DAY_P TO MINUTE_P
+    | DAY_P TO interval_second
+    | HOUR_P TO MINUTE_P
+    | HOUR_P TO interval_second
+    | MINUTE_P TO interval_second
+    | /* empty */
+;
+interval_second:
+      SECOND_P
+    | SECOND_P '(' Iconst ')' 
+;
+a_expr:
+      c_expr
+    | a_expr TYPECAST Typename
+    | a_expr COLLATE any_name
+    | a_expr AT TIME ZONE a_expr %prec AT
+    | '+' a_expr %prec UMINUS
+    | '-' a_expr %prec UMINUS
+    | a_expr '+' a_expr
+    | a_expr '-' a_expr
+    | a_expr '*' a_expr
+    | a_expr '/' a_expr
+    | a_expr '%' a_expr
+    | a_expr '^' a_expr
+    | a_expr '<' a_expr
+    | a_expr '>' a_expr
+    | a_expr '=' a_expr
+    | a_expr qual_Op a_expr %prec Op
+    | qual_Op a_expr %prec Op
+    | a_expr qual_Op %prec POSTFIXOP
+    | a_expr AND a_expr
+    | a_expr OR a_expr
+    | NOT a_expr
+    | a_expr LIKE a_expr
+    | a_expr LIKE a_expr ESCAPE a_expr
+    | a_expr NOT LIKE a_expr
+    | a_expr NOT LIKE a_expr ESCAPE a_expr
+    | a_expr ILIKE a_expr
+    | a_expr ILIKE a_expr ESCAPE a_expr
+    | a_expr NOT ILIKE a_expr
+    | a_expr NOT ILIKE a_expr ESCAPE a_expr
+    | a_expr SIMILAR TO a_expr %prec SIMILAR
+    | a_expr SIMILAR TO a_expr ESCAPE a_expr
+    | a_expr NOT SIMILAR TO a_expr %prec SIMILAR
+    | a_expr NOT SIMILAR TO a_expr ESCAPE a_expr
+    | a_expr IS NULL_P %prec IS
+    | a_expr ISNULL
+    | a_expr IS NOT NULL_P %prec IS
+    | a_expr NOTNULL
+    | row OVERLAPS row
+    | a_expr IS TRUE_P %prec IS
+    | a_expr IS NOT TRUE_P %prec IS
+    | a_expr IS FALSE_P %prec IS
+    | a_expr IS NOT FALSE_P %prec IS
+    | a_expr IS UNKNOWN %prec IS
+    | a_expr IS NOT UNKNOWN %prec IS
+    | a_expr IS DISTINCT FROM a_expr %prec IS
+    | a_expr IS NOT DISTINCT FROM a_expr %prec IS
+    | a_expr IS OF '(' type_list ')' %prec IS
+    | a_expr IS NOT OF '(' type_list ')' %prec IS
+    | a_expr BETWEEN opt_asymmetric b_expr AND b_expr %prec BETWEEN
+    | a_expr NOT BETWEEN opt_asymmetric b_expr AND b_expr %prec BETWEEN
+    | a_expr BETWEEN SYMMETRIC b_expr AND b_expr %prec BETWEEN
+    | a_expr NOT BETWEEN SYMMETRIC b_expr AND b_expr %prec BETWEEN
+    | a_expr IN_P in_expr
+    | a_expr NOT IN_P in_expr
+    | a_expr subquery_Op sub_type select_with_parens %prec Op
+    | a_expr subquery_Op sub_type '(' a_expr ')' %prec Op
+    | UNIQUE select_with_parens
+    | a_expr IS DOCUMENT_P %prec IS
+    | a_expr IS NOT DOCUMENT_P %prec IS 
+;
+b_expr:
+      c_expr
+    | b_expr TYPECAST Typename
+    | '+' b_expr %prec UMINUS
+    | '-' b_expr %prec UMINUS
+    | b_expr '+' b_expr
+    | b_expr '-' b_expr
+    | b_expr '*' b_expr
+    | b_expr '/' b_expr
+    | b_expr '%' b_expr
+    | b_expr '^' b_expr
+    | b_expr '<' b_expr
+    | b_expr '>' b_expr
+    | b_expr '=' b_expr
+    | b_expr qual_Op b_expr %prec Op
+    | qual_Op b_expr %prec Op
+    | b_expr qual_Op %prec POSTFIXOP
+    | b_expr IS DISTINCT FROM b_expr %prec IS
+    | b_expr IS NOT DISTINCT FROM b_expr %prec IS
+    | b_expr IS OF '(' type_list ')' %prec IS
+    | b_expr IS NOT OF '(' type_list ')' %prec IS
+    | b_expr IS DOCUMENT_P %prec IS
+    | b_expr IS NOT DOCUMENT_P %prec IS 
+;
+c_expr:
+      columnref
+    | AexprConst
+    | PARAM opt_indirection
+    | '(' a_expr ')' opt_indirection
+    | case_expr
+    | func_expr
+    | select_with_parens %prec UMINUS
+    | EXISTS select_with_parens
+    | ARRAY select_with_parens
+    | ARRAY array_expr
+    | row 
+;
+func_expr:
+      func_name '(' ')' over_clause
+    | func_name '(' func_arg_list ')' over_clause
+    | func_name '(' VARIADIC func_arg_expr ')' over_clause
+    | func_name '(' func_arg_list ',' VARIADIC func_arg_expr ')' over_clause
+    | func_name '(' func_arg_list sort_clause ')' over_clause
+    | func_name '(' ALL func_arg_list opt_sort_clause ')' over_clause
+    | func_name '(' DISTINCT func_arg_list opt_sort_clause ')' over_clause
+    | func_name '(' '*' ')' over_clause
+    | CURRENT_DATE
+    | CURRENT_TIME
+    | CURRENT_TIME '(' Iconst ')'
+    | CURRENT_TIMESTAMP
+    | CURRENT_TIMESTAMP '(' Iconst ')'
+    | LOCALTIME
+    | LOCALTIME '(' Iconst ')'
+    | LOCALTIMESTAMP
+    | LOCALTIMESTAMP '(' Iconst ')'
+    | CURRENT_ROLE
+    | CURRENT_USER
+    | SESSION_USER
+    | USER
+    | CURRENT_CATALOG
+    | CURRENT_SCHEMA
+    | CAST '(' a_expr AS Typename ')'
+    | EXTRACT '(' extract_list ')'
+    | OVERLAY '(' overlay_list ')'
+    | POSITION '(' position_list ')'
+    | SUBSTRING '(' substr_list ')'
+    | TREAT '(' a_expr AS Typename ')'
+    | TRIM '(' BOTH trim_list ')'
+    | TRIM '(' LEADING trim_list ')'
+    | TRIM '(' TRAILING trim_list ')'
+    | TRIM '(' trim_list ')'
+    | NULLIF '(' a_expr ',' a_expr ')'
+    | COALESCE '(' expr_list ')'
+    | GREATEST '(' expr_list ')'
+    | LEAST '(' expr_list ')'
+    | XMLCONCAT '(' expr_list ')'
+    | XMLELEMENT '(' NAME_P ColLabel ')'
+    | XMLELEMENT '(' NAME_P ColLabel ',' xml_attributes ')'
+    | XMLELEMENT '(' NAME_P ColLabel ',' expr_list ')'
+    | XMLELEMENT '(' NAME_P ColLabel ',' xml_attributes ',' expr_list ')'
+    | XMLEXISTS '(' c_expr xmlexists_argument ')'
+    | XMLFOREST '(' xml_attribute_list ')'
+    | XMLPARSE '(' document_or_content a_expr xml_whitespace_option ')'
+    | XMLPI '(' NAME_P ColLabel ')'
+    | XMLPI '(' NAME_P ColLabel ',' a_expr ')'
+    | XMLROOT '(' a_expr ',' xml_root_version opt_xml_root_standalone ')'
+    | XMLSERIALIZE '(' document_or_content a_expr AS SimpleTypename ')' 
+;
+xml_root_version:
+      VERSION_P a_expr
+    | VERSION_P NO VALUE_P 
+;
+opt_xml_root_standalone:
+      ',' STANDALONE_P YES_P
+    | ',' STANDALONE_P NO
+    | ',' STANDALONE_P NO VALUE_P
+    | /* empty */
+;
+xml_attributes:
+      XMLATTRIBUTES '(' xml_attribute_list ')' 
+;
+xml_attribute_list:
+      xml_attribute_el
+    | xml_attribute_list ',' xml_attribute_el 
+;
+xml_attribute_el:
+      a_expr AS ColLabel
+    | a_expr 
+;
+document_or_content:
+      DOCUMENT_P
+    | CONTENT_P 
+;
+xml_whitespace_option:
+      PRESERVE WHITESPACE_P
+    | STRIP_P WHITESPACE_P
+    | /* empty */
+;
+xmlexists_argument:
+      PASSING c_expr
+    | PASSING c_expr BY REF
+    | PASSING BY REF c_expr
+    | PASSING BY REF c_expr BY REF 
+;
+window_clause:
+      WINDOW window_definition_list
+    | /* empty */
+;
+window_definition_list:
+      window_definition
+    | window_definition_list ',' window_definition 
+;
+window_definition:
+      ColId AS window_specification 
+;
+over_clause:
+      OVER window_specification
+    | OVER ColId
+    | /* empty */
+;
+window_specification:
+      '(' opt_existing_window_name opt_partition_clause opt_sort_clause opt_frame_clause ')' 
+;
+opt_existing_window_name:
+      ColId
+    | %prec Op 
+;
+opt_partition_clause:
+      PARTITION BY expr_list
+    | /* empty */
+;
+opt_frame_clause:
+      RANGE frame_extent
+    | ROWS frame_extent
+    | /* empty */
+;
+frame_extent:
+      frame_bound
+    | BETWEEN frame_bound AND frame_bound 
+;
+frame_bound:
+      UNBOUNDED PRECEDING
+    | UNBOUNDED FOLLOWING
+    | CURRENT_P ROW
+    | a_expr PRECEDING
+    | a_expr FOLLOWING 
+;
+row:
+      ROW '(' expr_list ')'
+    | ROW '(' ')'
+    | '(' expr_list ',' a_expr ')' 
+;
+sub_type:
+      ANY
+    | SOME
+    | ALL 
+;
+all_Op:
+      Op
+    | MathOp 
+;
+MathOp:
+      '+'
+    | '-'
+    | '*'
+    | '/'
+    | '%'
+    | '^'
+    | '<'
+    | '>'
+    | '=' 
+;
+qual_Op:
+      Op
+    | OPERATOR '(' any_operator ')' 
+;
+qual_all_Op:
+      all_Op
+    | OPERATOR '(' any_operator ')' 
+;
+subquery_Op:
+      all_Op
+    | OPERATOR '(' any_operator ')'
+    | LIKE
+    | NOT LIKE
+    | ILIKE
+    | NOT ILIKE 
+;
+expr_list:
+      a_expr
+    | expr_list ',' a_expr 
+;
+func_arg_list:
+      func_arg_expr
+    | func_arg_list ',' func_arg_expr 
+;
+func_arg_expr:
+      a_expr
+    | param_name COLON_EQUALS a_expr 
+;
+type_list:
+      Typename
+    | type_list ',' Typename 
+;
+array_expr:
+      '[' expr_list ']'
+    | '[' array_expr_list ']'
+    | '[' ']' 
+;
+array_expr_list:
+      array_expr
+    | array_expr_list ',' array_expr 
+;
+extract_list:
+      extract_arg FROM a_expr
+    | /* empty */
+;
+extract_arg:
+      IDENT
+    | YEAR_P
+    | MONTH_P
+    | DAY_P
+    | HOUR_P
+    | MINUTE_P
+    | SECOND_P
+    | Sconst 
+;
+overlay_list:
+      a_expr overlay_placing substr_from substr_for
+    | a_expr overlay_placing substr_from 
+;
+overlay_placing:
+      PLACING a_expr 
+;
+position_list:
+      b_expr IN_P b_expr
+    | /* empty */
+;
+substr_list:
+      a_expr substr_from substr_for
+    | a_expr substr_for substr_from
+    | a_expr substr_from
+    | a_expr substr_for
+    | expr_list
+    | /* empty */
+;
+substr_from:
+      FROM a_expr 
+;
+substr_for:
+      FOR a_expr 
+;
+trim_list:
+      a_expr FROM expr_list
+    | FROM expr_list
+    | expr_list 
+;
+in_expr:
+      select_with_parens
+    | '(' expr_list ')' 
+;
+case_expr:
+      CASE case_arg when_clause_list case_default END_P 
+;
+when_clause_list:
+      when_clause
+    | when_clause_list when_clause 
+;
+when_clause:
+      WHEN a_expr THEN a_expr 
+;
+case_default:
+      ELSE a_expr
+    | /* empty */
+;
+case_arg:
+      a_expr
+    | /* empty */
+;
+columnref:
+      ColId
+    | ColId indirection 
+;
+indirection_el:
+      '.' attr_name
+    | '.' '*'
+    | '[' a_expr ']'
+    | '[' a_expr ':' a_expr ']' 
+;
+indirection:
+      indirection_el
+    | indirection indirection_el 
+;
+opt_indirection:
+    | opt_indirection indirection_el 
+;
+opt_asymmetric:
+      ASYMMETRIC
+    | /* empty */
+;
+ctext_expr:
+      a_expr
+    | DEFAULT 
+;
+ctext_expr_list:
+      ctext_expr
+    | ctext_expr_list ',' ctext_expr 
+;
+ctext_row:
+      '(' ctext_expr_list ')' 
+;
+target_list:
+      target_el
+    | target_list ',' target_el 
+;
+target_el:
+      a_expr AS ColLabel
+    | a_expr IDENT
+    | a_expr
+    | '*' 
+;
+qualified_name_list:
+      qualified_name
+    | qualified_name_list ',' qualified_name 
+;
+qualified_name:
+      ColId
+    | ColId indirection 
+;
+name_list:
+      name
+    | name_list ',' name 
+;
+name:
+      ColId 
+;
+database_name:
+      ColId 
+;
+access_method:
+      ColId 
+;
+attr_name:
+      ColLabel 
+;
+index_name:
+      ColId 
+;
+file_name:
+      Sconst 
+;
+func_name:
+      type_function_name
+    | ColId indirection 
+;
+AexprConst:
+      Iconst
+    | FCONST
+    | Sconst
+    | BCONST
+    | XCONST
+    | func_name Sconst
+    | func_name '(' func_arg_list ')' Sconst
+    | ConstTypename Sconst
+    | ConstInterval Sconst opt_interval
+    | ConstInterval '(' Iconst ')' Sconst opt_interval
+    | TRUE_P
+    | FALSE_P
+    | NULL_P 
+;
+Iconst:
+      ICONST 
+;
+Sconst:
+      SCONST 
+;
+RoleId:
+      ColId 
+;
+SignedIconst:
+      Iconst
+    | '+' Iconst
+    | '-' Iconst 
+;
+ColId:
+      IDENT
+    | unreserved_keyword
+    | col_name_keyword 
+;
+type_function_name:
+      IDENT
+    | unreserved_keyword
+    | type_func_name_keyword 
+;
+ColLabel:
+      IDENT
+    | unreserved_keyword
+    | col_name_keyword
+    | type_func_name_keyword
+    | reserved_keyword 
+;
+unreserved_keyword:
+      ABORT_P
+    | ABSOLUTE_P
+    | ACCESS
+    | ACTION
+    | ADD_P
+    | ADMIN
+    | AFTER
+    | AGGREGATE
+    | ALSO
+    | ALTER
+    | ALWAYS
+    | ASSERTION
+    | ASSIGNMENT
+    | AT
+    | ATTRIBUTE
+    | BACKWARD
+    | BEFORE
+    | BEGIN_P
+    | BY
+    | CACHE
+    | CALLED
+    | CASCADE
+    | CASCADED
+    | CATALOG_P
+    | CHAIN
+    | CHARACTERISTICS
+    | CHECKPOINT
+    | CLASS
+    | CLOSE
+    | CLUSTER
+    | COLLATION
+    | COMMENT
+    | COMMENTS
+    | COMMIT
+    | COMMITTED
+    | CONFIGURATION
+    | CONNECTION
+    | CONSTRAINTS
+    | CONTENT_P
+    | CONTINUE_P
+    | CONVERSION_P
+    | COPY
+    | COST
+    | CSV
+    | CURRENT_P
+    | CURSOR
+    | CYCLE
+    | DATA_P
+    | DATABASE
+    | DAY_P
+    | DEALLOCATE
+    | DECLARE
+    | DEFAULTS
+    | DEFERRED
+    | DEFINER
+    | DELETE_P
+    | DELIMITER
+    | DELIMITERS
+    | DICTIONARY
+    | DISABLE_P
+    | DISCARD
+    | DOCUMENT_P
+    | DOMAIN_P
+    | DOUBLE_P
+    | DROP
+    | EACH
+    | ENABLE_P
+    | ENCODING
+    | ENCRYPTED
+    | ENUM_P
+    | ESCAPE
+    | EXCLUDE
+    | EXCLUDING
+    | EXCLUSIVE
+    | EXECUTE
+    | EXPLAIN
+    | EXTENSION
+    | EXTERNAL
+    | FAMILY
+    | FIRST_P
+    | FOLLOWING
+    | FORCE
+    | FORWARD
+    | FUNCTION
+    | FUNCTIONS
+    | GLOBAL
+    | GRANTED
+    | HANDLER
+    | HEADER_P
+    | HOLD
+    | HOUR_P
+    | IDENTITY_P
+    | IF_P
+    | IMMEDIATE
+    | IMMUTABLE
+    | IMPLICIT_P
+    | INCLUDING
+    | INCREMENT
+    | INDEX
+    | INDEXES
+    | INHERIT
+    | INHERITS
+    | INLINE_P
+    | INPUT_P
+    | INSENSITIVE
+    | INSERT
+    | INSTEAD
+    | INVOKER
+    | ISOLATION
+    | KEY
+    | LABEL
+    | LANGUAGE
+    | LARGE_P
+    | LAST_P
+    | LC_COLLATE_P
+    | LC_CTYPE_P
+    | LEVEL
+    | LISTEN
+    | LOAD
+    | LOCAL
+    | LOCATION
+    | LOCK_P
+    | MAPPING
+    | MATCH
+    | MAXVALUE
+    | MINUTE_P
+    | MINVALUE
+    | MODE
+    | MONTH_P
+    | MOVE
+    | NAME_P
+    | NAMES
+    | NEXT
+    | NO
+    | NOTHING
+    | NOTIFY
+    | NOWAIT
+    | NULLS_P
+    | OBJECT_P
+    | OF
+    | OFF
+    | OIDS
+    | OPERATOR
+    | OPTION
+    | OPTIONS
+    | OWNED
+    | OWNER
+    | PARSER
+    | PARTIAL
+    | PARTITION
+    | PASSING
+    | PASSWORD
+    | PLANS
+    | PRECEDING
+    | PREPARE
+    | PREPARED
+    | PRESERVE
+    | PRIOR
+    | PRIVILEGES
+    | PROCEDURAL
+    | PROCEDURE
+    | QUOTE
+    | RANGE
+    | READ
+    | REASSIGN
+    | RECHECK
+    | RECURSIVE
+    | REF
+    | REINDEX
+    | RELATIVE_P
+    | RELEASE
+    | RENAME
+    | REPEATABLE
+    | REPLACE
+    | REPLICA
+    | RESET
+    | RESTART
+    | RESTRICT
+    | RETURNS
+    | REVOKE
+    | ROLE
+    | ROLLBACK
+    | ROWS
+    | RULE
+    | SAVEPOINT
+    | SCHEMA
+    | SCROLL
+    | SEARCH
+    | SECOND_P
+    | SECURITY
+    | SEQUENCE
+    | SEQUENCES
+    | SERIALIZABLE
+    | SERVER
+    | SESSION
+    | SET
+    | SHARE
+    | SHOW
+    | SIMPLE
+    | STABLE
+    | STANDALONE_P
+    | START
+    | STATEMENT
+    | STATISTICS
+    | STDIN
+    | STDOUT
+    | STORAGE
+    | STRICT_P
+    | STRIP_P
+    | SYSID
+    | SYSTEM_P
+    | TABLES
+    | TABLESPACE
+    | TEMP
+    | TEMPLATE
+    | TEMPORARY
+    | TEXT_P
+    | TRANSACTION
+    | TRIGGER
+    | TRUNCATE
+    | TRUSTED
+    | TYPE_P
+    | UNBOUNDED
+    | UNCOMMITTED
+    | UNENCRYPTED
+    | UNKNOWN
+    | UNLISTEN
+    | UNLOGGED
+    | UNTIL
+    | UPDATE
+    | VACUUM
+    | VALID
+    | VALIDATE
+    | VALIDATOR
+    | VALUE_P
+    | VARYING
+    | VERSION_P
+    | VIEW
+    | VOLATILE
+    | WHITESPACE_P
+    | WITHOUT
+    | WORK
+    | WRAPPER
+    | WRITE
+    | XML_P
+    | YEAR_P
+    | YES_P
+    | ZONE 
+;
+col_name_keyword:
+      BETWEEN
+    | BIGINT
+    | BIT
+    | BOOLEAN_P
+    | CHAR_P
+    | CHARACTER
+    | COALESCE
+    | DEC
+    | DECIMAL_P
+    | EXISTS
+    | EXTRACT
+    | FLOAT_P
+    | GREATEST
+    | INOUT
+    | INT_P
+    | INTEGER
+    | INTERVAL
+    | LEAST
+    | NATIONAL
+    | NCHAR
+    | NONE
+    | NULLIF
+    | NUMERIC
+    | OUT_P
+    | OVERLAY
+    | POSITION
+    | PRECISION
+    | REAL
+    | ROW
+    | SETOF
+    | SMALLINT
+    | SUBSTRING
+    | TIME
+    | TIMESTAMP
+    | TREAT
+    | TRIM
+    | VALUES
+    | VARCHAR
+    | XMLATTRIBUTES
+    | XMLCONCAT
+    | XMLELEMENT
+    | XMLEXISTS
+    | XMLFOREST
+    | XMLPARSE
+    | XMLPI
+    | XMLROOT
+    | XMLSERIALIZE 
+;
+type_func_name_keyword:
+      AUTHORIZATION
+    | BINARY
+    | CONCURRENTLY
+    | CROSS
+    | CURRENT_SCHEMA
+    | FREEZE
+    | FULL
+    | ILIKE
+    | INNER_P
+    | IS
+    | ISNULL
+    | JOIN
+    | LEFT
+    | LIKE
+    | NATURAL
+    | NOTNULL
+    | OUTER_P
+    | OVER
+    | OVERLAPS
+    | RIGHT
+    | SIMILAR
+    | VERBOSE 
+;
+reserved_keyword:
+      ALL
+    | ANALYSE
+    | ANALYZE
+    | AND
+    | ANY
+    | ARRAY
+    | AS
+    | ASC
+    | ASYMMETRIC
+    | BOTH
+    | CASE
+    | CAST
+    | CHECK
+    | COLLATE
+    | COLUMN
+    | CONSTRAINT
+    | CREATE
+    | CURRENT_CATALOG
+    | CURRENT_DATE
+    | CURRENT_ROLE
+    | CURRENT_TIME
+    | CURRENT_TIMESTAMP
+    | CURRENT_USER
+    | DEFAULT
+    | DEFERRABLE
+    | DESC
+    | DISTINCT
+    | DO
+    | ELSE
+    | END_P
+    | EXCEPT
+    | FALSE_P
+    | FETCH
+    | FOR
+    | FOREIGN
+    | FROM
+    | GRANT
+    | GROUP_P
+    | HAVING
+    | IN_P
+    | INITIALLY
+    | INTERSECT
+    | INTO
+    | LEADING
+    | LIMIT
+    | LOCALTIME
+    | LOCALTIMESTAMP
+    | NOT
+    | NULL_P
+    | OFFSET
+    | ON
+    | ONLY
+    | OR
+    | ORDER
+    | PLACING
+    | PRIMARY
+    | REFERENCES
+    | RETURNING
+    | SELECT
+    | SESSION_USER
+    | SOME
+    | SYMMETRIC
+    | TABLE
+    | THEN
+    | TO
+    | TRAILING
+    | TRUE_P
+    | UNION
+    | UNIQUE
+    | USER
+    | USING
+    | VARIADIC
+    | WHEN
+    | WHERE
+    | WINDOW
+    | WITH 
+;
+
+%%
