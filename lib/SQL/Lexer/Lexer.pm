@@ -1,5 +1,6 @@
 package SQL::Lexer::Neo;
 
+use sanity;
 use Config;
 use Math::BigInt;
 use Math::BigFloat;
@@ -55,9 +56,9 @@ my $identifier_max_size = 64;
 #* But we shall have to live with it as a short-term thing until the switch
 #* to SQL-standard string syntax is complete.
 
-# my $backslash_quote = BACKSLASH_QUOTE_SAFE_ENCODING;  ### FIXME: Look this up! ###
+my $backslash_quote = 'BACKSLASH_QUOTE_SAFE_ENCODING';
 my $escape_string_warning = 1;
-my $standard_conforming_strings = true;
+my $standard_conforming_strings = 1;
 
 #* OK, here is a short description of lex/flex rules behavior.
 #* The longest pattern which matches an input string is always chosen.
@@ -256,9 +257,10 @@ my $xufailed = '[uU]\&';
 #*    problem.
 #* Dash-dash comments have similar interactions with the operator rule.
 
+my $op_chars = '[\~\!\@\#\^\&\|\`\?\+\-\*\/\%\<\>\=]';
 my $xcstart  = '\/\*'.$op_chars.'*';
-my $xcstop   = '\*+\/'
-my $xcinside   '[^*/]+';
+my $xcstop   = '\*+\/';
+my $xcinside = '[^*/]+';
 
 my $ident_start = '[\p{Alphabetic}\x80-\xFF_]';
 my $ident_cont  = '[\w\x80-\xFF\$]';  # \w naturally "just works"
@@ -279,8 +281,11 @@ my $colon_equals = ':=';
 #* rule for "operator"!
 
 my $self     = '[,\(\)\[\].;\:\+\-\*\/\%\^\<\>\=]';
-my $op_chars = '[\~\!\@\#\^\&\|\`\?\+\-\*\/\%\<\>\=]';
+#my $op_chars = '[\~\!\@\#\^\&\|\`\?\+\-\*\/\%\<\>\=]';
 my $operator = "${op_chars}+";
+
+# used in $operator checks
+my $non_math = '[\~\!\@\#\^\&\|\`\?\%]';
 
 #* we no longer allow unary minus in numbers.
 #* instead we pass it separately to parser. there it gets
@@ -330,7 +335,7 @@ my $param       = '\$'.$integer;
 my $xeunicode_raw = $xeunicode;
 
 # $whitespace = '\G'.$whitespace;
-eval "\$$_ = '\G'.\$$_;" for (qw/
+eval "\$$_ = '\\G'.\$$_;" for (qw/
    whitespace quotestop quotefail quotestopfail quotecontinue
    xcstart xcstop xcinside op_chars
    xbstart xbinside
@@ -435,8 +440,12 @@ sub _Lexer {
             $p->{literalbuf} = '';
             
             unless ($standard_conforming_strings) {
-               die "Unsafe use of string constant with Unicode escapes, near char position ".$-[0].".\n".
-                   "Details: String constants with Unicode escapes cannot be used when standard_conforming_strings is off.";
+               $p->ereport(ERROR, 
+                  ERRCODE_FEATURE_NOT_SUPPORTED,
+                  "Unsafe use of string constant with Unicode escapes, near char position ".$-[0].".",
+                  "String constants with Unicode escapes cannot be used when standard_conforming_strings is off.",
+                  $p->YYLLoc()
+               );
             }
             
             $p->{startstate} = 'xus' and redo START;
@@ -497,85 +506,66 @@ sub _Lexer {
             return ($p->YYText, $p->YYText);
          }
          if ($$s =~ /${operator}/gc && $self_op_winner eq 'operator') {
-# {operator}      {
-               # /*
-                # * Check for embedded slash-star or dash-dash; those
-                # * are comment starts, so operator must stop there.
-                # * Note that slash-star or dash-dash at the first
-                # * character will match a prior rule, not this one.
-                # */
-               # int      nchars = yyleng;
-               # char   *slashstar = strstr(yytext, "/*");
-               # char   *dashdash = strstr(yytext, "--");
+            #* Check for embedded slash-star or dash-dash; those
+            #* are comment starts, so operator must stop there.
+            #* Note that slash-star or dash-dash at the first
+            #* character will match a prior rule, not this one.
+            my $text = $p->YYText;
+            my @text = split //, $text;  # C's array-based notation comes in handy here...
+            my $slashstar = index($text, '/*') + 1;
+            my $dashdash  = index($text, '--') + 1;
+            my $nchars    = length $text;
 
-               # if (slashstar && dashdash)
-               # {
-                  # /* if both appear, take the first one */
-                  # if (slashstar > dashdash)
-                     # slashstar = dashdash;
-               # }
-               # else if (!slashstar)
-                  # slashstar = dashdash;
-               # if (slashstar)
-                  # nchars = slashstar - yytext;
+            if ($slashstar && $dashdash) {
+               #* if both appear, take the first one
+               $slashstar = $dashdash if ($slashstar > $dashdash);
+            }
+            elsif (!$slashstar) {
+               $slashstar = $dashdash;
+            }
+            $nchars = $slashstar if ($slashstar);
+            
 
-               # /*
-                # * For SQL compatibility, '+' and '-' cannot be the
-                # * last char of a multi-char operator unless the operator
-                # * contains chars that are not in SQL operators.
-                # * The idea is to lex '=-' as two operators, but not
-                # * to forbid operator names like '?-' that could not be
-                # * sequences of SQL operators.
-                # */
-               # while (nchars > 1 &&
-                     # (yytext[nchars-1] == '+' ||
-                     # yytext[nchars-1] == '-'))
-               # {
-                  # int      ic;
+            #* For SQL compatibility, '+' and '-' cannot be the
+            #* last char of a multi-char operator unless the operator
+            #* contains chars that are not in SQL operators.
+            #* The idea is to lex '=-' as two operators, but not
+            #* to forbid operator names like '?-' that could not be
+            #* sequences of SQL operators.
+            while ($nchars > 1 && $text[$nchars-1] =~ /[\+\-]/) {
+               my $ic;
 
-                  # for (ic = nchars-2; ic >= 0; ic--)
-                  # {
-                     # if (strchr("~!@#^&|`?%", yytext[ic]))
-                        # break;
-                  # }
-                  # if (ic >= 0)
-                     # break; /* found a char that makes it OK */
-                  # nchars--; /* else remove the +/-, and check again */
-               # }
+               for ($ic = $nchars-2; $ic >= 0; $ic--) {
+                  last if ($text[$ic] =~ /${non_math}/);
+               }
+               last if ($ic >= 0);  #* found a char that makes it OK
+               $nchars--;           #* else remove the +/-, and check again
+            }
 
-               # SET_YYLLOC();
+            if ($nchars < length $text) {
+               #* Strip the unwanted chars from the token
+               $p->YYLess($nchars);
+               $text = $p->YYText;
+               my $char = substr($text, 0, 1);
 
-               # if (nchars < yyleng)
-               # {
-                  # /* Strip the unwanted chars from the token */
-                  # yyless(nchars);
-                  # /*
-                   # * If what we have left is only one char, and it's
-                   # * one of the characters matching "self", then
-                   # * return it as a character token the same way
-                   # * that the "self" rule would have.
-                   # */
-                  # if (nchars == 1 &&
-                     # strchr(",()[].;:+-*/%^<>=", yytext[0]))
-                     # return yytext[0];
-               # }
+               #* If what we have left is only one char, and it's
+               #* one of the characters matching "self", then
+               #* return it as a character token the same way
+               #* that the "self" rule would have.
+               return ($char, $char)
+                  if ($nchars == 1 && $char =~ /${self}/);
+            }
 
-               # /*
-                # * Complain if operator is too long.  Unlike the case
-                # * for identifiers, we make this an error not a notice-
-                # * and-truncate, because the odds are we are looking at
-                # * a syntactic mistake anyway.
-                # */
-               # if (nchars >= NAMEDATALEN)
-                  # yyerror("operator too long");
+            #* Complain if operator is too long.  Unlike the case
+            #* for identifiers, we make this an error not a notice-
+            #* and-truncate, because the odds are we are looking at
+            #* a syntactic mistake anyway.
+            $p->YYError("Operator too long")
+               if ($nchars >= $identifier_max_size);
 
-               # /* Convert "!=" operator to "<>" for compatibility */
-               # if (strcmp(yytext, "!=") == 0)
-                  # yylval->str = pstrdup("<>");
-               # else
-                  # yylval->str = pstrdup(yytext);
-               # return Op;
-            # }
+            #* Convert "!=" operator to "<>" for compatibility
+            return ('Op', ($text eq "!=") ? '<>' : $text);
+         }
          if ($$s =~ /${param}/gc) {
             return ('PARAM', '$'.int( substr($p->YYText, 1) ));
          }
@@ -608,9 +598,9 @@ sub _Lexer {
          }
          if ($$s =~ /${identifier}/gc) {
             ### FIXME: We really need a keyword check here! ###
-            if ($is_keyword) {
-               return ($keyword, $keyword);
-            }
+            # if ($is_keyword) {
+               # return ($keyword, $keyword);
+            # }
             
             # Unlike PostgreSQL, we can do a proper Unicode lowercase,
             # so downcase_truncate_identifier turns into a 'lc' + truncation.
@@ -677,7 +667,7 @@ sub _Lexer {
             ### NOTE: pg_verifymbstr validates database encoding.  Since we don't have a
             ### database nor a "default encoding", this check is purposely unimplemented.
             
-            # Also, we remove checks for saw_non_ascii, since this is the only place it's used.
+            # Also, we remove sets for saw_non_ascii, since this is the only place it's used.
 
             #* check that the data remains valid if it might have been
             #* made invalid by unescaping any chars.
@@ -730,7 +720,7 @@ sub _Lexer {
                $p->{utf16_first_part} = $ord;
                $p->{startstate} = 'xeu' and redo START;
             }
-            else if ($p->is_utf16_surrogate_second($ord)) {
+            elsif ($p->is_utf16_surrogate_second($ord)) {
                $p->YYError("Invalid Unicode surrogate pair");
             }
             else {
@@ -756,8 +746,12 @@ sub _Lexer {
       }
       when ([qw(xe xeu)]) {
          if ($$s =~ /${xeunicodefail}/gc) {
-            die "Invalid Unicode escape, near char position ".$-[0].".\n".
-                "Details: Unicode escapes must be \\uXXXX or \\UXXXXXXXX.";
+            $p->ereport(ERROR, 
+               ERRCODE_INVALID_ESCAPE_SEQUENCE,
+               "Invalid Unicode escape",
+               "Unicode escapes must be \\uXXXX or \\UXXXXXXXX.",
+               $p->YYLLoc()
+            );
          }
          continue;
       }
@@ -769,34 +763,33 @@ sub _Lexer {
          # End of line: xeu
       }      
       when ('xe') {
-# <xe>{xeescape}  {
-               # if (yytext[1] == '\'')
-               # {
-                  # if (backslash_quote == BACKSLASH_QUOTE_OFF ||
-                     # (backslash_quote == BACKSLASH_QUOTE_SAFE_ENCODING &&
-                      # PG_ENCODING_IS_CLIENT_ONLY(pg_get_client_encoding())))
-                     # ereport(ERROR,
-                           # (errcode(ERRCODE_NONSTANDARD_USE_OF_ESCAPE_CHARACTER),
-                            # errmsg("unsafe use of \\' in a string literal"),
-                            # errhint("Use '' to write quotes in strings. \\' is insecure in client-only encodings."),
-                            # lexer_errposition()));
-               # }
-               # check_string_escape_warning(yytext[1], yyscanner);
-               # addlitchar(unescape_single_char(yytext[1], yyscanner),
-                        # yyscanner);
-            # }
-# <xe>{xeoctesc}  {
-               # unsigned char c = strtoul(yytext+1, NULL, 8);
-
-               # check_escape_warning(yyscanner);
-               # addlitchar(c, yyscanner);
-            # }
-# <xe>{xehexesc}  {
-               # unsigned char c = strtoul(yytext+2, NULL, 16);
-
-               # check_escape_warning(yyscanner);
-               # addlitchar(c, yyscanner);
-            # }
+         if ($$s =~ /${xeescape}/gc) {
+            my $c = substr($p->YYText, 1, 1);
+            if ($c eq '\'') {
+               if ($backslash_quote eq 'BACKSLASH_QUOTE_OFF' || $backslash_quote eq 'BACKSLASH_QUOTE_SAFE_ENCODING') {
+                  $p->ereport(ERROR, 
+                     ERRCODE_NONSTANDARD_USE_OF_ESCAPE_CHARACTER,
+                     "Unsafe use of \\' in a string literal",
+                     "Use '' to write quotes in strings. \\' is insecure in client-only encodings.",
+                     $p->YYLLoc()
+                  );
+               }
+            }
+            $p->check_string_escape_warning($c);
+            $p->{literalbuf} .= eval "\"\\$c\"";
+         }
+         if ($$s =~ /${xeoctesc}/gc) {
+            my $ord = oct substr($p->YYText, 1);
+            
+            $p->check_escape_warning;
+            $p->{literalbuf} .= chr $ord;
+         }
+         if ($$s =~ /${xehexesc}/gc) {
+            my $ord = hex substr($p->YYText, 2);
+            
+            $p->check_escape_warning;
+            $p->{literalbuf} .= chr $ord;
+         }
          continue;
       }
       when ([qw(xq xe xus)]) {
@@ -904,131 +897,7 @@ sub _Lexer {
    }
 }
 
-
-
-%%
-
-
-/*
- * scanner_errposition
- *      Report a lexer or grammar error cursor position, if possible.
- *
- * This is expected to be used within an ereport() call.  The return value
- * is a dummy (always 0, in fact).
- *
- * Note that this can only be used for messages emitted during raw parsing
- * (essentially, scan.l and gram.y), since it requires the yyscanner struct
- * to still be available.
- */
-int
-scanner_errposition(int location, core_yyscan_t yyscanner)
-{
-   int      pos;
-
-   if (location < 0)
-      return 0;            /* no-op if location is unknown */
-
-   /* Convert byte offset to character number */
-   pos = pg_mbstrlen_with_len(yyextra->scanbuf, location) + 1;
-   /* And pass it to the ereport mechanism */
-   return errposition(pos);
-}
-
-/*
- * scanner_yyerror
- *      Report a lexer or grammar error.
- *
- * The message's cursor position is whatever YYLLOC was last set to,
- * ie, the start of the current token if called within yylex(), or the
- * most recently lexed token if called from the grammar.
- * This is OK for syntax error messages from the Bison parser, because Bison
- * parsers report error as soon as the first unparsable token is reached.
- * Beware of using yyerror for other purposes, as the cursor position might
- * be misleading!
- */
-void
-scanner_yyerror(const char *message, core_yyscan_t yyscanner)
-{
-   const char *loc = yyextra->scanbuf + *yylloc;
-
-   if (*loc == YY_END_OF_BUFFER_CHAR)
-   {
-      ereport(ERROR,
-            (errcode(ERRCODE_SYNTAX_ERROR),
-             /* translator: %s is typically the translation of "syntax error" */
-             errmsg("%s at end of input", _(message)),
-             lexer_errposition()));
-   }
-   else
-   {
-      ereport(ERROR,
-            (errcode(ERRCODE_SYNTAX_ERROR),
-             /* translator: first %s is typically the translation of "syntax error" */
-             errmsg("%s at or near \"%s\"", _(message), loc),
-             lexer_errposition()));
-   }
-}
-
-
-/*
- * Called before any actual parsing is done
- */
-core_yyscan_t
-scanner_init(const char *str,
-          core_yy_extra_type *yyext,
-          const ScanKeyword *keywords,
-          int num_keywords)
-{
-   Size      slen = strlen(str);
-   yyscan_t   scanner;
-
-   if (yylex_init(&scanner) != 0)
-      elog(ERROR, "yylex_init() failed: %m");
-
-   core_yyset_extra(yyext, scanner);
-
-   yyext->keywords = keywords;
-   yyext->num_keywords = num_keywords;
-
-   /*
-    * Make a scan buffer with special termination needed by flex.
-    */
-   yyext->scanbuf = (char *) palloc(slen + 2);
-   yyext->scanbuflen = slen;
-   memcpy(yyext->scanbuf, str, slen);
-   yyext->scanbuf[slen] = yyext->scanbuf[slen + 1] = YY_END_OF_BUFFER_CHAR;
-   yy_scan_buffer(yyext->scanbuf, slen + 2, scanner);
-
-   /* initialize literal buffer to a reasonable but expansible size */
-   yyext->literalalloc = 1024;
-   yyext->literalbuf = (char *) palloc(yyext->literalalloc);
-   yyext->literallen = 0;
-
-   return scanner;
-}
-
-
-/*
- * Called after parsing is done to clean up after scanner_init()
- */
-void
-scanner_finish(core_yyscan_t yyscanner)
-{
-   /*
-    * We don't bother to call yylex_destroy(), because all it would do
-    * is pfree a small amount of control storage.  It's cheaper to leak
-    * the storage until the parsing context is destroyed.  The amount of
-    * space involved is usually negligible compared to the output parse
-    * tree anyway.
-    *
-    * We do bother to pfree the scanbuf and literal buffer, but only if they
-    * represent a nontrivial amount of space.  The 8K cutoff is arbitrary.
-    */
-   if (yyextra->scanbuflen >= 8192)
-      pfree(yyextra->scanbuf);
-   if (yyextra->literalalloc >= 8192)
-      pfree(yyextra->literalbuf);
-}
+#* %%
 
 #* #define startlit()  ( yyextra->literallen = 0 )
 
@@ -1131,33 +1000,37 @@ sub udeescape {
 #* static unsigned char
 #* unescape_single_char(unsigned char c, core_yyscan_t yyscanner)
 
-### Perl: eval "\\$c"
+### Perl: eval "\"\\$c\""
 
-static void
-check_string_escape_warning(unsigned char ychar, core_yyscan_t yyscanner)
-{
-   if (ychar == '\'')
-   {
-      if (yyextra->warn_on_first_escape && escape_string_warning)
-         ereport(WARNING,
-               (errcode(ERRCODE_NONSTANDARD_USE_OF_ESCAPE_CHARACTER),
-                errmsg("nonstandard use of \\' in a string literal"),
-                errhint("Use '' to write quotes in strings, or use the escape string syntax (E'...')."),
-                lexer_errposition()));
-      yyextra->warn_on_first_escape = false;   /* warn only once per string */
+#static void
+#check_string_escape_warning(unsigned char ychar, core_yyscan_t yyscanner)
+sub check_string_escape_warning {
+   my ($p, $c) = @_;
+   if ($c eq "'") {
+      if ($p->{warn_on_first_escape} && $escape_string_warning) {
+         $p->ereport(WARNING, 
+            ERRCODE_NONSTANDARD_USE_OF_ESCAPE_CHARACTER,
+            "Nonstandard use of \\' in a string literal",
+            "Use '' to write quotes in strings, or use the escape string syntax (E'...').",
+            $p->YYLLoc()
+         );
+      }
+      $p->{warn_on_first_escape} = 0;   #* warn only once per string
    }
-   else if (ychar == '\\')
-   {
-      if (yyextra->warn_on_first_escape && escape_string_warning)
-         ereport(WARNING,
-               (errcode(ERRCODE_NONSTANDARD_USE_OF_ESCAPE_CHARACTER),
-                errmsg("nonstandard use of \\\\ in a string literal"),
-                errhint("Use the escape string syntax for backslashes, e.g., E'\\\\'."),
-                lexer_errposition()));
-      yyextra->warn_on_first_escape = false;   /* warn only once per string */
+   else if ($c eq "\\") {
+      if ($p->{warn_on_first_escape} && $escape_string_warning) {
+         $p->ereport(WARNING, 
+            ERRCODE_NONSTANDARD_USE_OF_ESCAPE_CHARACTER,
+            "Nonstandard use of \\\\ in a string literal",
+            "Use the escape string syntax for backslashes, e.g., E'\\\\'.",
+            $p->YYLLoc()
+         );
+      }
+      $p->{warn_on_first_escape} = 0;   #* warn only once per string
    }
-   else
-      check_escape_warning(yyscanner);
+   else {
+      $p->check_escape_warning;
+   }
 }
 
 #* static void
@@ -1165,8 +1038,12 @@ check_string_escape_warning(unsigned char ychar, core_yyscan_t yyscanner)
 sub check_escape_warning {
    my ($p) = @_;
    if ($p->{warn_on_first_escape} && $escape_string_warning) {
-      warn "Nonstandard use of escape in a string literal, near char position ".$-[0].".\n".
-           "Details: Use the escape string syntax for escapes, e.g., E'\\r\\n'.";
+      $p->ereport(WARNING, 
+         ERRCODE_NONSTANDARD_USE_OF_ESCAPE_CHARACTER,
+         "Nonstandard use of escape in a string literal",
+         "Use the escape string syntax for escapes, e.g., E'\\r\\n'.",
+         $p->YYLLoc()
+      );
    }
    $p->{warn_on_first_escape} = 0;   #* warn only once per string
 }
@@ -1217,4 +1094,52 @@ sub YYLexPrioritize {
    
    # return rule name only; still need to run the RE again in case of other RE-based YY variables
    return $results[0]->[0];
+}
+
+# Bison's yylloc is a YYLTYPE of:
+#    first_line
+#    first_column
+#    last_line
+#    last_column
+# 
+# We can't exactly provide that, but we can provide more
+# than enough to get by with an error message.
+
+### FIXME: This is probably too much, and might hurt speed. ###
+sub YYLLoc {
+   my ($p, $val, $i) = @_;
+   return {
+      val        => $val // $p->YYText,
+      char_pos   => $-[0],  # XXX: is this accurate?
+      token      => $p->YYCurtok,
+      token_val  => $p->YYCurval,
+      first_line => $p->YYFirstline,
+      left_side  => $p->YYLhs,
+      right_side => $p->YYRightside($i),
+      rule_name  => $p->YYName,
+   };
+}
+
+# Define our own version of "ereport", which mimics a lot of
+# the variables of DBI->set_err.
+### FIXME: $msg will also return sprintf vars! ###
+sub ereport {
+   my ($p, $err, $state, $msg, $hint, $lloc) = @_;
+
+   if ($lloc) {
+      # since this is kinda intensive, only do this on error
+      my @lines = split /\n/, $p->input;
+      $lloc->{first_line_str} = $lines[$lloc->{first_line} - 1];
+   }
+   
+   my $full_msg = '';
+   $full_msg .= sprintf("ERROR:   %s\n", $msg);
+   $full_msg .= sprintf("LINE %u: %s\n", $lloc->{first_line}, $lloc->{first_line_str}) if $lloc;
+   ### FIXME: Add "     ^" to show problem
+   
+   ### FIXME: Temporary until we get an idea of what gets reported in YYLLoc ###
+   use Data::Dumper;
+   $full_msg .= 'LLOC:    '.Data::Dumper->new([$lloc], [qw(LLOC)])->Maxdepth(3)->Indent(1)->Sortkeys(1)->Dump();
+
+   $p->YYError($full_msg);
 }

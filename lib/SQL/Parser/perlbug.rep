@@ -1,0 +1,159 @@
+Subject: UPSTREAM=>blead core modules need some META updates
+Message-Id: <5.16.0_54940_1341845447@INSIGHT_NT>
+Reply-To: Perl@ResonatorSoft.org
+To: perlbug@perl.org
+From: Perl@ResonatorSoft.org
+
+
+This is a bug report for perl from Perl@ResonatorSoft.org,
+generated with the help of perlbug 1.39 running under perl 5.16.0.
+
+-----------------------------------------------------------------
+[Please describe your issue here]
+
+All of the core modules that are maintained in blead needs to have some META
+resource additions to reflect the proper place for bug reports and the
+repository:
+
+   resources => {
+      IRC         => 'irc://irc.perl.org/#p5p',
+      MailingList => 'http://lists.perl.org/list/perl5-porters.html',
+      license     => 'http://dev.perl.org/licenses/',
+      repository  => 'git://perl5.git.perl.org/perl.git',
+      
+      # Change to related module below
+      bugtracker  => "https://rt.perl.org/rt3/Search/Results.html?Query=Queue='perl5' AND Content LIKE 'module=Math::BigInt' AND (Status='open' OR Status='new' OR Status='stalled')",
+      homepage    => 'https://metacpan.org/module/Math::BigInt',
+   },
+
+Most of these modules have a bunch of rt.cpan.org tickets that should be
+cleaned up and/or re-opened at rt.perl.org.  Of course, this only applies
+to blead modules that exist as a standalone module in CPAN.  (I think this is if
+Maintainers.pl contains a DISTRIBUTION attr.)  An audit finds the following
+modules need META updates and cleanup:
+
+Attribute::Handlers
+autouse
+B::Lint
+base
+bignum
+Carp
+Compress::Raw::Bzip2
+Compress::Raw::Zlib
+constant
+Devel::SelfStubber
+Dumpvalue:
+encoding::warnings        (UPSTREAM => undef)
+Env
+Exporter
+ExtUtils::CBuilder
+ExtUtils::Command
+# ExtUtils::Constant      (UPSTREAM => undef, but still maintained in CPAN)
+ExtUtils::Install
+ExtUtils::MakeMaker       (UPSTREAM => first-come)
+ExtUtils::Manifest
+ExtUtils::ParseXS
+File::CheckTree
+File::Path                (UPSTREAM => undef)
+Filter::Simple
+I18N::Collate
+I18N::LangTags
+if
+IO
+IO::Zlib                  (UPSTREAM => undef)
+lib
+libnet                    (UPSTREAM => undef)
+Locale::Maketext
+Math::BigInt
+Math::BigInt::FastCalc
+Math::BigRat
+Module::CoreList
+Net::Ping
+parent                    (UPSTREAM => undef)
+PathTools
+PerlIO::via::QuotedPrint  (UPSTREAM => undef)
+Pod::Escapes              (UPSTREAM => undef)
+Pod::LaTeX                (UPSTREAM => undef)
+Safe
+Search::Dict
+SelfLoader
+Storable
+Term::Cap                 (UPSTREAM => undef)
+Term::Complete
+Term::ReadLine
+Text::Abbrev
+Text::ParseWords          (UPSTREAM => undef)
+Text::Soundex             (UPSTREAM => undef)
+Thread::Queue
+Thread::Semaphore
+threads
+threads::shared
+Tie::File
+Time::Piece               (UPSTREAM => undef)
+Unicode::Collate          (UPSTREAM => first-come)
+Unicode::Normalize        (UPSTREAM => first-come)
+version                   (UPSTREAM => undef)
+XSLoader
+
+[Please do not change anything below this line]
+-----------------------------------------------------------------
+---
+Flags:
+    category=core
+    severity=medium
+---
+Site configuration information for perl 5.16.0:
+
+Configured by strawberry-perl at Mon May 21 22:08:30 2012.
+
+Summary of my perl5 (revision 5 version 16 subversion 0) configuration:
+   
+  Platform:
+    osname=MSWin32, osvers=4.0, archname=MSWin32-x86-multi-thread
+    uname='Win32 strawberry-perl 5.16.0.1 #1 Mon May 21 22:07:30 2012 i386'
+    config_args='undef'
+    hint=recommended, useposix=true, d_sigaction=undef
+    useithreads=define, usemultiplicity=define
+    useperlio=define, d_sfio=undef, uselargefiles=define, usesocks=undef
+    use64bitint=undef, use64bitall=undef, uselongdouble=undef
+    usemymalloc=n, bincompat5005=undef
+  Compiler:
+    cc='gcc', ccflags =' -s -O2 -DWIN32  -DPERL_TEXTMODE_SCRIPTS -DPERL_IMPLICIT_CONTEXT -DPERL_IMPLICIT_SYS -fno-strict-aliasing -mms-bitfields',
+    optimize='-s -O2',
+    cppflags='-DWIN32'
+    ccversion='', gccversion='4.6.3', gccosandvers=''
+    intsize=4, longsize=4, ptrsize=4, doublesize=8, byteorder=1234
+    d_longlong=undef, longlongsize=8, d_longdbl=define, longdblsize=12
+    ivtype='long', ivsize=4, nvtype='double', nvsize=8, Off_t='long long', lseeksize=8
+    alignbytes=8, prototype=define
+  Linker and Libraries:
+    ld='g++', ldflags ='-s -L"C:\strawberry\perl\lib\CORE" -L"C:\strawberry\c\lib"'
+    libpth=C:\strawberry\c\lib C:\strawberry\c\i686-w64-mingw32\lib
+    libs=-lmoldname -lkernel32 -luser32 -lgdi32 -lwinspool -lcomdlg32 -ladvapi32 -lshell32 -lole32 -loleaut32 -lnetapi32 -luuid -lws2_32 -lmpr -lwinmm -lversion -lodbc32 -lodbccp32 -lcomctl32
+    perllibs=-lmoldname -lkernel32 -luser32 -lgdi32 -lwinspool -lcomdlg32 -ladvapi32 -lshell32 -lole32 -loleaut32 -lnetapi32 -luuid -lws2_32 -lmpr -lwinmm -lversion -lodbc32 -lodbccp32 -lcomctl32
+    libc=, so=dll, useshrplib=true, libperl=libperl516.a
+    gnulibc_version=''
+  Dynamic Linking:
+    dlsrc=dl_win32.xs, dlext=dll, d_dlsymun=undef, ccdlflags=' '
+    cccdlflags=' ', lddlflags='-mdll -s -L"C:\strawberry\perl\lib\CORE" -L"C:\strawberry\c\lib"'
+
+Locally applied patches:
+    
+
+---
+@INC for perl 5.16.0:
+    C:/STRAWBERRY/perl/site/lib
+    C:/STRAWBERRY/perl/vendor/lib
+    C:/STRAWBERRY/perl/lib
+    .
+
+---
+Environment for perl 5.16.0:
+    HOME (unset)
+    LANG (unset)
+    LANGUAGE (unset)
+    LD_LIBRARY_PATH (unset)
+    LOGDIR (unset)
+    PATH=C:\Windows\SYSTEM32;C:\Windows;C:\Windows\SYSTEM32\WBEM;C:\Windows\SYSTEM32\WINDOWSPOWERSHELL\V1.0\;C:\PROGRAM FILES\INTEL\DMIX;C:\PROGRAM FILES\INTEL\WIFI\BIN\;C:\PROGRAM FILES\COMMON FILES\INTEL\WIRELESSCOMMON\;C:\PROGRAM FILES\NTRU CRYPTOSYSTEMS\NTRU TCG SOFTWARE STACK\BIN\;C:\PROGRAM FILES\WAVE SYSTEMS CORP\GEMALTO\ACCESS CLIENT\V5\;C:\PROGRAM FILES\COMMON FILES\ROXIO SHARED\DLLSHARED\;C:\PROGRAM FILES\COMMON FILES\ROXIO SHARED\10.0\DLLSHARED\;C:\STRAWBERRY\C\BIN;C:\STRAWBERRY\PERL\SITE\BIN;C:\STRAWBERRY\PERL\BIN;C:\CYGWIN\USR\BIN;C:\PROGRAM FILES\IBM\TIVOLI\NETCOOL\PLATFORM\WIN32\BIN;C:\PROGRAM FILES\IBM\TIVOLI\NETCOOL\OMNIBUS\PLATFORM\WIN32\BIN;C:\PROGRAM FILES\IBM\TIVOLI\NETCOOL\PLATFORM\WIN32\LIB;C:\CYGWIN\BIN;C:\Program Files\Lua\5.1;C:\Program Files\Lua\5.1\clibs;C:\Program Files\TortoiseGit\bin;C:\Program Files\TortoiseSVN\bin;C:\Program Files\Nmap
+    PERL_BADLANG (unset)
+    SHELL (unset)
