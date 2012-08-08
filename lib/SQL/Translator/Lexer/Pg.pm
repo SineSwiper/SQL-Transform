@@ -1,6 +1,6 @@
 package SQL::Translator::Lexer::Pg;
 
-use sanity;
+use sanity qw(sanity -warnings/all/FATAL warnings/all);  # keep the syntax checking for now
 use Config;
 use Math::BigInt;
 use Math::BigFloat;
@@ -119,6 +119,7 @@ sub Filtered_Lexer {
    }
 
    ### Debug output
+   no warnings 'uninitialized';
    printf "---ENDTOKEN: %s, %s\n", @$cur_token;      
    
    return @$cur_token;
@@ -487,6 +488,7 @@ sub Lexer {
    #      without problems.
    START: for ($p->{startstate}) {
       ### Debug output
+      no warnings 'uninitialized';
       my $i = index($$s, "\n", pos($$s));
       $i = $i == -1 ? 0 : $i - pos($$s);
       $i = 50 if ($i > 50 || $i <= 0);
