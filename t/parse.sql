@@ -230,6 +230,10 @@ CREATE FUNCTION regexp_matches( citext, citext ) RETURNS TEXT[] AS $$
     SELECT pg_catalog.regexp_matches( $1::pg_catalog.text, $2::pg_catalog.text, 'i' );
 $$ LANGUAGE SQL IMMUTABLE STRICT;
 
+/* CREATE FUNCTION regexp_matches( citext, citext ) RETURNS TEXT[] AS $$
+    SELECT pg_catalog.regexp_matches( $1::pg_catalog.text, $2::pg_catalog.text, 'i' );
+$$ LANGUAGE SQL IMMUTABLE STRICT; */
+
 CREATE FUNCTION regexp_split_to_array( citext, citext, text ) RETURNS TEXT[] AS $$
     SELECT pg_catalog.regexp_split_to_array( $1::pg_catalog.text, $2::pg_catalog.text, CASE WHEN pg_catalog.strpos($3, 'c') = 0 THEN  $3 || 'i' ELSE $3 END );
 $$ LANGUAGE SQL IMMUTABLE STRICT;
@@ -325,8 +329,12 @@ RETURNS pg_catalog.trigger
 AS 'MODULE_PATHNAME'
 LANGUAGE C;
 
-DROP FUNCTION @extschema@.xml_is_well_formed(text);
+/* @extschema@ isn't legal...
+ * DROP FUNCTION @extschema@.xml_is_well_formed(text);
+ */
 
+DROP FUNCTION extschema.xml_is_well_formed(text);
+ 
 CREATE TEXT SEARCH PARSER testparser (
    START    = testprs_start,
    GETTOKEN = testprs_getlexeme,
