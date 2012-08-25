@@ -346,3 +346,250 @@ CREATE TEXT SEARCH PARSER testparser (
 CREATE TEXT SEARCH CONFIGURATION testcfg (PARSER = testparser);
 
 ALTER TEXT SEARCH CONFIGURATION testcfg ADD MAPPING FOR word WITH simple;
+
+SELECT "me"."id", "me"."name", "me"."group_id", "me"."user", "me"."version", "me"."is_active", "key_server_side_mia", "button_server_side_mia", "messenger_server_side_mia", "key_pro_server_side_mia", "key_status", "button_status", "messenger_status", "key_pro_status", "is_group_active", "last_checkin", "macro"
+  FROM (
+    SELECT "me"."id", "me"."name", "me"."group_id", "me"."user", "me"."version", "me"."is_active", "key_server_side_mia", "button_server_side_mia", "messenger_server_side_mia", "key_pro_server_side_mia", "key_status", "button_status", "messenger_status", "key_pro_status", "is_group_active", "last_checkin", "macro"
+      FROM (
+        SELECT "me"."id", "me"."name", "me"."group_id", "me"."user", "me"."version", "me"."is_active", (
+            SELECT CASE WHEN device.last_checkin < DATEADD ( second, 4 * 60, GETUTCDATE(  ) ) THEN 1 ELSE 0 END
+              FROM "Computer_Device" "computer_device_links_alias"
+              JOIN "Devices" "device"
+                ON "device"."id" = "computer_device_links_alias"."device_id"
+              LEFT JOIN "Computer_Device" "computer_device_links"
+                ON "computer_device_links"."device_id" = "device"."id"
+              LEFT JOIN "Computers" "computer"
+                ON "computer"."id" = "computer_device_links"."computer_id"
+              LEFT JOIN "ComputerGroups" "group"
+                ON "group"."id" = "computer"."group_id"
+            WHERE "device"."type_id" = '2' AND "group"."is_lynx_key_pro" = '0' AND "device"."is_enabled" = '1' AND "computer_device_links_alias"."computer_id" = "me"."id"
+           ) AS "key_server_side_mia", (
+            SELECT CASE WHEN device.last_checkin < DATEADD ( second, 4 * 60, GETUTCDATE(  ) ) THEN 1 ELSE 0 END
+              FROM "Computer_Device" "computer_device_links_alias"
+              JOIN "Devices" "device"
+                ON "device"."id" = "computer_device_links_alias"."device_id"
+            WHERE "device"."type_id" = '1' AND "device"."is_enabled" = '1' AND "computer_device_links_alias"."computer_id" = "me"."id"
+           ) AS "button_server_side_mia", (
+            SELECT CASE WHEN device.last_checkin < DATEADD ( second, 4 * 60, GETUTCDATE(  ) ) THEN 1 ELSE 0 END
+              FROM "Computer_Device" "computer_device_links_alias"
+              JOIN "Devices" "device"
+                ON "device"."id" = "computer_device_links_alias"."device_id"
+            WHERE "device"."type_id" = '3' AND "device"."is_enabled" = '1' AND "computer_device_links_alias"."computer_id" = "me"."id"
+           ) AS "messenger_server_side_mia", (
+            SELECT CASE WHEN device.last_checkin < DATEADD ( second, 4 * 60, GETUTCDATE(  ) ) THEN 1 ELSE 0 END
+              FROM "Computer_Device" "computer_device_links_alias"
+              JOIN "Devices" "device"
+                ON "device"."id" = "computer_device_links_alias"."device_id"
+              LEFT JOIN "Computer_Device" "computer_device_links"
+                ON "computer_device_links"."device_id" = "device"."id"
+              LEFT JOIN "Computers" "computer"
+                ON "computer"."id" = "computer_device_links"."computer_id"
+              LEFT JOIN "ComputerGroups" "group"
+                ON "group"."id" = "computer"."group_id"
+            WHERE "device"."type_id" = '2' AND "group"."is_lynx_key_pro" = '1' AND "device"."is_enabled" = '1' AND "computer_device_links_alias"."computer_id" = "me"."id"
+           ) AS "key_pro_server_side_mia", (
+            SELECT "device"."status_id"
+              FROM "Computer_Device" "computer_device_links_alias"
+              JOIN "Devices" "device"
+                ON "device"."id" = "computer_device_links_alias"."device_id"
+              LEFT JOIN "Computer_Device" "computer_device_links"
+                ON "computer_device_links"."device_id" = "device"."id"
+              LEFT JOIN "Computers" "computer"
+                ON "computer"."id" = "computer_device_links"."computer_id"
+              LEFT JOIN "ComputerGroups" "group"
+                ON "group"."id" = "computer"."group_id"
+            WHERE "device"."type_id" = '2' AND "group"."is_lynx_key_pro" = '0' AND "device"."is_enabled" = '1' AND "computer_device_links_alias"."computer_id" = "me"."id"
+           ) AS "key_status", (
+            SELECT "device"."status_id"
+              FROM "Computer_Device" "computer_device_links_alias"
+              JOIN "Devices" "device"
+                ON "device"."id" = "computer_device_links_alias"."device_id"
+            WHERE "device"."type_id" = '1' AND "device"."is_enabled" = '1' AND "computer_device_links_alias"."computer_id" = "me"."id"
+           ) AS "button_status", (
+            SELECT "device"."status_id"
+              FROM "Computer_Device" "computer_device_links_alias"
+              JOIN "Devices" "device"
+                ON "device"."id" = "computer_device_links_alias"."device_id"
+            WHERE "device"."type_id" = '3' AND "device"."is_enabled" = '1' AND "computer_device_links_alias"."computer_id" = "me"."id"
+           ) AS "messenger_status", (
+            SELECT "device"."status_id"
+              FROM "Computer_Device" "computer_device_links_alias"
+              JOIN "Devices" "device"
+                ON "device"."id" = "computer_device_links_alias"."device_id"
+              LEFT JOIN "Computer_Device" "computer_device_links"
+                ON "computer_device_links"."device_id" = "device"."id"
+              LEFT JOIN "Computers" "computer"
+                ON "computer"."id" = "computer_device_links"."computer_id"
+              LEFT JOIN "ComputerGroups" "group"
+                ON "group"."id" = "computer"."group_id"
+            WHERE "device"."type_id" = '2' AND "group"."is_lynx_key_pro" = '1' AND "device"."is_enabled" = '1' AND "computer_device_links_alias"."computer_id" = "me"."id"
+           ) AS "key_pro_status", (
+            SELECT "group_alias"."is_active"
+              FROM "ComputerGroups" "group_alias"
+            WHERE "group_alias"."id" = "me"."group_id"
+           ) AS "is_group_active", (
+            SELECT MAX( "device"."last_checkin" )
+              FROM "Computer_Device" "computer_device_links_alias"
+              JOIN "Devices" "device"
+                ON "device"."id" = "computer_device_links_alias"."device_id"
+            WHERE "device"."is_enabled" = '1' AND "computer_device_links_alias"."computer_id" = "me"."id"
+           ) AS "last_checkin", "macro"."to" AS "macro"
+          FROM "Computers" "me"
+          LEFT JOIN "Lookup" "macro"
+            ON "macro"."from" = "me"."name"
+          JOIN "ComputerGroups" "group"
+            ON "group"."id" = "me"."group_id"
+        WHERE "group"."is_active" = '1' AND "me"."is_active" = '1'
+       ) "me"
+   ) "me"
+WHERE "rno__row__index" >= '1' AND "rno__row__index" <= '25'
+
+SELECT "id", "start_date", "end_date", "is_active", "status", "location_tests_count", "failed_location_tests_count", "device_tests_count", "all_computers_count", "failed_computers_count", "untested_computers_count", "succeeded_computers_count"
+  FROM (
+    SELECT "id", "start_date", "end_date", "is_active", "status", "location_tests_count", "failed_location_tests_count", "device_tests_count", "all_computers_count", "failed_computers_count", "untested_computers_count", "succeeded_computers_count"
+    FROM (
+        SELECT "me"."id", "me"."start_date", "me"."end_date", "me"."is_active", "me"."status", (
+            SELECT COUNT( * )
+              FROM "Test_Computer" "test_computer_links_alias"
+            WHERE "test_computer_links_alias"."test_id" = "me"."id"
+           ) AS "location_tests_count", (
+            SELECT COUNT( * )
+              FROM "Test_Computer" "test_computer_links_alias"
+              LEFT JOIN "Test_ComputerResults" "test_computer_result"
+                ON "test_computer_result"."test_computer_id" = "test_computer_links_alias"."id"
+              LEFT JOIN "Locations" "location"
+                ON "location"."test_computer_result_id" = "test_computer_result"."id"
+            WHERE "location"."corrected_location" IS NOT NULL AND "test_computer_links_alias"."test_id" = "me"."id"
+           ) AS "failed_location_tests_count", (
+            SELECT COUNT( * )
+              FROM "Test_Device" "test_device_links_alias"
+            WHERE "test_device_links_alias"."test_id" = "me"."id"
+           ) AS "device_tests_count", (
+            SELECT COUNT( * )
+              FROM (
+                SELECT "computer"."id", "computer"."name", "computer"."group_id", "computer"."user", "computer"."version", "computer"."is_active"
+                  FROM "Test_Computer" "test_computer_links_alias"
+                  JOIN "Computers" "computer"
+                    ON "computer"."id" = "test_computer_links_alias"."computer_id"
+                WHERE "test_computer_links_alias"."test_id" = "me"."id" UNION
+                SELECT "computer"."id", "computer"."name", "computer"."group_id", "computer"."user", "computer"."version", "computer"."is_active"
+                  FROM "Test_Device" "test_device_links_alias"
+                  JOIN "Devices" "device"
+                    ON "device"."id" = "test_device_links_alias"."device_id"
+                  JOIN "Computer_Device" "computer_device_links"
+                    ON "computer_device_links"."device_id" = "device"."id"
+                  JOIN "Computers" "computer"
+                    ON "computer"."id" = "computer_device_links"."computer_id"
+                WHERE "test_device_links_alias"."test_id" = "me"."id"
+               ) "computer"
+           ) AS "all_computers_count", (
+            SELECT COUNT( * )
+              FROM (
+                SELECT "computer"."id", "computer"."name", "computer"."group_id", "computer"."user", "computer"."version", "computer"."is_active"
+                  FROM "Test_Computer" "test_computer_links_alias"
+                  LEFT JOIN "Test_ComputerResults" "test_computer_result"
+                    ON "test_computer_result"."test_computer_id" = "test_computer_links_alias"."id"
+                  LEFT JOIN "Locations" "location"
+                    ON "location"."test_computer_result_id" = "test_computer_result"."id"
+                  JOIN "Computers" "computer"
+                    ON "computer"."id" = "test_computer_links_alias"."computer_id"
+                WHERE "location"."corrected_location" IS NOT NULL AND "test_computer_links_alias"."test_id" = "me"."id" UNION
+                SELECT "computer"."id", "computer"."name", "computer"."group_id", "computer"."user", "computer"."version", "computer"."is_active"
+                  FROM "Test_Device" "test_device_links_alias"
+                  LEFT JOIN "TestResults" "test_result"
+                    ON "test_result"."test_device_id" = "test_device_links_alias"."id"
+                  LEFT JOIN "TestResult_TestResultType" "test_result_test_result_type_links"
+                    ON "test_result_test_result_type_links"."test_result_id" = "test_result"."id"
+                  JOIN "Devices" "device"
+                    ON "device"."id" = "test_device_links_alias"."device_id"
+                  JOIN "Computer_Device" "computer_device_links"
+                    ON "computer_device_links"."device_id" = "device"."id"
+                  JOIN "Computers" "computer"
+                    ON "computer"."id" = "computer_device_links"."computer_id"
+                WHERE "test_result_test_result_type_links"."is_success" = '0' AND "test_device_links_alias"."test_id" = "me"."id"
+               ) "computer"
+           ) AS "failed_computers_count", (
+            SELECT COUNT( * )
+              FROM (
+                SELECT "computer"."id", "computer"."name", "computer"."group_id", "computer"."user", "computer"."version", "computer"."is_active"
+                  FROM "Test_Computer" "test_computer_links_alias"
+                  LEFT JOIN "Test_ComputerResults" "test_computer_result"
+                    ON "test_computer_result"."test_computer_id" = "test_computer_links_alias"."id"
+                  JOIN "Computers" "computer"
+                    ON "computer"."id" = "test_computer_links_alias"."computer_id"
+                WHERE "test_computer_result"."id" IS NULL AND "test_computer_links_alias"."test_id" = "me"."id" UNION
+                SELECT "computer"."id", "computer"."name", "computer"."group_id", "computer"."user", "computer"."version", "computer"."is_active"
+                  FROM "Test_Device" "test_device_links_alias"
+                  LEFT JOIN "TestResults" "test_result"
+                    ON "test_result"."test_device_id" = "test_device_links_alias"."id"
+                  JOIN "Devices" "device"
+                    ON "device"."id" = "test_device_links_alias"."device_id"
+                  JOIN "Computer_Device" "computer_device_links"
+                    ON "computer_device_links"."device_id" = "device"."id"
+                  JOIN "Computers" "computer"
+                    ON "computer"."id" = "computer_device_links"."computer_id"
+                WHERE "test_result"."id" IS NULL AND "test_device_links_alias"."test_id" = "me"."id"
+               ) "computer"
+           ) AS "untested_computers_count", (
+            SELECT COUNT( * )
+              FROM "Computers" "me"
+            WHERE "id" IN (
+                SELECT "computer"."id"
+                  FROM (
+                    SELECT "computer"."id", "computer"."name", "computer"."group_id", "computer"."user", "computer"."version", "computer"."is_active"
+                      FROM "Test_Computer" "test_computer_links_alias"
+                      JOIN "Computers" "computer"
+                        ON "computer"."id" = "test_computer_links_alias"."computer_id"
+                    WHERE "test_computer_links_alias"."test_id" = "me"."id" UNION
+                    SELECT "computer"."id", "computer"."name", "computer"."group_id", "computer"."user", "computer"."version", "computer"."is_active"
+                      FROM "Test_Device" "test_device_links_alias"
+                      JOIN "Devices" "device"
+                        ON "device"."id" = "test_device_links_alias"."device_id"
+                      JOIN "Computer_Device" "computer_device_links"
+                        ON "computer_device_links"."device_id" = "device"."id"
+                      JOIN "Computers" "computer"
+                        ON "computer"."id" = "computer_device_links"."computer_id"
+                    WHERE "test_device_links_alias"."test_id" = "me"."id"
+                   ) "computer"
+               ) AND "id" NOT IN (
+                SELECT "computer"."id"
+                  FROM (
+                    SELECT "computer"."id", "computer"."name", "computer"."group_id", "computer"."user", "computer"."version", "computer"."is_active"
+                      FROM "Test_Computer" "test_computer_links_alias"
+                      LEFT JOIN "Test_ComputerResults" "test_computer_result"
+                        ON "test_computer_result"."test_computer_id" = "test_computer_links_alias"."id" 
+                      LEFT JOIN "Locations" "location"
+                        ON "location"."test_computer_result_id" = "test_computer_result"."id"
+                      JOIN "Computers" "computer"
+                        ON "computer"."id" = "test_computer_links_alias"."computer_id"
+                    WHERE "location"."corrected_location" IS NOT NULL AND "test_computer_links_alias"."test_id" = "me"."id" UNION
+                    SELECT "computer"."id", "computer"."name", "computer"."group_id", "computer"."user", "computer"."version", "computer"."is_active"
+                      FROM "Test_Device" "test_device_links_alias"
+                      LEFT JOIN "TestResults" "test_result"
+                        ON "test_result"."test_device_id" = "test_device_links_alias"."id"
+                      LEFT JOIN "TestResult_TestResultType" "test_result_test_result_type_links"
+                        ON "test_result_test_result_type_links"."test_result_id" = "test_result"."id"
+                      JOIN "Devices" "device"
+                        ON "device"."id" = "test_device_links_alias"."device_id"
+                      JOIN "Computer_Device" "computer_device_links"
+                        ON "computer_device_links"."device_id" = "device"."id"
+                      JOIN "Computers" "computer"
+                        ON "computer"."id" = "computer_device_links"."computer_id"
+                    WHERE "test_result_test_result_type_links"."is_success" = '0' AND "test_device_links_alias"."test_id" = "me"."id"
+                   ) "computer"
+               )
+           ) AS "succeeded_computers_count"
+          FROM (
+            SELECT "me"."id", "me"."start_date", "me"."end_date", "me"."is_active", 'completed' as status
+              FROM "Tests" "me"
+            WHERE "me"."end_date" < GETUTCDATE(  ) UNION
+            SELECT "me"."id", "me"."start_date", "me"."end_date", "me"."is_active", 'in progress' as status
+              FROM "Tests" "me"
+            WHERE "me"."end_date" >= GETUTCDATE(  ) AND "me"."start_date" <= GETUTCDATE(  ) UNION
+            SELECT "me"."id", "me"."start_date", "me"."end_date", "me"."is_active", 'scheduled' as status
+              FROM "Tests" "me"
+            WHERE "me"."start_date" > GETUTCDATE(  )
+           ) "me"
+       ) "me"
+   ) "me"
+WHERE "rno__row__index" >= '1' AND "rno__row__index" <= '25'

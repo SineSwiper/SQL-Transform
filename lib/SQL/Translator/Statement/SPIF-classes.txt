@@ -1,0 +1,301 @@
+[SQL-Perl Interchange Format]
+SQL::Convertor::SPIF:: (or SPICiFy)
+
+   Statement::
+      DQL::
+         Deallocate
+         Select
+         DeclareCursor
+         Explain
+         Lock
+         Prepare
+         Fetch
+      DML::
+         Delete
+         Execute
+         Insert
+         Update
+      DDL::
+         Alter::
+            Database
+            Domain
+            Enum
+            Extension
+            ForeignDataWrapper
+            ForeignServer
+            ObjectSchema
+            OpFamily
+            Sequence
+            TSConfiguration
+            TSDictionary
+            Table
+            TablespaceOptions
+            ExtensionContents
+            Function
+            DatabaseSet
+         ClosePortal
+         Cluster
+         Comment
+         Copy
+         Create::
+            Cast
+            Conversion
+            CompositeType
+            Database
+            Define
+            Domain
+            Enum
+            Extension
+            ForeignDataWrapper
+            ForeignServer
+            ForeignTable
+            Function
+            OpClass
+            OpFamily
+            PLang
+            Range
+            Schema
+            Sequence
+            Table
+            TableAs
+            Tablespace
+            Trigger
+            View
+         Do
+         Drop
+         Drop::
+            Owned
+            Tablespace
+            Database
+         Index
+         Load
+         Reindex
+         Rename
+         Rule
+         Truncate
+         Vacuum
+      DCL::
+         Grant
+         GrantRole
+         Alter::
+            DefaultPrivileges
+            Owner
+            Role
+            RoleSet
+            UserMapping
+         Create::
+            Role
+            UserMapping
+         Drop::
+            Role
+            UserMapping
+         ReassignOwned
+         SecurityLabel
+      TCL::
+         Checkpoint
+         Discard
+         Listen
+         Notify
+         Set::
+            Constraints
+            Operation
+            Variable
+         Transaction
+         Unlisten
+         ShowVariable
+   Target (ResTarget)
+   Target::
+      Array
+      BooleanTest
+      Case
+      Case::When
+      Coalesce
+      Collate
+      ColumnRef
+      Const
+      CurrentOf
+      Expr
+      Indices
+      Indirection
+      Function::
+         Call
+         NamedArg
+         Param
+         WithArgs
+      MinMax
+      NullTest
+      ParamRef
+      Row
+      SetToDefault
+      Star
+      SubLink
+      TypeName
+      TypeCast
+      XML
+      XMLSerialize
+   Source::
+      Join
+      From
+      Range::
+         Alias
+         Function
+         Subselect
+         Var
+   Other::
+      DefElem
+      DQL::
+         Into
+         SortBy
+         With
+         With::CommonTable
+         Locking
+         WindowDef
+      DDL::
+         AlterTableCmd
+         ColumnDef
+         Constraint
+         CreateOpClassItem
+         IndexElem         
+         TableLike
+      DCL::   
+         PrivGrantee
+         AccessPriv
+
+SQL::Convertor::SPIF::Statement::DQL::Deallocate
+SQL::Convertor::SPIF::Statement::DQL::Select
+SQL::Convertor::SPIF::Statement::DQL::DeclareCursor
+SQL::Convertor::SPIF::Statement::DQL::Explain
+SQL::Convertor::SPIF::Statement::DQL::Lock
+SQL::Convertor::SPIF::Statement::DQL::Prepare
+SQL::Convertor::SPIF::Statement::DQL::Fetch
+SQL::Convertor::SPIF::Statement::DML::Delete
+SQL::Convertor::SPIF::Statement::DML::Execute
+SQL::Convertor::SPIF::Statement::DML::Insert
+SQL::Convertor::SPIF::Statement::DML::Update
+SQL::Convertor::SPIF::Statement::DDL::Alter::Database
+SQL::Convertor::SPIF::Statement::DDL::Alter::Domain
+SQL::Convertor::SPIF::Statement::DDL::Alter::Enum
+SQL::Convertor::SPIF::Statement::DDL::Alter::Extension
+SQL::Convertor::SPIF::Statement::DDL::Alter::ForeignDataWrapper
+SQL::Convertor::SPIF::Statement::DDL::Alter::ForeignServer
+SQL::Convertor::SPIF::Statement::DDL::Alter::ObjectSchema
+SQL::Convertor::SPIF::Statement::DDL::Alter::OpFamily
+SQL::Convertor::SPIF::Statement::DDL::Alter::Sequence
+SQL::Convertor::SPIF::Statement::DDL::Alter::TSConfiguration
+SQL::Convertor::SPIF::Statement::DDL::Alter::TSDictionary
+SQL::Convertor::SPIF::Statement::DDL::Alter::Table
+SQL::Convertor::SPIF::Statement::DDL::Alter::TablespaceOptions
+SQL::Convertor::SPIF::Statement::DDL::Alter::ExtensionContents
+SQL::Convertor::SPIF::Statement::DDL::Alter::Function
+SQL::Convertor::SPIF::Statement::DDL::Alter::DatabaseSet
+SQL::Convertor::SPIF::Statement::DDL::ClosePortal
+SQL::Convertor::SPIF::Statement::DDL::Cluster
+SQL::Convertor::SPIF::Statement::DDL::Comment
+SQL::Convertor::SPIF::Statement::DDL::Copy
+SQL::Convertor::SPIF::Statement::DDL::Create::Cast
+SQL::Convertor::SPIF::Statement::DDL::Create::Conversion
+SQL::Convertor::SPIF::Statement::DDL::Create::CompositeType
+SQL::Convertor::SPIF::Statement::DDL::Create::Database
+SQL::Convertor::SPIF::Statement::DDL::Create::Define
+SQL::Convertor::SPIF::Statement::DDL::Create::Domain
+SQL::Convertor::SPIF::Statement::DDL::Create::Enum
+SQL::Convertor::SPIF::Statement::DDL::Create::Extension
+SQL::Convertor::SPIF::Statement::DDL::Create::ForeignDataWrapper
+SQL::Convertor::SPIF::Statement::DDL::Create::ForeignServer
+SQL::Convertor::SPIF::Statement::DDL::Create::ForeignTable
+SQL::Convertor::SPIF::Statement::DDL::Create::Function
+SQL::Convertor::SPIF::Statement::DDL::Create::OpClass
+SQL::Convertor::SPIF::Statement::DDL::Create::OpFamily
+SQL::Convertor::SPIF::Statement::DDL::Create::PLang
+SQL::Convertor::SPIF::Statement::DDL::Create::Range
+SQL::Convertor::SPIF::Statement::DDL::Create::Schema
+SQL::Convertor::SPIF::Statement::DDL::Create::Sequence
+SQL::Convertor::SPIF::Statement::DDL::Create::Table
+SQL::Convertor::SPIF::Statement::DDL::Create::TableAs
+SQL::Convertor::SPIF::Statement::DDL::Create::Tablespace
+SQL::Convertor::SPIF::Statement::DDL::Create::Trigger
+SQL::Convertor::SPIF::Statement::DDL::Create::View
+SQL::Convertor::SPIF::Statement::DDL::Do
+SQL::Convertor::SPIF::Statement::DDL::Drop
+SQL::Convertor::SPIF::Statement::DDL::Drop::Owned
+SQL::Convertor::SPIF::Statement::DDL::Drop::Tablespace
+SQL::Convertor::SPIF::Statement::DDL::Drop::Database
+SQL::Convertor::SPIF::Statement::DDL::Index
+SQL::Convertor::SPIF::Statement::DDL::Load
+SQL::Convertor::SPIF::Statement::DDL::Reindex
+SQL::Convertor::SPIF::Statement::DDL::Rename
+SQL::Convertor::SPIF::Statement::DDL::Rule
+SQL::Convertor::SPIF::Statement::DDL::Truncate
+SQL::Convertor::SPIF::Statement::DDL::Vacuum
+SQL::Convertor::SPIF::Statement::DCL::Grant
+SQL::Convertor::SPIF::Statement::DCL::GrantRole
+SQL::Convertor::SPIF::Statement::DCL::Alter::DefaultPrivileges
+SQL::Convertor::SPIF::Statement::DCL::Alter::Owner
+SQL::Convertor::SPIF::Statement::DCL::Alter::Role
+SQL::Convertor::SPIF::Statement::DCL::Alter::RoleSet
+SQL::Convertor::SPIF::Statement::DCL::Alter::UserMapping
+SQL::Convertor::SPIF::Statement::DCL::Create::Role
+SQL::Convertor::SPIF::Statement::DCL::Create::UserMapping
+SQL::Convertor::SPIF::Statement::DCL::Drop::Role
+SQL::Convertor::SPIF::Statement::DCL::Drop::UserMapping
+SQL::Convertor::SPIF::Statement::DCL::ReassignOwned
+SQL::Convertor::SPIF::Statement::DCL::SecurityLabel
+SQL::Convertor::SPIF::Statement::TCL::Checkpoint
+SQL::Convertor::SPIF::Statement::TCL::Discard
+SQL::Convertor::SPIF::Statement::TCL::Listen
+SQL::Convertor::SPIF::Statement::TCL::Notify
+SQL::Convertor::SPIF::Statement::TCL::Set::Constraints
+SQL::Convertor::SPIF::Statement::TCL::Set::Operation
+SQL::Convertor::SPIF::Statement::TCL::Set::Variable
+SQL::Convertor::SPIF::Statement::TCL::Transaction
+SQL::Convertor::SPIF::Statement::TCL::Unlisten
+SQL::Convertor::SPIF::Statement::TCL::ShowVariable
+SQL::Convertor::SPIF::Target
+SQL::Convertor::SPIF::Target::Array
+SQL::Convertor::SPIF::Target::BooleanTest
+SQL::Convertor::SPIF::Target::Case
+SQL::Convertor::SPIF::Target::Case::When
+SQL::Convertor::SPIF::Target::Coalesce
+SQL::Convertor::SPIF::Target::Collate
+SQL::Convertor::SPIF::Target::ColumnRef
+SQL::Convertor::SPIF::Target::Const
+SQL::Convertor::SPIF::Target::CurrentOf
+SQL::Convertor::SPIF::Target::Expr
+SQL::Convertor::SPIF::Target::Indices
+SQL::Convertor::SPIF::Target::Indirection
+SQL::Convertor::SPIF::Target::Function::Call
+SQL::Convertor::SPIF::Target::Function::NamedArg
+SQL::Convertor::SPIF::Target::Function::Param
+SQL::Convertor::SPIF::Target::Function::WithArgs
+SQL::Convertor::SPIF::Target::MinMax
+SQL::Convertor::SPIF::Target::NullTest
+SQL::Convertor::SPIF::Target::ParamRef
+SQL::Convertor::SPIF::Target::Row
+SQL::Convertor::SPIF::Target::SetToDefault
+SQL::Convertor::SPIF::Target::Star
+SQL::Convertor::SPIF::Target::SubLink
+SQL::Convertor::SPIF::Target::TypeName
+SQL::Convertor::SPIF::Target::TypeCast
+SQL::Convertor::SPIF::Target::XML
+SQL::Convertor::SPIF::Target::XMLSerialize
+SQL::Convertor::SPIF::Source::Join
+SQL::Convertor::SPIF::Source::From
+SQL::Convertor::SPIF::Source::Range::Alias
+SQL::Convertor::SPIF::Source::Range::Function
+SQL::Convertor::SPIF::Source::Range::Subselect
+SQL::Convertor::SPIF::Source::Range::Var
+SQL::Convertor::SPIF::Other::DefElem
+SQL::Convertor::SPIF::Other::DQL::Into
+SQL::Convertor::SPIF::Other::DQL::SortBy
+SQL::Convertor::SPIF::Other::DQL::With
+SQL::Convertor::SPIF::Other::DQL::With::CommonTable
+SQL::Convertor::SPIF::Other::DQL::Locking
+SQL::Convertor::SPIF::Other::DQL::WindowDef
+SQL::Convertor::SPIF::Other::DDL::AlterTableCmd
+SQL::Convertor::SPIF::Other::DDL::ColumnDef
+SQL::Convertor::SPIF::Other::DDL::Constraint
+SQL::Convertor::SPIF::Other::DDL::CreateOpClassItem
+SQL::Convertor::SPIF::Other::DDL::IndexElem         
+SQL::Convertor::SPIF::Other::DDL::TableLike
+SQL::Convertor::SPIF::Other::DCL::PrivGrantee
+SQL::Convertor::SPIF::Other::DCL::AccessPriv

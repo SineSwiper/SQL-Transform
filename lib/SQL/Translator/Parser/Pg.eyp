@@ -20,7 +20,7 @@
 
 /* ordinary key words in alphabetical order */
 /**** XXX: This is ugly, but eyapp doesn't seem to support multi-line %tokens ****/
-%token <keyword> ABORT ABSOLUTE ACCESS ACTION ADD ADMIN AFTER AGGREGATE ALL ALSO ALTER ALWAYS ANALYSE ANALYZE AND ANY ARRAY AS ASC ASSERTION ASSIGNMENT ASYMMETRIC AT ATTRIBUTE AUTHORIZATION BACKWARD BEFORE BEGIN BETWEEN BIGINT BINARY BIT BOOLEAN BOTH BY CACHE CALLED CASCADE CASCADED CASE CAST CATALOG CHAIN CHAR CHARACTER CHARACTERISTICS CHECK CHECKPOINT CLASS CLOSE CLUSTER COALESCE COLLATE COLLATION COLUMN COMMENT COMMENTS COMMIT COMMITTED CONCURRENTLY CONFIGURATION CONNECTION CONSTRAINT CONSTRAINTS CONTENT CONTINUE CONVERSION COPY COST CREATE CROSS CSV CURRENT CURRENT_CATALOG CURRENT_DATE CURRENT_ROLE CURRENT_SCHEMA CURRENT_TIME CURRENT_TIMESTAMP CURRENT_USER CURSOR CYCLE DATA DATABASE DAY DEALLOCATE DEC DECIMAL DECLARE DEFAULT DEFAULTS DEFERRABLE DEFERRED DEFINER DELETE DELIMITER DELIMITERS DESC DICTIONARY DISABLE DISCARD DISTINCT DO DOCUMENT DOMAIN DOUBLE DROP EACH ELSE ENABLE ENCODING ENCRYPTED END ENUM ESCAPE EXCEPT EXCLUDE EXCLUDING EXCLUSIVE EXECUTE EXISTS EXPLAIN EXTENSION EXTERNAL EXTRACT FALSE FAMILY FETCH FIRST FLOAT FOLLOWING FOR FORCE FOREIGN FORWARD FREEZE FROM FULL FUNCTION FUNCTIONS GLOBAL GRANT GRANTED GREATEST GROUP HANDLER HAVING HEADER HOLD HOUR IDENTITY IF ILIKE IMMEDIATE IMMUTABLE IMPLICIT IN INCLUDING INCREMENT INDEX INDEXES INHERIT INHERITS INITIALLY INLINE INNER INOUT INPUT INSENSITIVE INSERT INSTEAD INT INTEGER INTERSECT INTERVAL INTO INVOKER IS ISNULL ISOLATION JOIN KEY LABEL LANGUAGE LARGE LAST LC_COLLATE LC_CTYPE LEADING LEAST LEFT LEVEL LIKE LIMIT LISTEN LOAD LOCAL LOCALTIME LOCALTIMESTAMP LOCATION LOCK MAPPING MATCH MAXVALUE MINUTE MINVALUE MODE MONTH MOVE NAME NAMES NATIONAL NATURAL NCHAR NEXT NO NONE NOT NOTHING NOTIFY NOTNULL NOWAIT NULL NULLIF NULLS NUMERIC OBJECT OF OFF OFFSET OIDS ON ONLY OPERATOR OPTION OPTIONS OR ORDER OUT OUTER OVER OVERLAPS OVERLAY OWNED OWNER PARSER PARTIAL PARTITION PASSING PASSWORD PLACING PLANS POSITION PRECEDING PRECISION PRESERVE PREPARE PREPARED PRIMARY PRIOR PRIVILEGES PROCEDURAL PROCEDURE QUOTE RANGE READ REAL REASSIGN RECHECK RECURSIVE REF REFERENCES REINDEX RELATIVE RELEASE RENAME REPEATABLE REPLACE REPLICA RESET RESTART RESTRICT RETURNING RETURNS REVOKE RIGHT ROLE ROLLBACK ROW ROWS RULE SAVEPOINT SCHEMA SCROLL SEARCH SECOND SECURITY SELECT SEQUENCE SEQUENCES SERIALIZABLE SERVER SESSION SESSION_USER SET SETOF SHARE SHOW SIMILAR SIMPLE SMALLINT SOME STABLE STANDALONE START STATEMENT STATISTICS STDIN STDOUT STORAGE STRICT STRIP SUBSTRING SYMMETRIC SYSID SYSTEM TABLE TABLES TABLESPACE TEMP TEMPLATE TEMPORARY TEXT THEN TIME TIMESTAMP TO TRAILING TRANSACTION TREAT TRIGGER TRIM TRUE TRUNCATE TRUSTED TYPE UNBOUNDED UNCOMMITTED UNENCRYPTED UNION UNIQUE UNKNOWN UNLISTEN UNLOGGED UNTIL UPDATE USER USING VACUUM VALID VALIDATE VALIDATOR VALUE VALUES VARCHAR VARIADIC VARYING VERBOSE VERSION VIEW VOLATILE WHEN WHERE WHITESPACE WINDOW WITH WITHOUT WORK WRAPPER WRITE YEAR YES ZONE
+%token <keyword> ABORT ABSOLUTE ACCESS ACTION ADD ADMIN AFTER AGGREGATE ALL ALSO ALTER ALWAYS ANALYSE ANALYZE AND ANY ARRAY AS ASC ASSERTION ASSIGNMENT ASYMMETRIC AT ATTRIBUTE AUTHORIZATION BACKWARD BEFORE BEGIN BETWEEN BIGINT BINARY BIT BOOLEAN BOTH BY CACHE CALLED CASCADE CASCADED CASE CAST CATALOG CHAIN CHAR CHARACTER CHARACTERISTICS CHECK CHECKPOINT CLASS CLOSE CLUSTER COALESCE COLLATE COLLATION COLUMN COMMENT COMMENTS COMMIT COMMITTED CONCURRENTLY CONFIGURATION CONNECTION CONSTRAINT CONSTRAINTS CONTENT CONTINUE CONVERSION COPY COST CREATE CROSS CSV CURRENT CURRENT_CATALOG CURRENT_DATE CURRENT_ROLE CURRENT_SCHEMA CURRENT_TIME CURRENT_TIMESTAMP CURRENT_USER CURSOR CYCLE DATA DATABASE DAY DEALLOCATE DEC DECIMAL DECLARE DEFAULT DEFAULTS DEFERRABLE DEFERRED DEFINER DELETE DELIMITER DELIMITERS DESC DICTIONARY DISABLE DISCARD DISTINCT DO DOCUMENT DOMAIN DOUBLE DROP EACH ELSE ENABLE ENCODING ENCRYPTED END ENUM ESCAPE EVENT EXCEPT EXCLUDE EXCLUDING EXCLUSIVE EXECUTE EXISTS EXPLAIN EXTENSION EXTERNAL EXTRACT FALSE FAMILY FETCH FIRST FLOAT FOLLOWING FOR FORCE FOREIGN FORWARD FREEZE FROM FULL FUNCTION FUNCTIONS GLOBAL GRANT GRANTED GREATEST GROUP HANDLER HAVING HEADER HOLD HOUR IDENTITY IF ILIKE IMMEDIATE IMMUTABLE IMPLICIT IN INCLUDING INCREMENT INDEX INDEXES INHERIT INHERITS INITIALLY INLINE INNER INOUT INPUT INSENSITIVE INSERT INSTEAD INT INTEGER INTERSECT INTERVAL INTO INVOKER IS ISNULL ISOLATION JOIN KEY LABEL LANGUAGE LARGE LAST LATERAL LC_COLLATE LC_CTYPE LEADING LEAKPROOF LEAST LEFT LEVEL LIKE LIMIT LISTEN LOAD LOCAL LOCALTIME LOCALTIMESTAMP LOCATION LOCK MAPPING MATCH MAXVALUE MINUTE MINVALUE MODE MONTH MOVE NAME NAMES NATIONAL NATURAL NCHAR NEXT NO NONE NOT NOTHING NOTIFY NOTNULL NOWAIT NULL NULLIF NULLS NUMERIC OBJECT OF OFF OFFSET OIDS ON ONLY OPERATOR OPTION OPTIONS OR ORDER OUT OUTER OVER OVERLAPS OVERLAY OWNED OWNER PARSER PARTIAL PARTITION PASSING PASSWORD PLACING PLANS POSITION PRECEDING PRECISION PRESERVE PREPARE PREPARED PRIMARY PRIOR PRIVILEGES PROCEDURAL PROCEDURE QUOTE RANGE READ REAL REASSIGN RECHECK RECURSIVE REF REFERENCES REINDEX RELATIVE RELEASE RENAME REPEATABLE REPLACE REPLICA RESET RESTART RESTRICT RETURNING RETURNS REVOKE RIGHT ROLE ROLLBACK ROW ROWS RULE SAVEPOINT SCHEMA SCROLL SEARCH SECOND SECURITY SELECT SEQUENCE SEQUENCES SERIALIZABLE SERVER SESSION SESSION_USER SET SETOF SHARE SHOW SIMILAR SIMPLE SMALLINT SNAPSHOT SOME STABLE STANDALONE START STATEMENT STATISTICS STDIN STDOUT STORAGE STRICT STRIP SUBSTRING SYMMETRIC SYSID SYSTEM TABLE TABLES TABLESPACE TEMP TEMPLATE TEMPORARY TEXT THEN TIME TIMESTAMP TO TRAILING TRANSACTION TREAT TRIGGER TRIM TRUE TRUNCATE TRUSTED TYPE TYPES UNBOUNDED UNCOMMITTED UNENCRYPTED UNION UNIQUE UNKNOWN UNLISTEN UNLOGGED UNTIL UPDATE USER USING VACUUM VALID VALIDATE VALIDATOR VALUE VALUES VARCHAR VARIADIC VARYING VERBOSE VERSION VIEW VOLATILE WHEN WHERE WHITESPACE WINDOW WITH WITHOUT WORK WRAPPER WRITE YEAR YES ZONE
 
 /*
  * The grammar thinks these are keywords, but they are not in the kwlist.h
@@ -135,7 +135,8 @@ stmtmulti:
       ;
 
 stmt:
-         AlterDatabaseStmt
+           AlterEventTrigStmt
+         | AlterDatabaseStmt
          | AlterDatabaseSetStmt
          | AlterDefaultPrivilegesStmt
          | AlterDomainStmt
@@ -186,6 +187,7 @@ stmt:
          | CreateStmt
          | CreateTableSpaceStmt
          | CreateTrigStmt
+         | CreateEventTrigStmt
          | CreateRoleStmt
          | CreateUserStmt
          | CreateUserMappingStmt
@@ -301,7 +303,7 @@ AlterOptRoleElem:
                 * size of the main parser.
                 */ {
                for ($_[1]) {
-                  when (/^(?:super|create)user$/)   { $_[0]->makeDefElem("superuser",     TRUE ) }     
+                  when (/^(?:super|create)user$/)   { $_[0]->makeDefElem("superuser",     TRUE ) }
                   when (/^no(?:super|create)user$/) { $_[0]->makeDefElem("superuser",     FALSE) }
                   when ("createrole")               { $_[0]->makeDefElem("createrole",    TRUE ) }
                   when ("nocreaterole")             { $_[0]->makeDefElem("createrole",    FALSE) }
@@ -590,8 +592,25 @@ VariableSetStmt:
          | SET SESSION set_rest  { $_[3]->is_local(0); $_[3] }
       ;
 
-set_rest:   /* Generic SET syntaxes: */
-         var_name TO var_list {
+set_rest:
+         TRANSACTION transaction_mode_list {
+               return SQL::Translator::Statement::VariableSet->new(
+                  kind => VAR_SET_MULTI,
+                  name => 'TRANSACTION',
+                  args => $_[2],
+               );
+            }
+         | SESSION CHARACTERISTICS AS TRANSACTION transaction_mode_list {
+               return SQL::Translator::Statement::VariableSet->new(
+                  kind => VAR_SET_MULTI,
+                  name => 'SESSION CHARACTERISTICS',
+                  args => $_[5],
+               );
+            }
+         | set_rest_more;
+
+set_rest_more:  /* Generic SET syntaxes: */
+           var_name TO var_list {
                return SQL::Translator::Statement::VariableSet->new(
                   kind => VAR_SET_VALUE,
                   name => $_[1],
@@ -631,20 +650,6 @@ set_rest:   /* Generic SET syntaxes: */
                   (defined $_[3]) ?
                      (args => $_[0]->lappend($_[3])) :
                      (kind => VAR_SET_DEFAULT)
-               );
-            }
-         | TRANSACTION transaction_mode_list {
-               return SQL::Translator::Statement::VariableSet->new(
-                  kind => VAR_SET_MULTI,
-                  name => 'TRANSACTION',
-                  args => $_[2],
-               );
-            }
-         | SESSION CHARACTERISTICS AS TRANSACTION transaction_mode_list {
-               return SQL::Translator::Statement::VariableSet->new(
-                  kind => VAR_SET_MULTI,
-                  name => 'SESSION CHARACTERISTICS',
-                  args => $_[5],
                );
             }
          | CATALOG Sconst {
@@ -697,28 +702,36 @@ set_rest:   /* Generic SET syntaxes: */
                   args => $_[0]->lappend($_[0]->makeStringConst($_[3], $_[0]->YYLLoc($_[3], 3))),
                );
             }
+         /* Special syntaxes invented by PostgreSQL: */
+         | TRANSACTION SNAPSHOT Sconst {
+               return SQL::Translator::Statement::VariableSet->new(
+                  kind => VAR_SET_MULTI,
+                  name => 'transaction_snapshot',
+                  args => [ $_[0]->makeStringConst($_[3], $_[0]->YYLLoc($_[3], 3)) ],
+               );
+            }
       ;
 
-var_name:   ColId                        { $_[1] }
+var_name:  ColId                         { $_[1] }
          | var_name '.' ColId            { sprintf("%s.%s", $_[1], $_[3]) }
       ;
 
-var_list:   var_value                       { $_[0]->lappend($_[1]) }
+var_list:  var_value                        { $_[0]->lappend($_[1]) }
          | var_list ',' var_value           { $_[0]->lappend($_[1], $_[3]) }
       ;
 
-var_value:   opt_boolean_or_string { $_[0]->makeStringConst($_[1], $_[0]->YYLLoc($_[1], 1)) }
+var_value: opt_boolean_or_string   { $_[0]->makeStringConst($_[1], $_[0]->YYLLoc($_[1], 1)) }
          | NumericOnly             { $_[0]->makeAConst     ($_[1], $_[0]->YYLLoc($_[1], 1)) }
       ;
 
-iso_level:   READ UNCOMMITTED               { "read uncommitted" }
+iso_level: READ UNCOMMITTED                 { "read uncommitted" }
          | READ COMMITTED                   { "read committed"   }
          | REPEATABLE READ                  { "repeatable read"  }
          | SERIALIZABLE                     { "serializable"     }
       ;
 
 opt_boolean_or_string:
-         TRUE                               { "TRUE" }
+           TRUE                             { "TRUE" }
          | FALSE                            { "FALSE" }
          | ON                               { "on" }
          /*
@@ -831,6 +844,12 @@ SetResetClause:
          | VariableResetStmt        { $_[1] }
       ;
 
+/* SetResetClause allows SET or RESET without LOCAL */
+FunctionSetResetClause:
+         SET set_rest_more          { $_[2] }
+         | VariableResetStmt        { $_[1] }
+      ;
+
 
 VariableShowStmt:
          SHOW var_name {
@@ -928,34 +947,70 @@ DiscardStmt:
  *****************************************************************************/
 
 AlterTableStmt:
-         ALTER TABLE relation_expr alter_table_cmds {
-               return SQL::Translator::Statement::AlterTable->new(
-                  relation => $_[3],
-                  cmds     => $_[4],
-                  relkind  => OBJECT_TABLE,
-               );
-            }
-      |   ALTER INDEX qualified_name alter_table_cmds {
-               return SQL::Translator::Statement::AlterTable->new(
-                  relation => $_[3],
-                  cmds     => $_[4],
-                  relkind  => OBJECT_INDEX,
-               );
-            }
-      |   ALTER SEQUENCE qualified_name alter_table_cmds {
-               return SQL::Translator::Statement::AlterTable->new(
-                  relation => $_[3],
-                  cmds     => $_[4],
-                  relkind  => OBJECT_SEQUENCE,
-               );
-            }
-      |   ALTER VIEW qualified_name alter_table_cmds {
-               return SQL::Translator::Statement::AlterTable->new(
-                  relation => $_[3],
-                  cmds     => $_[4],
-                  relkind  => OBJECT_VIEW,
-               );
-            }
+        ALTER TABLE relation_expr alter_table_cmds {
+            return SQL::Translator::Statement::AlterTable->new(
+               relation   => $_[3],
+               cmds       => $_[4],
+               relkind    => OBJECT_TABLE,
+               missing_ok => FALSE,
+            );
+         }
+      | ALTER TABLE IF EXISTS relation_expr alter_table_cmds {
+            return SQL::Translator::Statement::AlterTable->new(
+               relation   => $_[5],
+               cmds       => $_[6],
+               relkind    => OBJECT_TABLE,
+               missing_ok => TRUE,
+            );
+         }
+      | ALTER INDEX qualified_name alter_table_cmds {
+            return SQL::Translator::Statement::AlterTable->new(
+               relation   => $_[3],
+               cmds       => $_[4],
+               relkind    => OBJECT_INDEX,
+               missing_ok => FALSE,
+            );
+         }
+      | ALTER INDEX IF EXISTS qualified_name alter_table_cmds {
+            return SQL::Translator::Statement::AlterTable->new(
+               relation   => $_[5],
+               cmds       => $_[6],
+               relkind    => OBJECT_INDEX,
+               missing_ok => TRUE,
+            );
+         }
+      | ALTER SEQUENCE qualified_name alter_table_cmds {
+            return SQL::Translator::Statement::AlterTable->new(
+               relation   => $_[3],
+               cmds       => $_[4],
+               relkind    => OBJECT_SEQUENCE,
+               missing_ok => FALSE,
+            );
+         }
+      | ALTER SEQUENCE IF EXISTS qualified_name alter_table_cmds {
+            return SQL::Translator::Statement::AlterTable->new(
+               relation   => $_[5],
+               cmds       => $_[6],
+               relkind    => OBJECT_SEQUENCE,
+               missing_ok => TRUE,
+            );
+         }
+      | ALTER VIEW qualified_name alter_table_cmds {
+            return SQL::Translator::Statement::AlterTable->new(
+               relation   => $_[3],
+               cmds       => $_[4],
+               relkind    => OBJECT_VIEW,
+               missing_ok => FALSE,
+            );
+         }
+      | ALTER VIEW IF EXISTS qualified_name alter_table_cmds {
+            return SQL::Translator::Statement::AlterTable->new(
+               relation   => $_[5],
+               cmds       => $_[6],
+               relkind    => OBJECT_VIEW,
+               missing_ok => TRUE,
+            );
+         }
       ;
 
 alter_table_cmds:
@@ -1064,6 +1119,14 @@ alter_table_cmd:
                      collClause  => $_[7],
                      raw_default => $_[8],
                   ),
+               );
+            }
+         /* ALTER FOREIGN TABLE <name> ALTER [COLUMN] <colname> OPTIONS */
+         | ALTER opt_column ColId alter_generic_options {
+               return SQL::Translator::Statement::AlterTable::Command->new(
+                  subtype => AT_AlterColumnGenericOptions,
+                  name    => $_[3],
+                  def     => $_[4],
                );
             }
          /* ALTER TABLE <name> ADD CONSTRAINT ... */
@@ -1855,7 +1918,7 @@ ConstraintAttr:
  */
 TableLikeClause:
          LIKE qualified_name TableLikeOptionList {
-               return SQL::Translator::Statement::InhRelation->new(
+               return SQL::Translator::Statement::TableLikeClause->new(
                   relation => $_[2],
                   options  => $_[3],
                );
@@ -2186,12 +2249,12 @@ OptSeqOptList: SeqOptList                   { $_[1] }
          | /*EMPTY*/                        { NULL }
       ;
 
-SeqOptList: 
+SeqOptList:
            SeqOptElem                         { $_[0]->lappend($_[1]) }
          | SeqOptList SeqOptElem              { $_[0]->lappend($_[1], $_[2]) }
       ;
 
-SeqOptElem: 
+SeqOptElem:
            CACHE NumericOnly             { $_[0]->makeDefElem("cache",     $_[2]) }
          | CYCLE                         { $_[0]->makeDefElem("cycle",     TRUE)  }
          | NO CYCLE                      { $_[0]->makeDefElem("cycle",     FALSE) }
@@ -2284,17 +2347,23 @@ opt_validator:
 
 DropPLangStmt:
          DROP opt_procedural LANGUAGE ColId_or_Sconst opt_drop_behavior {
-               return SQL::Translator::Statement::DropPLang->new(
-                  plname     => $_[4],
+               return SQL::Translator::Statement::Drop->new(
+                  removeType => OBJECT_LANGUAGE,
+                  objects    => [ [ $_[4] ] ],
+                  arguments  => NIL,
                   behavior   => $_[5],
                   missing_ok => FALSE,
+                  concurrent => FALSE,
                );
             }
          | DROP opt_procedural LANGUAGE IF EXISTS ColId_or_Sconst opt_drop_behavior {
-               return SQL::Translator::Statement::DropPLang->new(
-                  plname     => $_[6],
+               return SQL::Translator::Statement::Drop->new(
+                  removeType => OBJECT_LANGUAGE,
+                  objects    => [ [ $_[6] ] ],
+                  arguments  => NIL,
                   behavior   => $_[7],
                   missing_ok => TRUE,
+                  concurrent => FALSE,
                );
             }
       ;
@@ -2638,17 +2707,23 @@ opt_fdw_options:
  ****************************************************************************/
 
 DropFdwStmt: DROP FOREIGN DATA WRAPPER name opt_drop_behavior {
-               return SQL::Translator::Statement::DropFdw->new(
-                  fdwname    => $_[5],
+               return SQL::Translator::Statement::Drop->new(
+                  removeType => OBJECT_FDW,
+                  objects    => [ [ $_[5] ] ],
+                  arguments  => NIL,
                   missing_ok => FALSE,
                   behavior   => $_[6],
+                  concurrent => FALSE,
                );
             }
             |  DROP FOREIGN DATA WRAPPER IF EXISTS name opt_drop_behavior {
-               return SQL::Translator::Statement::DropFdw->new(
-                  fdwname    => $_[7],
+               return SQL::Translator::Statement::Drop->new(
+                  removeType => OBJECT_FDW,
+                  objects    => [ [ $_[7] ] ],
+                  arguments  => NIL,
                   missing_ok => TRUE,
                   behavior   => $_[8],
+                  concurrent => FALSE,
                );
             }
       ;
@@ -2761,18 +2836,24 @@ opt_foreign_server_version:
  ****************************************************************************/
 
 DropForeignServerStmt:
-              DROP SERVER name opt_drop_behavior {
-               return SQL::Translator::Statement::DropForeignServer->new(
-                  servername => $_[3],
+            DROP SERVER name opt_drop_behavior {
+               return SQL::Translator::Statement::Drop->new(
+                  removeType => OBJECT_FOREIGN_SERVER,
+                  objects    => [ [ $_[3] ] ],
+                  arguments  => NIL,
                   missing_ok => FALSE,
                   behavior   => $_[4],
+                  concurrent => FALSE,
                );
             }
             | DROP SERVER IF EXISTS name opt_drop_behavior {
-               return SQL::Translator::Statement::DropForeignServer->new(
-                  servername => $_[5],
+               return SQL::Translator::Statement::Drop->new(
+                  removeType => OBJECT_FOREIGN_SERVER,
+                  objects    => [ [ $_[5] ] ],
+                  arguments  => NIL,
                   missing_ok => TRUE,
                   behavior   => $_[6],
+                  concurrent => FALSE,
                );
             }
       ;
@@ -3095,26 +3176,29 @@ ConstraintAttributeElem:
          | INITIALLY IMMEDIATE        { CAS_INITIALLY_IMMEDIATE }
          | INITIALLY DEFERRED         { CAS_INITIALLY_DEFERRED  }
          | NOT VALID                  { CAS_NOT_VALID           }
+         | NO INHERIT                 { CAS_NO_INHERIT          }
       ;
 
 
 DropTrigStmt:
          DROP TRIGGER name ON qualified_name opt_drop_behavior {
-               return SQL::Translator::Statement::DropProperty->new(
-                  relation   => $_[5],
-                  property   => $_[3],
-                  behavior   => $_[6],
+               return SQL::Translator::Statement::Drop->new(
                   removeType => OBJECT_TRIGGER,
+                  objects    => [ $_[0]->lappend($_[5], $_[3]) ],
+                  arguments  => NIL,
                   missing_ok => FALSE,
+                  behavior   => $_[6],
+                  concurrent => FALSE,
                );
             }
          | DROP TRIGGER IF EXISTS name ON qualified_name opt_drop_behavior {
-               return SQL::Translator::Statement::DropProperty->new(
-                  relation   => $_[7],
-                  property   => $_[5],
-                  behavior   => $_[8],
+               return SQL::Translator::Statement::Drop->new(
                   removeType => OBJECT_TRIGGER,
+                  objects    => [ $_[0]->lappend($_[7], $_[5]) ],
+                  arguments  => NIL,
                   missing_ok => TRUE,
+                  behavior   => $_[8],
+                  concurrent => FALSE,
                );
             }
       ;
@@ -3136,16 +3220,16 @@ CreateAssertStmt:
                   args         => [ $_[6] ],
                   isconstraint => TRUE,
                );
-               $_[0]->processCASbits($_[8], $_[0]->YYLLoc($_[8], 8), "ASSERTION", $n, 1,1,0);
+               $_[0]->processCASbits($_[8], $_[0]->YYLLoc($_[8], 8), "ASSERTION", $n, 1,1,0,0);
                return $n;
             }
       ;
 
 DropAssertStmt:
          DROP ASSERTION name opt_drop_behavior {
-               return SQL::Translator::Statement::DropProperty->new(
-                  relation   => NULL,
-                  property   => $_[3],
+               return SQL::Translator::Statement::Drop->new(
+                  objects    => [ [ $_[3] ] ],
+                  arguments  => NIL,
                   behavior   => $_[4],
                   removeType => OBJECT_TRIGGER,  #* XXX
                );
@@ -3507,38 +3591,46 @@ opclass_drop:
 
 DropOpClassStmt:
          DROP OPERATOR CLASS any_name USING access_method opt_drop_behavior {
-               return SQL::Translator::Statement::RemoveOpClass->new(
-                  opclassname  => $_[4],
-                  amname       => $_[6],
-                  behavior     => $_[7],
-                  missing_ok   => FALSE,
+               return SQL::Translator::Statement::Drop->new(
+                  objects    => [ $_[4] ],
+                  arguments  => [ [ $_[6] ] ],
+                  removeType => OBJECT_OPCLASS,
+                  behavior   => $_[7],
+                  missing_ok => FALSE,
+                  concurrent => FALSE,
                );
             }
          | DROP OPERATOR CLASS IF EXISTS any_name USING access_method opt_drop_behavior {
-               return SQL::Translator::Statement::RemoveOpClass->new(
-                  opclassname  => $_[6],
-                  amname       => $_[8],
-                  behavior     => $_[9],
-                  missing_ok   => TRUE,
+               return SQL::Translator::Statement::Drop->new(
+                  objects    => [ $_[6] ],
+                  arguments  => [ [ $_[8] ] ],
+                  removeType => OBJECT_OPCLASS,
+                  behavior   => $_[9],
+                  missing_ok => TRUE,
+                  concurrent => FALSE,
                );
             }
       ;
 
 DropOpFamilyStmt:
          DROP OPERATOR FAMILY any_name USING access_method opt_drop_behavior {
-               return SQL::Translator::Statement::RemoveOpFamily->new(
-                  opfamilyname => $_[4],
-                  amname       => $_[6],
-                  behavior     => $_[7],
-                  missing_ok   => FALSE,
+               return SQL::Translator::Statement::Drop->new(
+                  objects    => [ $_[4] ],
+                  arguments  => [ [ $_[6] ] ],
+                  removeType => OBJECT_OPFAMILY,
+                  behavior   => $_[7],
+                  missing_ok => FALSE,
+                  concurrent => FALSE,
                );
             }
          | DROP OPERATOR FAMILY IF EXISTS any_name USING access_method opt_drop_behavior {
-               return SQL::Translator::Statement::RemoveOpFamily->new(
-                  opfamilyname => $_[6],
-                  amname       => $_[8],
-                  behavior     => $_[9],
-                  missing_ok   => TRUE,
+               return SQL::Translator::Statement::Drop->new(
+                  objects    => [ $_[6] ],
+                  arguments  => [ [ $_[8] ] ],
+                  removeType => OBJECT_OPFAMILY,
+                  behavior   => $_[9],
+                  missing_ok => TRUE,
+                  concurrent => FALSE,
                );
             }
       ;
@@ -3579,22 +3671,48 @@ ReassignOwnedStmt:
  *
  *****************************************************************************/
 
-DropStmt:   DROP drop_type IF EXISTS any_name_list opt_drop_behavior {
-               return SQL::Translator::Statement::Drop->new(
-                  removeType => $_[2],
-                  missing_ok => TRUE,
-                  objects    => $_[5],
-                  behavior   => $_[6],
-               );
-            }
+DropStmt:
+         DROP drop_type IF EXISTS any_name_list opt_drop_behavior {
+            return SQL::Translator::Statement::Drop->new(
+               removeType => $_[2],
+               missing_ok => TRUE,
+               objects    => $_[5],
+               arguments  => NIL,
+               behavior   => $_[6],
+               concurrent => FALSE,
+            );
+         }
          | DROP drop_type any_name_list opt_drop_behavior {
-               return SQL::Translator::Statement::Drop->new(
-                  removeType => $_[2],
-                  missing_ok => FALSE,
-                  objects    => $_[3],
-                  behavior   => $_[4],
-               );
-            }
+            return SQL::Translator::Statement::Drop->new(
+               removeType => $_[2],
+               missing_ok => FALSE,
+               objects    => $_[3],
+               arguments  => NIL,
+               behavior   => $_[4],
+               concurrent => FALSE,
+            );
+         }
+         | DROP INDEX CONCURRENTLY any_name_list opt_drop_behavior {
+            return SQL::Translator::Statement::Drop->new(
+               removeType => OBJECT_INDEX,
+               missing_ok => FALSE,
+               objects    => $_[4],
+               arguments  => NIL,
+               behavior   => $_[5],
+               concurrent => TRUE,
+            );
+         }
+         | DROP INDEX CONCURRENTLY IF EXISTS any_name_list opt_drop_behavior {
+            return SQL::Translator::Statement::Drop->new(
+               removeType => OBJECT_INDEX,
+               missing_ok => TRUE,
+               objects    => $_[6],
+               arguments  => NIL,
+               behavior   => $_[7],
+               concurrent => TRUE,
+            );
+         }
+
       ;
 
 
@@ -3603,6 +3721,7 @@ drop_type:   TABLE                           { OBJECT_TABLE           }
          | VIEW                              { OBJECT_VIEW            }
          | INDEX                             { OBJECT_INDEX           }
          | FOREIGN TABLE                     { OBJECT_FOREIGN_TABLE   }
+         | EVENT_TRIGGER                     { OBJECT_EVENT_TRIGGER   }
          | TYPE                              { OBJECT_TYPE            }
          | DOMAIN                            { OBJECT_DOMAIN          }
          | COLLATION                         { OBJECT_COLLATION       }
@@ -3663,7 +3782,7 @@ opt_restart_seqs:
  *               EXTENSION | ROLE | TEXT SEARCH PARSER |
  *               TEXT SEARCH DICTIONARY | TEXT SEARCH TEMPLATE |
  *               TEXT SEARCH CONFIGURATION | FOREIGN TABLE |
- *               FOREIGN DATA WRAPPER | SERVER ] <objname> |
+ *               FOREIGN DATA WRAPPER | SERVER | EVENT TRIGGER ] <objname> |
  *             AGGREGATE <aggname> (arg1, ...) |
  *             FUNCTION <funcname> (arg1, arg2, ...) |
  *             OPERATOR <op> (leftoperand_typ, rightoperand_typ) |
@@ -3811,7 +3930,7 @@ CommentStmt:
       ;
 
 comment_type:
-         COLUMN                           { OBJECT_COLUMN         }
+           COLUMN                         { OBJECT_COLUMN         }
          | DATABASE                       { OBJECT_DATABASE       }
          | SCHEMA                         { OBJECT_SCHEMA         }
          | INDEX                          { OBJECT_INDEX          }
@@ -3828,6 +3947,7 @@ comment_type:
          | FOREIGN TABLE                  { OBJECT_FOREIGN_TABLE  }
          | SERVER                         { OBJECT_FOREIGN_SERVER }
          | FOREIGN DATA WRAPPER           { OBJECT_FDW            }
+         | EVENT TRIGGER                  { OBJECT_EVENT_TRIGGER  }
       ;
 
 comment_text:
@@ -3904,12 +4024,17 @@ opt_provider:
       ;
 
 security_label_type:
-         COLUMN                         { OBJECT_COLUMN        }
+           COLUMN                       { OBJECT_COLUMN        }
+         | DATABASE                     { OBJECT_DATABASE      }
+         | EVENT TRIGGER                { OBJECT_EVENT_TRIGGER }
+         | SCHEMA                       { OBJECT_SCHEMA        }
          | FOREIGN TABLE                { OBJECT_FOREIGN_TABLE }
          | SCHEMA                       { OBJECT_SCHEMA        }
          | SEQUENCE                     { OBJECT_SEQUENCE      }
          | TABLE                        { OBJECT_TABLE         }
          | DOMAIN                       { OBJECT_TYPE          }
+          | ROLE                         { OBJECT_ROLE          }
+          | TABLESPACE                   { OBJECT_TABLESPACE    }
          | TYPE                         { OBJECT_TYPE          }
          | VIEW                         { OBJECT_VIEW          }
       ;
@@ -4303,7 +4428,7 @@ function_with_argtypes_list:
 
 function_with_argtypes:
          func_name func_args {
-               return SQL::Translator::Statement::Function->new(
+               return SQL::Translator::Statement::FuncWithArgs->new(
                   funcname => $_[1],
                   funcargs => $_[0]->extractArgTypes($_[2]),
                );
@@ -4432,6 +4557,7 @@ defacl_privilege_target:
          TABLES           { ACL_OBJECT_RELATION }
          | FUNCTIONS      { ACL_OBJECT_FUNCTION }
          | SEQUENCES      { ACL_OBJECT_SEQUENCE }
+         | TYPES          { ACL_OBJECT_TYPE     }
       ;
 
 
@@ -4456,7 +4582,15 @@ IndexStmt:   CREATE opt_unique INDEX opt_concurrently opt_index_name
                   options      => $_[12],
                   tableSpace   => $_[13],
                   whereClause  => $_[14],
-                  indexOid     => InvalidOid,
+
+                  excludeOpNames => NIL,
+                  idxcomment     => NULL,
+                  indexOid       => InvalidOid,
+                  oldNode        => InvalidOid,
+                  primary        => FALSE,
+                  isconstraint   => FALSE,
+                  deferrable     => FALSE,
+                  initdeferred   => FALSE,
                );
             }
       ;
@@ -4635,7 +4769,7 @@ func_args_with_defaults_list:
  * but for now better to silently swallow typmod, etc.
  * - thomas 2000-03-22
  */
- 
+
 func_arg:
          arg_class param_name func_type {
                return SQL::Translator::Statement::Function::Parameter->new(
@@ -4757,7 +4891,7 @@ common_func_opt_item:
          | SECURITY INVOKER           { $_[0]->makeDefElem("security",   FALSE      ) }
          | COST NumericOnly           { $_[0]->makeDefElem("cost",       $_[2]      ) }
          | ROWS NumericOnly           { $_[0]->makeDefElem("rows",       $_[2]      ) }
-         | SetResetClause             /* we abuse the normal content of a DefElem here */
+         | FunctionSetResetClause   /* we abuse the normal content of a DefElem here */
                                       { $_[0]->makeDefElem("set",        $_[1]      ) }
       ;
 
@@ -4988,11 +5122,13 @@ cast_context:  AS IMPLICIT                { COERCION_IMPLICIT   }
 
 
 DropCastStmt: DROP CAST opt_if_exists '(' Typename AS Typename ')' opt_drop_behavior {
-               return SQL::Translator::Statement::DropCast->new(
-                  sourcetype => $_[5],
-                  targettype => $_[7],
+               return SQL::Translator::Statement::Drop->new(
+                  removeType => OBJECT_CAST,
+                  objects    => [ [ $_[5] ] ],
+                  arguments  => [ [ $_[7] ] ],
                   behavior   => $_[9],
                   missing_ok => $_[3],
+                  concurrent => FALSE,
                );
             }
       ;
@@ -5063,6 +5199,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   object              => $_[3],
                   objarg              => $_[4],
                   newname             => $_[7],
+                  missing_ok          => FALSE,
                );
             }
          | ALTER COLLATION any_name RENAME TO name {
@@ -5070,6 +5207,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   renameType          => OBJECT_COLLATION,
                   object              => $_[3],
                   newname             => $_[6],
+                  missing_ok          => FALSE,
                );
             }
          | ALTER CONVERSION any_name RENAME TO name {
@@ -5077,6 +5215,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   renameType          => OBJECT_CONVERSION,
                   object              => $_[3],
                   newname             => $_[6],
+                  missing_ok          => FALSE,
                );
             }
          | ALTER DATABASE database_name RENAME TO database_name {
@@ -5084,6 +5223,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   renameType          => OBJECT_DATABASE,
                   subname             => $_[3],
                   newname             => $_[6],
+                  missing_ok          => FALSE,
                );
             }
          | ALTER FUNCTION function_with_argtypes RENAME TO name {
@@ -5092,6 +5232,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   object              => $_[3]->funcname,
                   objarg              => $_[3]->funcargs,
                   newname             => $_[6],
+                  missing_ok          => FALSE,
                );
             }
          | ALTER GROUP RoleId RENAME TO RoleId {
@@ -5099,6 +5240,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   renameType          => OBJECT_ROLE,
                   subname             => $_[3],
                   newname             => $_[6],
+                  missing_ok          => FALSE,
                );
             }
          | ALTER opt_procedural LANGUAGE name RENAME TO name {
@@ -5106,6 +5248,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   renameType          => OBJECT_LANGUAGE,
                   subname             => $_[4],
                   newname             => $_[7],
+                  missing_ok          => FALSE,
                );
             }
          | ALTER OPERATOR CLASS any_name USING access_method RENAME TO name {
@@ -5114,6 +5257,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   object              => $_[4],
                   subname             => $_[6],
                   newname             => $_[9],
+                  missing_ok          => FALSE,
                );
             }
          | ALTER OPERATOR FAMILY any_name USING access_method RENAME TO name {
@@ -5122,6 +5266,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   object              => $_[4],
                   subname             => $_[6],
                   newname             => $_[9],
+                  missing_ok          => FALSE,
                );
             }
          | ALTER SCHEMA name RENAME TO name {
@@ -5129,6 +5274,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   renameType          => OBJECT_SCHEMA,
                   subname             => $_[3],
                   newname             => $_[6],
+                  missing_ok          => FALSE,
                );
             }
          | ALTER TABLE relation_expr RENAME TO name {
@@ -5137,6 +5283,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   relation            => $_[3],
                   subname             => NULL,
                   newname             => $_[6],
+                  missing_ok          => FALSE,
                );
             }
          | ALTER SEQUENCE qualified_name RENAME TO name {
@@ -5145,6 +5292,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   relation            => $_[3],
                   subname             => NULL,
                   newname             => $_[6],
+                  missing_ok          => FALSE,
                );
             }
          | ALTER VIEW qualified_name RENAME TO name {
@@ -5153,6 +5301,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   relation            => $_[3],
                   subname             => NULL,
                   newname             => $_[6],
+                  missing_ok          => FALSE,
                );
             }
          | ALTER INDEX qualified_name RENAME TO name {
@@ -5161,6 +5310,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   relation            => $_[3],
                   subname             => NULL,
                   newname             => $_[6],
+                  missing_ok          => FALSE,
                );
             }
          | ALTER FOREIGN TABLE relation_expr RENAME TO name {
@@ -5169,6 +5319,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   relation            => $_[4],
                   subname             => NULL,
                   newname             => $_[7],
+                  missing_ok          => FALSE,
                );
             }
          | ALTER TABLE relation_expr RENAME opt_column name TO name {
@@ -5178,6 +5329,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   relation            => $_[3],
                   subname             => $_[6],
                   newname             => $_[8],
+                  missing_ok          => FALSE,
                );
             }
          | ALTER FOREIGN TABLE relation_expr RENAME opt_column name TO name {
@@ -5187,6 +5339,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   relation            => $_[4],
                   subname             => $_[7],
                   newname             => $_[9],
+                  missing_ok          => FALSE,
                );
             }
          | ALTER TRIGGER name ON qualified_name RENAME TO name {
@@ -5195,6 +5348,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   relation            => $_[5],
                   subname             => $_[3],
                   newname             => $_[8],
+                  missing_ok          => FALSE,
                );
             }
          | ALTER ROLE RoleId RENAME TO RoleId {
@@ -5202,6 +5356,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   renameType          => OBJECT_ROLE,
                   subname             => $_[3],
                   newname             => $_[6],
+                  missing_ok          => FALSE,
                );
             }
          | ALTER USER RoleId RENAME TO RoleId {
@@ -5209,6 +5364,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   renameType          => OBJECT_ROLE,
                   subname             => $_[3],
                   newname             => $_[6],
+                  missing_ok          => FALSE,
                );
             }
          | ALTER TABLESPACE name RENAME TO name {
@@ -5216,6 +5372,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   renameType          => OBJECT_TABLESPACE,
                   subname             => $_[3],
                   newname             => $_[6],
+                  missing_ok          => FALSE,
                );
             }
          | ALTER TABLESPACE name SET reloptions {
@@ -5223,6 +5380,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   tablespacename      => $_[3],
                   options             => $_[5],
                   isReset             => FALSE,
+                  missing_ok          => FALSE,
                );
             }
          | ALTER TABLESPACE name RESET reloptions {
@@ -5230,6 +5388,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   tablespacename      => $_[3],
                   options             => $_[5],
                   isReset             => TRUE,
+                  missing_ok          => FALSE,
                );
             }
          | ALTER TEXT SEARCH PARSER any_name RENAME TO name {
@@ -5237,6 +5396,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   renameType          => OBJECT_TSPARSER,
                   object              => $_[5],
                   newname             => $_[8],
+                  missing_ok          => FALSE,
                );
             }
          | ALTER TEXT SEARCH DICTIONARY any_name RENAME TO name {
@@ -5244,6 +5404,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   renameType          => OBJECT_TSDICTIONARY,
                   object              => $_[5],
                   newname             => $_[8],
+                  missing_ok          => FALSE,
                );
             }
          | ALTER TEXT SEARCH TEMPLATE any_name RENAME TO name {
@@ -5251,6 +5412,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   renameType          => OBJECT_TSTEMPLATE,
                   object              => $_[5],
                   newname             => $_[8],
+                  missing_ok          => FALSE,
                );
             }
          | ALTER TEXT SEARCH CONFIGURATION any_name RENAME TO name {
@@ -5258,6 +5420,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   renameType          => OBJECT_TSCONFIGURATION,
                   object              => $_[5],
                   newname             => $_[8],
+                  missing_ok          => FALSE,
                );
             }
          | ALTER TYPE any_name RENAME TO name {
@@ -5265,6 +5428,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   renameType          => OBJECT_TYPE,
                   object              => $_[3],
                   newname             => $_[6],
+                  missing_ok          => FALSE,
                );
             }
          | ALTER TYPE any_name RENAME ATTRIBUTE name TO name opt_drop_behavior {
@@ -5275,6 +5439,7 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   subname             => $_[6],
                   newname             => $_[8],
                   behavior            => $_[9],
+                  missing_ok          => FALSE,
                );
             }
       ;
@@ -5603,7 +5768,7 @@ RuleActionMulti:
       ;
 
 RuleActionStmt:
-         SelectStmt
+           SelectStmt
          | InsertStmt
          | UpdateStmt
          | DeleteStmt
@@ -5615,7 +5780,7 @@ RuleActionStmtOrEmpty:
          |   /*EMPTY*/                      { NULL }
       ;
 
-event:      SELECT                       { CMD_SELECT }
+event:     SELECT                        { CMD_SELECT }
          | UPDATE                        { CMD_UPDATE }
          | DELETE                        { CMD_DELETE }
          | INSERT                        { CMD_INSERT }
@@ -5630,21 +5795,23 @@ opt_instead:
 
 DropRuleStmt:
          DROP RULE name ON qualified_name opt_drop_behavior {
-               return SQL::Translator::Statement::DropProperty->new(
-                  relation   => $_[5],
-                  property   => $_[3],
-                  behavior   => $_[6],
+               return SQL::Translator::Statement::Drop->new(
                   removeType => OBJECT_RULE,
+                  objects    => [ $_[0]->lappend($_[5], $_[3]) ],
+                  arguments  => NIL,
+                  behavior   => $_[6],
                   missing_ok => FALSE,
+                  concurrent => FALSE,
                );
             }
          | DROP RULE IF EXISTS name ON qualified_name opt_drop_behavior {
-               return SQL::Translator::Statement::DropProperty->new(
-                  relation   => $_[7],
-                  property   => $_[5],
-                  behavior   => $_[8],
+               return SQL::Translator::Statement::Drop->new(
                   removeType => OBJECT_RULE,
+                  objects    => [ $_[0]->lappend($_[7], $_[5]) ],
+                  arguments  => NIL,
+                  behavior   => $_[8],
                   missing_ok => TRUE,
+                  concurrent => FALSE,
                );
             }
       ;
@@ -6322,7 +6489,7 @@ ExplainStmt:
       | EXPLAIN analyze_keyword opt_verbose ExplainableStmt {
                return SQL::Translator::Statement::Explain->new(
                   query   => $_[4],
-                  options => $_[0]->lappend( 
+                  options => $_[0]->lappend(
                      $_[0]->makeDefElem($_[3] ? "analyze" : "verbose", NULL)
                   ),
                );
@@ -6410,16 +6577,19 @@ ExecuteStmt: EXECUTE name execute_param_clause {
                return SQL::Translator::Statement::Execute->new(
                   name   => $_[2],
                   params => $_[3],
-                  into   => NULL,
                );
             }
          | CREATE OptTemp TABLE create_as_target AS
-            EXECUTE name execute_param_clause {
+            EXECUTE name execute_param_clause opt_with_data {
                $_[4]->rel->relpersistence($_[2]);
-               return SQL::Translator::Statement::Execute->new(
-                  name   => $_[7],
-                  params => $_[8],
-                  into   => $_[4],
+               $_[4]->skipData(!$_[9]);
+               my $ctas = SQL::Translator::Statement::CreateTableAs->new(
+                  query          => SQL::Translator::Statement::Execute->new(
+                     name   => $_[7],
+                     params => $_[8],
+                  ),
+                  into           => $_[4],
+                  is_select_into => FALSE,
                );
             }
       ;
@@ -6898,6 +7068,7 @@ into_clause:
                   options        => NIL,
                   onCommit       => ONCOMMIT_NOOP,
                   tableSpaceName => NULL,
+                  skipData       => FALSE,
                );
             }
          | /*EMPTY*/ { NULL }
@@ -7342,7 +7513,7 @@ alias_clause:
             }
       ;
 
-join_type: 
+join_type:
            FULL join_outer                  { JOIN_FULL }
          | LEFT join_outer                  { JOIN_LEFT }
          | RIGHT join_outer                 { JOIN_RIGHT }
@@ -7721,7 +7892,7 @@ BitWithoutLength:
  * SQL92 character data types
  * The following implements CHAR() and VARCHAR().
  */
-Character: 
+Character:
            CharacterWithLength    { $_[1] }
          | CharacterWithoutLength { $_[1] }
       ;
@@ -7766,7 +7937,7 @@ CharacterWithoutLength:    character opt_charset {
             }
       ;
 
-character: 
+character:
            CHARACTER opt_varying          { $_[2] ? "varchar": "bpchar" }
          | CHAR opt_varying               { $_[2] ? "varchar": "bpchar" }
          | VARCHAR                        { "varchar" }
@@ -9007,20 +9178,20 @@ opt_frame_clause:
          RANGE frame_extent {
                my $n = $_[2];
                $n->frameOptions($n->frameOptions | FRAMEOPTION_NONDEFAULT | FRAMEOPTION_RANGE);
-               
+
                $_[0]->ereport(
                   ERROR,
                   ERRCODE_FEATURE_NOT_SUPPORTED,
                   "RANGE PRECEDING is only supported with UNBOUNDED",
                   $_[0]->YYLLoc($_[1], 1)
                ) if ($n->frameOptions & (FRAMEOPTION_START_VALUE_PRECEDING | FRAMEOPTION_END_VALUE_PRECEDING));
-               
+
                $_[0]->ereport(ERROR,
                   ERRCODE_FEATURE_NOT_SUPPORTED,
                   "RANGE FOLLOWING is only supported with UNBOUNDED",
                   $_[0]->YYLLoc($_[1], 1)
                ) if ($n->frameOptions & (FRAMEOPTION_START_VALUE_FOLLOWING | FRAMEOPTION_END_VALUE_FOLLOWING));
-               
+
                return $n;
             }
          | ROWS frame_extent {
@@ -9043,13 +9214,13 @@ frame_extent: frame_bound {
                   "Frame start cannot be UNBOUNDED FOLLOWING",
                   $_[0]->YYLLoc($_[1], 1)
                ) if ($_[1]->frameOptions & FRAMEOPTION_START_UNBOUNDED_FOLLOWING);
-               
+
                $_[0]->ereport(ERROR,
                   ERRCODE_WINDOWING_ERROR,
                   "Frame starting from following row cannot end with current row",
                   $_[0]->YYLLoc($_[1], 1)
                ) if ($_[1]->frameOptions & FRAMEOPTION_START_VALUE_FOLLOWING);
-               
+
                $_[1]->frameOptions($_[1]->frameOptions | FRAMEOPTION_END_CURRENT_ROW);
                return $_[1];
             }
@@ -9570,7 +9741,7 @@ file_name:  Sconst                          { $_[1] };
  * may contain subscripts, and reject that case in the C code.  (If we
  * ever implement SQL99-like methods, such syntax may actually become legal!)
  */
-func_name: 
+func_name:
            type_function_name  { $_[0]->lappend($_[1]) }
          | ColId indirection   { $_[0]->check_func_name($_[0]->lcons($_[1], $_[2])) }
       ;
@@ -9603,7 +9774,7 @@ AexprConst:
                #* We must use func_arg_list in the production to avoid
                #* reduce/reduce conflicts, but we don't actually wish
                #* to allow NamedArgExpr in this context.
-               
+
                for (@{$_[3]}) {
                   if (blessed $_->[0] && $_->[0]->isa('SQL::Translator::Statement::NamedArgExpr')) {
                      $_[0]->ereport(ERROR,
@@ -9733,7 +9904,6 @@ unreserved_keyword:
          | CLASS
          | CLOSE
          | CLUSTER
-         | COLLATION
          | COMMENT
          | COMMENTS
          | COMMIT
@@ -9819,6 +9989,7 @@ unreserved_keyword:
          | LAST
          | LC_COLLATE
          | LC_CTYPE
+           | LEAKPROOF
          | LEVEL
          | LISTEN
          | LOAD
@@ -9902,6 +10073,7 @@ unreserved_keyword:
          | SHARE
          | SHOW
          | SIMPLE
+         | SNAPSHOT
          | STABLE
          | STANDALONE
          | START
@@ -9925,6 +10097,7 @@ unreserved_keyword:
          | TRUNCATE
          | TRUSTED
          | TYPE
+         | TYPES
          | UNBOUNDED
          | UNCOMMITTED
          | UNENCRYPTED
@@ -10026,6 +10199,7 @@ col_name_keyword:
 type_func_name_keyword:
            AUTHORIZATION
          | BINARY
+         | COLLATION
          | CONCURRENTLY
          | CROSS
          | CURRENT_SCHEMA
@@ -10098,6 +10272,7 @@ reserved_keyword:
          | INITIALLY
          | INTERSECT
          | INTO
+         | LATERAL
          | LEADING
          | LIMIT
          | LOCALTIME
@@ -10321,14 +10496,14 @@ sub makeSimpleA_Expr { return $_[0]->makeA_Expr($_[1], [ $_[2] ], @_[3,4,5]); }
 #* static Node *
 #* makeAConst(Value *v, int location)
 ### This one is a little different in that we have to guess the type,
-### since we aren't using the full 'Value' format.  (See notes in 
+### since we aren't using the full 'Value' format.  (See notes in
 ### _classes.pm for A_Const.)
 
-### Fortunately, this is only used in two places, and it shouldn't 
+### Fortunately, this is only used in two places, and it shouldn't
 ### be a string...
 sub makeAConst {
    return SQL::Translator::Statement::A_Const->new(
-      type     => 
+      type     =>
          looks_like_number $_[1] ? (
             blessed $_[1] && $_[1]->isa('Math::BigFloat') || $_[1] =~ /[\.e]/i ?
             'Float' : 'Integer'
@@ -10361,7 +10536,7 @@ sub makeOverlaps {
 
    $largs = [ $largs->[0], $largs->[0] ] if (@$largs == 1);
    $rargs = [ $rargs->[0], $rargs->[0] ] if (@$rargs == 1);
-   
+
    $self->ereport(ERROR,
       ERRCODE_SYNTAX_ERROR,
       "Wrong number of parameters on left side of OVERLAPS expression",
@@ -10459,15 +10634,20 @@ sub extractArgTypes {
 
 #* static SelectStmt *
 #* findLeftmostSelect(SelectStmt *node)
-sub findLeftmostSelect {
-   my ($self, $node) = @_;
-   while (blessed $node && $node->op != SETOP_NONE) {
-      $node = $node->larg;
-   }
-   die "SelectStmt assertion failed!"
-      unless (blessed $node && $node->isa('SQL::Translator::Statement::Select') && defined $node->larg);
-   return $node;
-}
+
+### FIXME: Remove this! ###
+
+#sub findLeftmostSelect {
+#   my ($self, $node) = @_;
+#   while (blessed $node && $node->op != SETOP_NONE) {
+#      $node = $node->larg;
+#   }
+#   die "SelectStmt assertion failed!"
+#      unless (blessed $node && $node->isa('SQL::Translator::Statement::Select') && defined $node->larg);
+#   return $node;
+#}
+
+
 
 #* insertSelectOptions()
 #* Insert ORDER BY, etc into an already-constructed SelectStmt.
@@ -10487,13 +10667,13 @@ sub insertSelectOptions {
 
    #* Tests here are to reject constructs like
    #*   (SELECT foo ORDER BY bar) ORDER BY baz
-   
+
    ### ???: Translate Pg's exprLocation sub? ###
    if ($sortClause) {
       $self->ereport(ERROR,
          ERRCODE_SYNTAX_ERROR,
          "Multiple ORDER BY clauses not allowed",
-         $sortClause->node->location   
+         $sortClause->node->location
       ) if ($stmt->sortClause);
       $stmt->sortClause($sortClause);
    }
@@ -10597,7 +10777,7 @@ sub makeAArrayExpr {
 #* makeXmlExpr(XmlExprOp op, char *name, List *named_args, List *args,
 #*          int location)
 sub makeXmlExpr {
-   return SQL::Translator::Statement::XmlExpr->new(
+   return SQL::Translator::Statement::XMLExpr->new(
       op         => $_[1],
       name       => $_[2],
       #* named_args is a list of ResTarget; it'll be split apart into separate
@@ -10682,7 +10862,7 @@ sub makeRangeVarFromAnyName {
       relpersistence => RELPERSISTENCE_PERMANENT,
       location       => $loc,
    );
-   
+
    for (scalar @$names) {
       when (1) {
          $r->catalogname(NULL);
@@ -10737,7 +10917,7 @@ sub SplitColQualList {
       }
       else {
          my $type = blessed $l;
-         $type =~ s/^SQL::Translator::Statement:://;
+         $type =~ s/^SQL::Convertor::SPIF:://;
          $self->YYError("unexpected node type $type");
       }
    }
@@ -10751,14 +10931,14 @@ sub SplitColQualList {
 
 #* processCASbits(int cas_bits, int location, const char *constrType,
 #*             bool *deferrable, bool *initdeferred, bool *not_valid,
-#*             core_yyscan_t yyscanner)
+#*             bool *no_inherit, core_yyscan_t yyscanner)
 sub processCASbits {
-   my ($cas_bits, $location, $constr_type, $n,
-       $can_deferrable, $can_initdeferred, $can_not_valid) = @_;
+   my ($self, $cas_bits, $location, $constr_type, $n,
+       $can_deferrable, $can_initdeferred, $can_not_valid, $can_no_inherit) = @_;
 
    if ($cas_bits & (CAS_DEFERRABLE | CAS_INITIALLY_DEFERRED)) {
       $can_deferrable
-         or $_[0]->ereport(ERROR,
+         or $self->ereport(ERROR,
             ERRCODE_FEATURE_NOT_SUPPORTED,
             #* translator: %s is CHECK, UNIQUE, or similar
             sprintf("%s constraints cannot be marked DEFERRABLE", $constr_type),
@@ -10768,7 +10948,7 @@ sub processCASbits {
 
    if ($cas_bits & CAS_INITIALLY_DEFERRED) {
       $can_initdeferred
-         or $_[0]->ereport(ERROR,
+         or $self->ereport(ERROR,
             ERRCODE_FEATURE_NOT_SUPPORTED,
             #* translator: %s is CHECK, UNIQUE, or similar
             sprintf("%s constraints cannot be marked DEFERRABLE", $constr_type),
@@ -10778,10 +10958,20 @@ sub processCASbits {
 
    if ($cas_bits & CAS_NOT_VALID) {
       $can_not_valid
-         or $_[0]->ereport(ERROR,
+         or $self->ereport(ERROR,
             ERRCODE_FEATURE_NOT_SUPPORTED,
             #* translator: %s is CHECK, UNIQUE, or similar
             sprintf("%s constraints cannot be marked NOT VALID", $constr_type),
+            $location);
+      $n->not_valid(TRUE);
+   }
+
+   if ($cas_bits & CAS_NO_INHERIT) {
+      $can_no_inherit
+         or $self->ereport(ERROR,
+            ERRCODE_FEATURE_NOT_SUPPORTED,
+            #* translator: %s is CHECK, UNIQUE, or similar
+            sprintf("%s constraints cannot be marked NO INHERIT", $constr_type),
             $location);
       $n->not_valid(TRUE);
    }

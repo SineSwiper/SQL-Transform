@@ -1102,7 +1102,7 @@ sub _keywords {
       identity if ilike immediate immutable implicit in including increment index indexes inherit inherits initially inline inner inout input insensitive insert instead int integer intersect interval into invoker is isnull isolation
       join
       key
-      label language large last lc_collate lc_ctype leading leakproof least left level like limit listen load local localtime localtimestamp location lock
+      label language large last lateral lc_collate lc_ctype leading leakproof least left level like limit listen load local localtime localtimestamp location lock
       mapping match maxvalue minute minvalue mode month move
       name names national natural nchar next no none not nothing notify notnull nowait null nullif nulls numeric
       object of off offset oids on only operator option options or order out outer over overlaps overlay owned owner
