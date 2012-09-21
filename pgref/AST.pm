@@ -20,62 +20,73 @@ Math::BigFloat->config({
 my $perl_safe_digits    = int( log(2)/log(10) * $Config{ivsize} * 8 );
 my $identifier_max_size = 64;
 
-### FIXME: AST needs --> got_IDENT, got_Op, got_L_XUIFULL, L_XUSFULL, got_L_XDOLQFULL, got_ws
-### FIXME: Also need some subs for the numbers
+# blank out any whitespace captures
+sub got_ws  { return; }
+sub got_ws1 { return; }
+sub got_ws2 { return; }
+
+# quote parsing
+sub got_L_XQFULL {  # standard quoted strings
+   my ($self, $match) = @_;
+   $match =~ s/'\s+'//g;  # concat
+   $match =~ s/''/'/g;    # escaped quote
+   return $match;
+}
+sub got_L_XEFULL {  # extended quoted strings (support backslash escape sequences)
+   my ($self, $match) = @_;
+   $match =~ s/(?<!\\)'\s+'//g;   # concat
+   $match =~ s/(?<!\\)''/'/g;     # escaped quote
+   $match =~ s/(\\.)/eval '"'.$1.'"'/ge;  # escaped char
+   return $match;
+}
+sub got_L_XDOLQFULL { $_[1]->[1] }                  # $foo$ quoted strings (only need param #2)
+sub got_L_XUIFULL   { $_[0]->udeescape(@{$_[1]}) }  # quoted identifier with Unicode escapes
+sub got_L_XUSFULL   { $_[0]->udeescape(@{$_[1]}) }  # quoted string with Unicode escapes
+
+# numbers
+sub got_ICONST { $_[0]->process_number_literal($_[1], 0) }
+sub got_FCONST { $_[0]->process_number_literal($_[1], 1) }
 
 sub got_IDENT {
-   my ($self, $match) = @_;
-
    # Unlike PostgreSQL, we can do a proper Unicode lowercase,
    # so downcase_truncate_identifier turns into a 'lc' + truncation.
-   return [ lc substr($match->[0], 0, $identifier_max_size) ];
+   lc substr($_[1], 0, $identifier_max_size);
 }
 
-sub got_Op {
-   my ($self, $match) = @_;
-   my $text   = $match->[0];
-   my $nchars = length $text;
-   my $pos    = $self->parser->position - $nchars;
-   
-   #* For SQL compatibility, '+' and '-' cannot be the
-   #* last char of a multi-char operator unless the operator
-   #* contains chars that are not in SQL operators.
-   #* The idea is to lex '=-' as two operators, but not
-   #* to forbid operator names like '?-' that could not be
-   #* sequences of SQL operators.
-   my $non_math = $self->parser->grammar->tree->{L_NON_MATH}->{'.rgx'};
-   while ($nchars > 1 && $text[$nchars-1] =~ /[\+\-]/) {
-      my $ic;
+#* static char *
+#* litbuf_udeescape(unsigned char escape, core_yyscan_t yyscanner)
 
-      for ($ic = $nchars-2; $ic >= 0; $ic--) {
-         last if ($text[$ic] =~ $non_math);
-      }
-      last if ($ic >= 0);  #* found a char that makes it OK
-      $nchars--;           #* else remove the +/-, and check again
+sub udeescape {
+   my ($self, $new, $escape) = @_;
+   if ($escape =~ /^[\da-f\+\'\"\s]$/i) {
+      $self->parser->throw_error("Invalid Unicode escape character");
+      return undef;
    }
 
-   if ($nchars < length $text) {
-      #* Strip the unwanted chars from the token
-      $self->parser->position($pos + $nchars);
-      $text = substr($text, 0, $nchars);
-      my $char = substr($text, 0, 1);
+   $new =~ s/(?<!\Q${escape}\E)\Q${escape}\E(?:u([0-9A-Fa-f]{4})|U([0-9A-Fa-f]{8}))/chr hex $+/ge;
 
-      #* If what we have left is only one char, and it's
-      #* one of the characters matching "self", then
-      #* return it as a character token the same way
-      #* that the "self" rule would have.
-      return ($char, $char)
-         if ($nchars == 1 && $char =~ /${self}/);
-   }
-
-   #* Complain if operator is too long.  Unlike the case
-   #* for identifiers, we make this an error not a notice-
-   #* and-truncate, because the odds are we are looking at
-   #* a syntactic mistake anyway.
-   $p->YYError("Operator too long")
-      if ($nchars >= $identifier_max_size);
-
-   #* Convert "!=" operator to "<>" for compatibility
-   return ('Op', ($text eq "!=") ? '<>' : $text);
+   return $new;
 }
+
+#* static int
+#* process_integer_literal(const char *token, YYSTYPE *lval)
+
+### This works a little differently, but achieves the same effect ###
+sub process_number_literal {
+   my ($self, $num, $is_float) = @_;
+
+   # if this number is bigger than a bread box, use BigInt/Float
+   my $digits = $num;
+   $digits =~ s/^\D|[\.e].*$//gi;
+
+   if ($perl_safe_digits >= length($digits)) {
+      $num = int $num unless $is_float;
+   }
+   else {
+      $num = $is_float ?
+         Math::BigFloat->new($num) :
+         Math::BigInt->new($num);
+   }
+
+   return $num;
 }

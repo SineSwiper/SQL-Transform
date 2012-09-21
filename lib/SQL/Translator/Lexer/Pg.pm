@@ -391,7 +391,7 @@ my $self     = '[,\(\)\[\].;\:\+\-\*\/\%\^\<\>\=]';
 my $operator = "${op_chars}+";
 
 # used in $operator checks
-my $non_math = '[\~\!\@\#\^\&\|\`\?\%]';
+my $non_math = '[\~\!\@\#\^\&\|\`\?]';
 
 #* we no longer allow unary minus in numbers.
 #* instead we pass it separately to parser. there it gets

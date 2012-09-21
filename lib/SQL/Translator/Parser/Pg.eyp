@@ -1722,10 +1722,16 @@ TypedTableElement:
          | TableConstraint               { $_[1] }
       ;
 
-columnDef:   ColId Typename ColQualList {
+***************
+*** 2492,2498 ****
+  			| TableConstraint					{ $$ = $1; }
+  		;
+  
+columnDef:   ColId Typename create_generic_options ColQualList {
                my $n = SQL::Translator::Statement::Column::Definition->new(
                   colname        => $_[1],
                   typeName       => $_[2],
+                  fdwoptions     => $_[3],
                   inhcount       => 0,
                   is_local       => TRUE,
                   is_not_null    => FALSE,
@@ -1735,7 +1741,7 @@ columnDef:   ColId Typename ColQualList {
                   cooked_default => NULL,
                   collOid        => InvalidOid,
                );
-               $_[0]->SplitColQualList($_[3], $n);
+               $_[0]->SplitColQualList($_[4], $n);
                return $n;
             }
       ;
@@ -1833,10 +1839,11 @@ ColConstraintElem:
                   indexspace      => $_[4],
                );
             }
-         | CHECK '(' a_expr ')' {
+         | CHECK '(' a_expr ')' opt_no_inherit {
                return SQL::Translator::Statement::Constraint->new(
                   contype         => CONSTR_CHECK,
                   location        => $_[0]->YYLLoc($_[1], 1),
+                  is_no_inherit   => $_[5],
                   raw_expr        => $_[3],
                   cooked_expr     => NULL,
                );
@@ -1875,10 +1882,10 @@ ColConstraintElem:
  * combinations.
  *
  * See also ConstraintAttributeSpec, which can be used in places where
- * there is no parsing conflict.  (Note: currently, NOT VALID is an allowed
- * clause in ConstraintAttributeSpec, but not here.  Someday we might need
- * to allow it here too, but for the moment it doesn't seem useful in the
- * statements that use ConstraintAttr.)
+ * there is no parsing conflict.  (Note: currently, NOT VALID and NO INHERIT
+ * are allowed clauses in ConstraintAttributeSpec, but not here.  Someday we
+ * might need to allow them here too, but for the moment it doesn't seem
+ * useful in the statements that use ConstraintAttr.)
  */
 ConstraintAttr:
          DEFERRABLE {
@@ -1908,14 +1915,6 @@ ConstraintAttr:
       ;
 
 
-/*
- * SQL99 supports wholesale borrowing of a table definition via the LIKE clause.
- * This seems to be a poor man's inheritance capability, with the resulting
- * tables completely decoupled except for the original commonality in definitions.
- *
- * This is very similar to CREATE TABLE AS except for the INCLUDING DEFAULTS extension
- * which is a part of SQL:2003.
- */
 TableLikeClause:
          LIKE qualified_name TableLikeOptionList {
                return SQL::Translator::Statement::TableLikeClause->new(
@@ -1962,7 +1961,8 @@ ConstraintElem:
                   raw_expr      => $_[3],
                   cooked_expr   => NULL,
                );
-               $_[0]->processCASbits($_[5], $_[0]->YYLLoc($_[5], 5), "CHECK", $n, 0,0,0);
+               $_[0]->processCASbits($_[5], $_[0]->YYLLoc($_[5], 5), "CHECK", $n, 0,0,0,1);
+               $n->initially_valid( !$n->skip_validation );
                return $n;
             }
          | UNIQUE '(' columnList ')' opt_definition OptConsTableSpace
@@ -1975,7 +1975,7 @@ ConstraintElem:
                   indexname     => NULL,
                   indexspace    => $_[6],
                );
-               $_[0]->processCASbits($_[7], $_[0]->YYLLoc($_[7], 7), "UNIQUE", $n, 1,1,0);
+               $_[0]->processCASbits($_[7], $_[0]->YYLLoc($_[7], 7), "UNIQUE", $n, 1,1,0,0);
                return $n;
             }
          | UNIQUE ExistingIndex ConstraintAttributeSpec {
@@ -1987,7 +1987,7 @@ ConstraintElem:
                   indexname     => $_[2],
                   indexspace    => NULL,
                );
-               $_[0]->processCASbits($_[3], $_[0]->YYLLoc($_[3], 3), "UNIQUE", $n, 1,1,0);
+               $_[0]->processCASbits($_[3], $_[0]->YYLLoc($_[3], 3), "UNIQUE", $n, 1,1,0,0);
                return $n;
             }
          | PRIMARY KEY '(' columnList ')' opt_definition OptConsTableSpace
@@ -2000,7 +2000,7 @@ ConstraintElem:
                   indexname     => NULL,
                   indexspace    => $_[7],
                );
-               $_[0]->processCASbits($_[8], $_[0]->YYLLoc($_[8], 8), "PRIMARY KEY", $n, 1,1,0);
+               $_[0]->processCASbits($_[8], $_[0]->YYLLoc($_[8], 8), "PRIMARY KEY", $n, 1,1,0,0);
                return $n;
             }
          | PRIMARY KEY ExistingIndex ConstraintAttributeSpec {
@@ -2012,7 +2012,7 @@ ConstraintElem:
                   indexname     => $_[3],
                   indexspace    => NULL,
                );
-               $_[0]->processCASbits($_[4], $_[0]->YYLLoc($_[4], 4), "PRIMARY KEY", $n, 1,1,0);
+               $_[0]->processCASbits($_[4], $_[0]->YYLLoc($_[4], 4), "PRIMARY KEY", $n, 1,1,0,0);
                return $n;
             }
          | EXCLUDE access_method_clause '(' ExclusionConstraintList ')'
@@ -2028,7 +2028,7 @@ ConstraintElem:
                   indexspace    => $_[7],
                   where_clause  => $_[8],
                );
-               $_[0]->processCASbits($_[9], $_[0]->YYLLoc($_[9], 9), "EXCLUDE", $n, 1,1,0);
+               $_[0]->processCASbits($_[9], $_[0]->YYLLoc($_[9], 9), "EXCLUDE", $n, 1,1,0,0);
                return $n;
             }
          | FOREIGN KEY '(' columnList ')' REFERENCES qualified_name
@@ -2043,12 +2043,17 @@ ConstraintElem:
                   fk_upd_action => ($_[10] >> 8),
                   fk_del_action => ($_[10] & 0xFF),
                );
-               $_[0]->processCASbits($_[11], $_[0]->YYLLoc($_[1], 1), "FOREIGN KEY", $n, 1,1,1);
+               $_[0]->processCASbits($_[11], $_[0]->YYLLoc($_[1], 1), "FOREIGN KEY", $n, 1,1,1,0);
                $n->initially_valid( !$n->skip_validation );
                return $n;
             }
       ;
 
+opt_no_inherit:
+         NO INHERIT                         { TRUE  }
+         | /*EMPTY*/                        { FALSE }
+      ;
+      
 opt_column_list:
          '(' columnList ')'                 { $_[2] }
          | /*EMPTY*/                        { NIL   }
@@ -2141,71 +2146,115 @@ ExistingIndex:   USING INDEX index_name            { $_[3] }
       ;
 
 
-/*
- * Note: CREATE TABLE ... AS SELECT ... is just another spelling for
- * SELECT ... INTO.
- */
+***************
+*** 2978,3015 ****
+  		;
+  
+  
+! /*
+!  * Note: CREATE TABLE ... AS SELECT ... is just another spelling for
+!  * SELECT ... INTO.
+!  */
+  
+  CreateAsStmt:
+  		CREATE OptTemp TABLE create_as_target AS SelectStmt opt_with_data
+  				{
+! 					/*
+! 					 * When the SelectStmt is a set-operation tree, we must
+! 					 * stuff the INTO information into the leftmost component
+! 					 * Select, because that's where analyze.c will expect
+! 					 * to find it.	Similarly, the output column names must
+! 					 * be attached to that Select's target list.
+! 					 */
+! 					SelectStmt *n = findLeftmostSelect((SelectStmt *) $6);
+! 					if (n->intoClause != NULL)
+! 						ereport(ERROR,
+! 								(errcode(ERRCODE_SYNTAX_ERROR),
+! 								 errmsg("CREATE TABLE AS cannot specify INTO"),
+! 								 parser_errposition(exprLocation((Node *) n->intoClause))));
+  					$4->rel->relpersistence = $2;
+! 					n->intoClause = $4;
+! 					/* Implement WITH NO DATA by forcing top-level LIMIT 0 */
+! 					if (!$7)
+! 						((SelectStmt *) $6)->limitCount = makeIntConst(0, -1);
+! 					$$ = $6;
+  				}
+  		;
+  
+  create_as_target:
+! 			qualified_name OptCreateAs OptWith OnCommitOption OptTableSpace
+  				{
+  					$$ = makeNode(IntoClause);
+  					$$->rel = $1;
+--- 3074,3105 ----
+  		;
+  
+  
+! /*****************************************************************************
+!  *
+!  *		QUERY :
+!  *				CREATE TABLE relname AS SelectStmt [ WITH [NO] DATA ]
+!  *
+!  *
+!  * Note: SELECT ... INTO is a now-deprecated alternative for this.
+!  *
+!  *****************************************************************************/
+  
+  CreateAsStmt:
+  		CREATE OptTemp TABLE create_as_target AS SelectStmt opt_with_data
+  				{
+! 					CreateTableAsStmt *ctas = makeNode(CreateTableAsStmt);
+! 					ctas->query = $6;
+! 					ctas->into = $4;
+! 					ctas->is_select_into = false;
+! 					/* cram additional flags into the IntoClause */
+  					$4->rel->relpersistence = $2;
+! 					$4->skipData = !($7);
+! 					$$ = (Node *) ctas;
+  				}
+  		;
+  
+  create_as_target:
+! 			qualified_name opt_column_list OptWith OnCommitOption OptTableSpace
+  				{
+  					$$ = makeNode(IntoClause);
+  					$$->rel = $1;
+      
+      
+/*****************************************************************************
+ *
+ *		QUERY :
+ *				CREATE TABLE relname AS SelectStmt [ WITH [NO] DATA ]
+ *
+ *
+ * Note: SELECT ... INTO is a now-deprecated alternative for this.
+ *
+ *****************************************************************************/
 
 CreateAsStmt:
       CREATE OptTemp TABLE create_as_target AS SelectStmt opt_with_data
-               /*
-                * When the SelectStmt is a set-operation tree, we must
-                * stuff the INTO information into the leftmost component
-                * Select, because that's where analyze.c will expect
-                * to find it.   Similarly, the output column names must
-                * be attached to that Select's target list.
-                */ {
-               my $n = $_[0]->findLeftmostSelect($_[6]);
-               $n->intoClause
-                  and $_[0]->ereport(ERROR,
-                        ERRCODE_SYNTAX_ERROR,
-                         "CREATE TABLE AS cannot specify INTO",
-                         $n->intoClause->location);
+            {
+               my $ctas = SQL::Translator::Statement::CreateTableAs->new(
+                  query          => $_[6],
+                  into           => $_[4],
+                  is_select_into => FALSE,
+               );
+               #* cram additional flags into the IntoClause
                $_[4]->rel->relpersistence($_[2]);
-               $n->intoClause($_[4]);
-               #* Implement WITH NO DATA by forcing top-level LIMIT 0
-               $_[6]->limitCount( $_[0]->makeIntConst(0, {}) );
-               return $_[6];
+               $_[4]->skipData(!$_[7]);
+               return $ctas;
             }
       ;
 
 create_as_target:
-         qualified_name OptCreateAs OptWith OnCommitOption OptTableSpace {
+         qualified_name opt_column_list OptWith OnCommitOption OptTableSpace {
                return SQL::Translator::Statement::IntoClause->new(
                   rel            => $_[1],
                   colNames       => $_[2],
                   options        => $_[3],
                   onCommit       => $_[4],
                   tableSpaceName => $_[5],
-               );
-            }
-      ;
-
-OptCreateAs:
-         '(' CreateAsList ')'               { $_[2] }
-         | /*EMPTY*/                        { NULL }
-      ;
-
-CreateAsList:
-         CreateAsElement                         { $_[0]->lappend($_[1]) }
-         | CreateAsList ',' CreateAsElement      { $_[0]->lappend($_[1], $_[3]) }
-      ;
-
-CreateAsElement:
-         ColId {
-               return SQL::Translator::Statement::Column::Definition->new(
-                  colname        => $_[1],
-                  typeName       => NULL,
-                  inhcount       => 0,
-                  is_local       => TRUE,
-                  is_not_null    => FALSE,
-                  is_from_type   => FALSE,
-                  storage        => 0,
-                  raw_default    => NULL,
-                  cooked_default => NULL,
-                  collClause     => NULL,
-                  collOid        => InvalidOid,
-                  constraints    => NIL,
+                  skipData       => FALSE,  #* might get changed later
                );
             }
       ;
@@ -3065,7 +3114,7 @@ CreateTrigStmt:
                   isconstraint  => TRUE,
                   constrrel     => $_[9],
                );
-               $_[0]->processCASbits($_[10], $_[0]->YYLLoc($_[10], 10), "TRIGGER", $n, 1,1,0);
+               $_[0]->processCASbits($_[10], $_[0]->YYLLoc($_[10], 10), "TRIGGER", $n, 1,1,0,0);
                return $n;
             }
       ;
