@@ -1373,11 +1373,12 @@ sub got_TypedTableElement_1 { $_[1] }
 ### TypedTableElement_2: TableConstraint
 sub got_TypedTableElement_2 { $_[1] }
 
-### columnDef: ColId Typename ColQualList
+### columnDef: ColId Typename create_generic_options ColQualList
 sub got_columnDef {
    my $n = SQL::Translator::Statement::Column::Definition->new(
       colname        => $_[1],
       typeName       => $_[2],
+      fdwoptions     => $_[3],
       inhcount       => 0,
       is_local       => TRUE,
       is_not_null    => FALSE,
@@ -1387,7 +1388,7 @@ sub got_columnDef {
       cooked_default => NULL,
       collOid        => InvalidOid,
    );
-   $_[0]->SplitColQualList($_[3], $n);
+   $_[0]->SplitColQualList($_[4], $n);
    return $n;
 }
 
@@ -1470,11 +1471,12 @@ sub got_ColConstraintElem_4 {
       indexspace      => $_[4],
    );
 }
-### ColConstraintElem_5: CHECK <LPAREN> a_expr <RPAREN>
+### ColConstraintElem_5: CHECK <LPAREN> a_expr <RPAREN> opt_no_inherit
 sub got_ColConstraintElem_5 {
    return SQL::Translator::Statement::Constraint->new(
       contype         => CONSTR_CHECK,
       location        => $_[0]->YYLLoc($_[1], 1),
+      is_no_inherit   => $_[5],
       raw_expr        => $_[3],
       cooked_expr     => NULL,
    );
@@ -1576,7 +1578,8 @@ sub got_ConstraintElem_1 {
       raw_expr      => $_[3],
       cooked_expr   => NULL,
    );
-   $_[0]->processCASbits($_[5], $_[0]->YYLLoc($_[5], 5), "CHECK", $n, 0,0,0);
+   $_[0]->processCASbits($_[5], $_[0]->YYLLoc($_[5], 5), "CHECK", $n, 0,0,0,1);
+   $n->initially_valid( !$n->skip_validation );
    return $n;
 }
 ### ConstraintElem_2: UNIQUE <LPAREN> columnList <RPAREN> opt_definition OptConsTableSpace ConstraintAttributeSpec
@@ -1589,7 +1592,7 @@ sub got_ConstraintElem_2 {
       indexname     => NULL,
       indexspace    => $_[6],
    );
-   $_[0]->processCASbits($_[7], $_[0]->YYLLoc($_[7], 7), "UNIQUE", $n, 1,1,0);
+   $_[0]->processCASbits($_[7], $_[0]->YYLLoc($_[7], 7), "UNIQUE", $n, 1,1,0,0);
    return $n;
 }
 ### ConstraintElem_3: UNIQUE ExistingIndex ConstraintAttributeSpec
@@ -1602,7 +1605,7 @@ sub got_ConstraintElem_3 {
       indexname     => $_[2],
       indexspace    => NULL,
    );
-   $_[0]->processCASbits($_[3], $_[0]->YYLLoc($_[3], 3), "UNIQUE", $n, 1,1,0);
+   $_[0]->processCASbits($_[3], $_[0]->YYLLoc($_[3], 3), "UNIQUE", $n, 1,1,0,0);
    return $n;
 }
 ### ConstraintElem_4: PRIMARY KEY <LPAREN> columnList <RPAREN> opt_definition OptConsTableSpace ConstraintAttributeSpec
@@ -1615,7 +1618,7 @@ sub got_ConstraintElem_4 {
       indexname     => NULL,
       indexspace    => $_[7],
    );
-   $_[0]->processCASbits($_[8], $_[0]->YYLLoc($_[8], 8), "PRIMARY KEY", $n, 1,1,0);
+   $_[0]->processCASbits($_[8], $_[0]->YYLLoc($_[8], 8), "PRIMARY KEY", $n, 1,1,0,0);
    return $n;
 }
 ### ConstraintElem_5: PRIMARY KEY ExistingIndex ConstraintAttributeSpec
@@ -1628,7 +1631,7 @@ sub got_ConstraintElem_5 {
       indexname     => $_[3],
       indexspace    => NULL,
    );
-   $_[0]->processCASbits($_[4], $_[0]->YYLLoc($_[4], 4), "PRIMARY KEY", $n, 1,1,0);
+   $_[0]->processCASbits($_[4], $_[0]->YYLLoc($_[4], 4), "PRIMARY KEY", $n, 1,1,0,0);
    return $n;
 }
 ### ConstraintElem_6: EXCLUDE access_method_clause <LPAREN> ExclusionConstraintList <RPAREN> opt_definition OptConsTableSpace ExclusionWhereClause ConstraintAttributeSpec
@@ -1643,7 +1646,7 @@ sub got_ConstraintElem_6 {
       indexspace    => $_[7],
       where_clause  => $_[8],
    );
-   $_[0]->processCASbits($_[9], $_[0]->YYLLoc($_[9], 9), "EXCLUDE", $n, 1,1,0);
+   $_[0]->processCASbits($_[9], $_[0]->YYLLoc($_[9], 9), "EXCLUDE", $n, 1,1,0,0);
    return $n;
 }
 ### ConstraintElem_7: FOREIGN KEY <LPAREN> columnList <RPAREN> REFERENCES qualified_name opt_column_list key_match key_actions ConstraintAttributeSpec
@@ -1658,10 +1661,13 @@ sub got_ConstraintElem_7 {
       fk_upd_action => ($_[10] >> 8),
       fk_del_action => ($_[10] & 0xFF),
    );
-   $_[0]->processCASbits($_[11], $_[0]->YYLLoc($_[1], 1), "FOREIGN KEY", $n, 1,1,1);
+   $_[0]->processCASbits($_[11], $_[0]->YYLLoc($_[1], 1), "FOREIGN KEY", $n, 1,1,1,0);
    $n->initially_valid( !$n->skip_validation );
    return $n;
 }
+
+### opt_no_inherit_1: NO INHERIT
+sub got_opt_no_inherit_1 { TRUE  }
 
 ### opt_column_list_1: <LPAREN> columnList <RPAREN>
 sub got_opt_column_list_1 { $_[2] }
@@ -1747,27 +1753,20 @@ sub got_OptConsTableSpace_1 { $_[4] }
 ### ExistingIndex: USING INDEX index_name
 sub got_ExistingIndex { $_[3] }
 
-# When the SelectStmt is a set-operation tree, we must
-# stuff the INTO information into the leftmost component
-# Select, because that's where analyze.c will expect
-# to find it.   Similarly, the output column names must
-# be attached to that Select's target list.
 ### CreateAsStmt: CREATE OptTemp TABLE create_as_target AS SelectStmt opt_with_data
 sub got_CreateAsStmt {
-   my $n = $_[0]->findLeftmostSelect($_[6]);
-   $n->intoClause
-      and $_[0]->ereport(ERROR,
-            ERRCODE_SYNTAX_ERROR,
-             "CREATE TABLE AS cannot specify INTO",
-             $n->intoClause->location);
+   my $ctas = SQL::Translator::Statement::CreateTableAs->new(
+      query          => $_[6],
+      into           => $_[4],
+      is_select_into => FALSE,
+   );
+   #* cram additional flags into the IntoClause
    $_[4]->rel->relpersistence($_[2]);
-   $n->intoClause($_[4]);
-   #* Implement WITH NO DATA by forcing top-level LIMIT 0
-   $_[6]->limitCount( $_[0]->makeIntConst(0, {}) );
-   return $_[6];
+   $_[4]->skipData(!$_[7]);
+   return $ctas;
 }
 
-### create_as_target: qualified_name OptCreateAs OptWith OnCommitOption OptTableSpace
+### create_as_target: qualified_name opt_column_list OptWith OnCommitOption OptTableSpace
 sub got_create_as_target {
    return SQL::Translator::Statement::IntoClause->new(
       rel            => $_[1],
@@ -1775,32 +1774,7 @@ sub got_create_as_target {
       options        => $_[3],
       onCommit       => $_[4],
       tableSpaceName => $_[5],
-   );
-}
-
-### OptCreateAs_1: <LPAREN> CreateAsList <RPAREN>
-sub got_OptCreateAs_1 { $_[2] }
-
-### CreateAsList_1: CreateAsElement
-sub got_CreateAsList_1 { $_[0]->lappend($_[1]) }
-### CreateAsList_2: CreateAsList <COMMA> CreateAsElement
-sub got_CreateAsList_2 { $_[0]->lappend($_[1], $_[3]) }
-
-### CreateAsElement: ColId
-sub got_CreateAsElement {
-   return SQL::Translator::Statement::Column::Definition->new(
-      colname        => $_[1],
-      typeName       => NULL,
-      inhcount       => 0,
-      is_local       => TRUE,
-      is_not_null    => FALSE,
-      is_from_type   => FALSE,
-      storage        => 0,
-      raw_default    => NULL,
-      cooked_default => NULL,
-      collClause     => NULL,
-      collOid        => InvalidOid,
-      constraints    => NIL,
+      skipData       => FALSE,  #* might get changed later
    );
 }
 
@@ -2511,7 +2485,7 @@ sub got_CreateTrigStmt_2 {
       isconstraint  => TRUE,
       constrrel     => $_[9],
    );
-   $_[0]->processCASbits($_[10], $_[0]->YYLLoc($_[10], 10), "TRIGGER", $n, 1,1,0);
+   $_[0]->processCASbits($_[10], $_[0]->YYLLoc($_[10], 10), "TRIGGER", $n, 1,1,0,0);
    return $n;
 }
 

@@ -925,7 +925,7 @@ TypedTableElement  :
 TypedTableElement_1: columnOptions
 TypedTableElement_2: TableConstraint
 
-columnDef: ColId Typename ColQualList
+columnDef: ColId Typename create_generic_options ColQualList
 
 columnOptions: ColId WITH OPTIONS ColQualList
 
@@ -970,7 +970,7 @@ ColConstraintElem_1: NOT NULL
 ColConstraintElem_2: NULL
 ColConstraintElem_3: UNIQUE opt_definition OptConsTableSpace
 ColConstraintElem_4: PRIMARY KEY opt_definition OptConsTableSpace
-ColConstraintElem_5: CHECK <LPAREN> a_expr <RPAREN>
+ColConstraintElem_5: CHECK <LPAREN> a_expr <RPAREN> opt_no_inherit
 ColConstraintElem_6: DEFAULT b_expr
 ColConstraintElem_7: REFERENCES qualified_name opt_column_list key_match key_actions
 
@@ -983,10 +983,10 @@ ColConstraintElem_7: REFERENCES qualified_name opt_column_list key_match key_act
 # combinations.
 #
 # See also ConstraintAttributeSpec, which can be used in places where
-# there is no parsing conflict.  (Note: currently, NOT VALID is an allowed
-# clause in ConstraintAttributeSpec, but not here.  Someday we might need
-# to allow it here too, but for the moment it doesn't seem useful in the
-# statements that use ConstraintAttr.)
+# there is no parsing conflict.  (Note: currently, NOT VALID and NO INHERIT
+# are allowed clauses in ConstraintAttributeSpec, but not here.  Someday we
+# might need to allow them here too, but for the moment it doesn't seem
+# useful in the statements that use ConstraintAttr.)
 ConstraintAttr  :
      ConstraintAttr_1
    | ConstraintAttr_2
@@ -998,12 +998,6 @@ ConstraintAttr_2: NOT DEFERRABLE
 ConstraintAttr_3: INITIALLY DEFERRED
 ConstraintAttr_4: INITIALLY IMMEDIATE
 
-# SQL99 supports wholesale borrowing of a table definition via the LIKE clause.
-# This seems to be a poor man's inheritance capability, with the resulting
-# tables completely decoupled except for the original commonality in definitions.
-#
-# This is very similar to CREATE TABLE AS except for the INCLUDING DEFAULTS extension
-# which is a part of SQL:2003.
 TableLikeClause: LIKE qualified_name TableLikeOptionList
 
 TableLikeOptionList  : (
@@ -1054,6 +1048,9 @@ ConstraintElem_4: PRIMARY KEY <LPAREN> columnList <RPAREN> opt_definition OptCon
 ConstraintElem_5: PRIMARY KEY ExistingIndex ConstraintAttributeSpec
 ConstraintElem_6: EXCLUDE access_method_clause <LPAREN> ExclusionConstraintList <RPAREN> opt_definition OptConsTableSpace ExclusionWhereClause ConstraintAttributeSpec
 ConstraintElem_7: FOREIGN KEY <LPAREN> columnList <RPAREN> REFERENCES qualified_name opt_column_list key_match key_actions ConstraintAttributeSpec
+
+opt_no_inherit  : opt_no_inherit_1?
+opt_no_inherit_1: NO INHERIT
 
 opt_column_list  : opt_column_list_1?
 opt_column_list_1: <LPAREN> columnList <RPAREN>
@@ -1155,23 +1152,18 @@ OptConsTableSpace_1: USING INDEX TABLESPACE name
 
 ExistingIndex: USING INDEX index_name
 
-# Note: CREATE TABLE ... AS SELECT ... is just another spelling for
-# SELECT ... INTO.
+#############################################################################
+#
+#		QUERY :
+#				CREATE TABLE relname AS SelectStmt [ WITH [NO] DATA ]
+#
+#
+# Note: SELECT ... INTO is a now-deprecated alternative for this.
+#
+#############################################################################
 CreateAsStmt: CREATE OptTemp TABLE create_as_target AS SelectStmt opt_with_data
 
-create_as_target: qualified_name OptCreateAs OptWith OnCommitOption OptTableSpace
-
-OptCreateAs  : OptCreateAs_1?
-OptCreateAs_1: <LPAREN> CreateAsList <RPAREN>
-
-CreateAsList  :
-     CreateAsList_1
-   | CreateAsList_2
-;
-CreateAsList_1: CreateAsElement
-CreateAsList_2: CreateAsList <COMMA> CreateAsElement  ### WARNING: Recursion; needs refactoring! ###
-
-CreateAsElement: ColId
+create_as_target: qualified_name opt_column_list OptWith OnCommitOption OptTableSpace
 
 opt_with_data  : (
      opt_with_data_1

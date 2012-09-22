@@ -1721,11 +1721,6 @@ TypedTableElement:
          columnOptions                   { $_[1] }
          | TableConstraint               { $_[1] }
       ;
-
-***************
-*** 2492,2498 ****
-  			| TableConstraint					{ $$ = $1; }
-  		;
   
 columnDef:   ColId Typename create_generic_options ColQualList {
                my $n = SQL::Translator::Statement::Column::Definition->new(
@@ -2145,82 +2140,6 @@ OptConsTableSpace:   USING INDEX TABLESPACE name   { $_[4] }
 ExistingIndex:   USING INDEX index_name            { $_[3] }
       ;
 
-
-***************
-*** 2978,3015 ****
-  		;
-  
-  
-! /*
-!  * Note: CREATE TABLE ... AS SELECT ... is just another spelling for
-!  * SELECT ... INTO.
-!  */
-  
-  CreateAsStmt:
-  		CREATE OptTemp TABLE create_as_target AS SelectStmt opt_with_data
-  				{
-! 					/*
-! 					 * When the SelectStmt is a set-operation tree, we must
-! 					 * stuff the INTO information into the leftmost component
-! 					 * Select, because that's where analyze.c will expect
-! 					 * to find it.	Similarly, the output column names must
-! 					 * be attached to that Select's target list.
-! 					 */
-! 					SelectStmt *n = findLeftmostSelect((SelectStmt *) $6);
-! 					if (n->intoClause != NULL)
-! 						ereport(ERROR,
-! 								(errcode(ERRCODE_SYNTAX_ERROR),
-! 								 errmsg("CREATE TABLE AS cannot specify INTO"),
-! 								 parser_errposition(exprLocation((Node *) n->intoClause))));
-  					$4->rel->relpersistence = $2;
-! 					n->intoClause = $4;
-! 					/* Implement WITH NO DATA by forcing top-level LIMIT 0 */
-! 					if (!$7)
-! 						((SelectStmt *) $6)->limitCount = makeIntConst(0, -1);
-! 					$$ = $6;
-  				}
-  		;
-  
-  create_as_target:
-! 			qualified_name OptCreateAs OptWith OnCommitOption OptTableSpace
-  				{
-  					$$ = makeNode(IntoClause);
-  					$$->rel = $1;
---- 3074,3105 ----
-  		;
-  
-  
-! /*****************************************************************************
-!  *
-!  *		QUERY :
-!  *				CREATE TABLE relname AS SelectStmt [ WITH [NO] DATA ]
-!  *
-!  *
-!  * Note: SELECT ... INTO is a now-deprecated alternative for this.
-!  *
-!  *****************************************************************************/
-  
-  CreateAsStmt:
-  		CREATE OptTemp TABLE create_as_target AS SelectStmt opt_with_data
-  				{
-! 					CreateTableAsStmt *ctas = makeNode(CreateTableAsStmt);
-! 					ctas->query = $6;
-! 					ctas->into = $4;
-! 					ctas->is_select_into = false;
-! 					/* cram additional flags into the IntoClause */
-  					$4->rel->relpersistence = $2;
-! 					$4->skipData = !($7);
-! 					$$ = (Node *) ctas;
-  				}
-  		;
-  
-  create_as_target:
-! 			qualified_name opt_column_list OptWith OnCommitOption OptTableSpace
-  				{
-  					$$ = makeNode(IntoClause);
-  					$$->rel = $1;
-      
-      
 /*****************************************************************************
  *
  *		QUERY :
