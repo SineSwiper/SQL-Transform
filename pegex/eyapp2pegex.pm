@@ -57,6 +57,8 @@ use MooX::Types::MooseLike::Base qw/HashRef Bool Str/;
 use Storable qw/dclone/;
 use List::AllUtils qw/first/;
 
+no warnings 'uninitialized';
+
 has tree => (
    is       => 'ro',
    isa      => HashRef,
@@ -106,9 +108,84 @@ sub parse {
    
    # PGX header
    $pgx->print('%grammar '.$self->out_class."\n\n");
+
+   # Pre-parse analysis of rules
+   my $body = $tree->{body};
+   my $rule_loc = {};
+   for (my $i = 0; $i < @$body; $i++) {
+      my $rule = $body->[$i];
+      my ($lhs, $rhs) = @$rule{qw(lhs rhs)};
+      $rule_loc->{$lhs} = {
+         rule => $rule,
+         loc  => $i,
+      };
+      
+      ### Find patterns that can be optimized
+      
+      # 1. Optional rules (and has_code)
+      for (my $j = 0; $j < @$rhs; $j++) {
+         my $choice = $rhs->[$j];
+         my $code = first { $_->{code} } @$choice;
+         $rule->{has_code} = 1 if $code;
+         
+         unless (first { !$_->{comment} && !$_->{code} } @$choice) {
+            $rule->{is_optional} = 1;
+            $rule->{empty_rule} = splice @$rhs, $j--, 1;
+         }
+      }
+      
+      # 2. Split recursion
+      if (@$rhs <= 2) {
+         for (my $j = 0; $j < @$rhs; $j++) {
+            my $choice = $rhs->[$j];
+            my @tls = grep { $_->{token} || $_->{literal} } @$choice;
+            next unless (@tls >= 2);
+            my $fc = shift @tls;
+            my $lc = pop   @tls;
+            
+            my $el;
+            $el = $lc if ($fc->{token} eq $lhs);  # left side recursion
+            $el = $fc if ($lc->{token} eq $lhs);  # right side recursion
+            next unless $el;
+            $el = $self->_rhs_convert([ $el ], $lhs);
+            
+            # figure out number of elements needed
+            my $qual = $rule->{is_optional} ? '*' : '2+';
+            if ($qual eq '2+') {
+               for (my $k = 0; $k < @$rhs; $k++) {
+                  my $kchoice = $rhs->[$k];
+                  my @ktls = grep { $_->{token} || $_->{literal} } @$kchoice;
+                  next unless (@ktls == 1);
+                  my $kel = $self->_rhs_convert(\@ktls, $lhs);
+                  next unless ($kel eq $el);
+                  
+                  $qual = '+';
+                  splice @$rhs, $k--, 1;
+               }
+            }
+            
+            my @ccs = grep { !$_->{token} && !$_->{literal} } @$choice;
+            my $re = @tls ? '/ ~ '.$self->_rhs_convert(\@tls, $lhs).' ~ /' : '~';
+            @$choice = (
+               { pegex => ($qual eq '2+' && $el !~ /\</ ? "<$el>$qual" : "$el$qual")." % $re" },
+               @ccs
+            );
+            delete $rule->{is_optional};
+         }
+      }
+      
+      # 3. Other recursion
+      for (my $j = 0; $j < @$rhs; $j++) {
+         my $choice = $rhs->[$j];
+         if (first { $_->{token} eq $lhs } @$choice) {
+            push @{$rule->{comments}}, "/*## WARNING: Recursion; needs refactoring! ### */";
+            last;
+         }
+      }
+   }
    
    # Parse rules
-   my $body = $tree->{body};
+   ### FIXME: Make use of empty_rule ###
    foreach my $rule (@$body) {
       $pgx->say( join("\n\n", map { $self->_comment_convert($_) } @{$rule->{comments}}) )
          if ( $self->comments && $rule->{comments} );
@@ -117,14 +194,8 @@ sub parse {
       my $rhs = $rule->{rhs};
       my ($choices, $subrules) = ([], []);
 
-      my $is_optional = 0;
-      my $any_code = 0;
       foreach my $choice (@$rhs) {
          my $has_code = first { $_->{code} } @$choice;
-         my $not_blank = grep { !$_->{comment} && !$_->{code} } @$choice;
-         
-         unless ($not_blank) { $is_optional = 1; next; }
-         $any_code = 1 if $has_code;
          
          # anything with code will need a separate rule for reference
          if ($has_code && @$rhs > 1) {
@@ -138,17 +209,18 @@ sub parse {
          }
       }
       
+      my $o = $rule->{is_optional};
       my $new_lhs = $lhs.(@$subrules ? '  ' : '').(@$subrules >= 10 ? ' ' : '');
       
       if (@$choices == 1) {
-         if ($is_optional && $choices->[0] =~ /\s+/)
+         if ($o && $choices->[0] =~ /\s+/)
               { $pgx->say( "$new_lhs: ( ".$choices->[0].' )?' ); }
-         else { $pgx->say( "$new_lhs: ".$choices->[0].($is_optional ? '?' : '') ); }
+         else { $pgx->say( "$new_lhs: ".$choices->[0].($o ? '?' : '') ); }
       }
       else {
-         $pgx->print( "$new_lhs:".($is_optional ? ' (' : '')."\n     " );
+         $pgx->print( "$new_lhs:".($o ? ' (' : '')."\n     " );
          $pgx->say( join "\n   | ",  @$choices );
-         $pgx->say($is_optional ? ')?' : ';');
+         $pgx->say($o ? ')?' : ';');
       }
       
       for (my $sr = 0; $sr < @$subrules; $sr++) {
@@ -158,7 +230,7 @@ sub parse {
          $pgx->say( "$sublhs: ".$self->_rhs_convert($choice, $lhs) );
       }
       $pgx->say();
-      $ast->say() if $any_code;
+      $ast->say() if $rule->{any_code};
    }
    
    $ast->print("## %% ##\n\n");
@@ -203,7 +275,7 @@ use Pegex::Grammar::Atoms;
 my $atoms = Pegex::Grammar::Atoms->atoms;
 my $literals = { map {
    my $k = $atoms->{$_}; $k =~ s/\\(\W)/$1/g;
-   $k => '<'.$_.'>';
+   $k => '<C_'.$_.'>';
 } keys %$atoms };
 
 sub _rhs_convert {
@@ -224,12 +296,11 @@ sub _rhs_convert {
       for ($type) {
          when ('token')   { push @items, $val; $has_recursion = 1 if $val eq $lhs; }
          when ('pegex')   { push @items, $val; }
-         when ('literal') { push @items, $literals->{$val} || die "$lhs: $val?  No such literal!"; }
+         when ('literal') { push @items, " ~ ".($literals->{$val} || die "$lhs: $val?  No such literal!")." ~ "; }
          when ('comment') { push @items, "\n".$self->_comment_convert($val); $had_comment = 1; }
          default          { die "$lhs: $type?  What is this?  I don't even..."; }
       }
    }
-   push @items, ' ### WARNING: Recursion; needs refactoring! ###' if $has_recursion;
    
    return join ' ', @items;
 }

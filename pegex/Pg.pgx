@@ -4,12 +4,7 @@
 stmtblock: stmtmulti
 
 # the thrashing around here is to discard "empty" statements...
-stmtmulti  :
-     stmtmulti_1
-   | stmtmulti_2
-;
-stmtmulti_1: stmtmulti <SEMI> stmt  ### WARNING: Recursion; needs refactoring! ###
-stmtmulti_2: stmt
+stmtmulti: stmt+ % / ~ <SEMI> ~ /
 
 stmt: (
      AlterEventTrigStmt
@@ -133,17 +128,14 @@ stmt: (
 #############################################################################
 CreateRoleStmt: CREATE ROLE RoleId opt_with OptRoleList
 
-opt_with  : opt_with_1?
-opt_with_1: WITH
+opt_with: WITH?
 
 # Options for CREATE ROLE and ALTER ROLE (also used by CREATE/ALTER USER
 # for backwards compatibility).  Note: the only option required by SQL99
 # is "WITH ADMIN name".
-OptRoleList  : OptRoleList_1?
-OptRoleList_1: OptRoleList CreateOptRoleElem  ### WARNING: Recursion; needs refactoring! ###
+OptRoleList: CreateOptRoleElem* % ~
 
-AlterOptRoleList  : AlterOptRoleList_1?
-AlterOptRoleList_1: AlterOptRoleList AlterOptRoleElem  ### WARNING: Recursion; needs refactoring! ###
+AlterOptRoleList: AlterOptRoleElem* % ~
 
 AlterOptRoleElem  :
      AlterOptRoleElem_1
@@ -195,8 +187,7 @@ CreateUserStmt: CREATE USER RoleId opt_with OptRoleList
 #############################################################################
 AlterRoleStmt: ALTER ROLE RoleId opt_with AlterOptRoleList
 
-opt_in_database  : opt_in_database_1?
-opt_in_database_1: IN DATABASE database_name
+opt_in_database: ( IN DATABASE database_name )?
 
 AlterRoleSetStmt: ALTER ROLE RoleId opt_in_database SetResetClause
 
@@ -285,11 +276,9 @@ CreateSchemaStmt  :
 CreateSchemaStmt_1: CREATE SCHEMA OptSchemaName AUTHORIZATION RoleId OptSchemaEltList
 CreateSchemaStmt_2: CREATE SCHEMA ColId OptSchemaEltList
 
-OptSchemaName  : OptSchemaName_1?
-OptSchemaName_1: ColId
+OptSchemaName: ColId?
 
-OptSchemaEltList  : OptSchemaEltList_1?
-OptSchemaEltList_1: OptSchemaEltList schema_stmt  ### WARNING: Recursion; needs refactoring! ###
+OptSchemaEltList: schema_stmt* % ~
 
 #   schema_stmt are the ones that can show up inside a CREATE SCHEMA
 #   statement (in addition to by themselves).
@@ -360,19 +349,9 @@ set_rest_more_12: SESSION AUTHORIZATION DEFAULT
 set_rest_more_13: XML OPTION document_or_content
 set_rest_more_14: TRANSACTION SNAPSHOT Sconst
 
-var_name  :
-     var_name_1
-   | var_name_2
-;
-var_name_1: ColId
-var_name_2: var_name <DOT> ColId  ### WARNING: Recursion; needs refactoring! ###
+var_name: ColId+ % / ~ <DOT> ~ /
 
-var_list  :
-     var_list_1
-   | var_list_2
-;
-var_list_1: var_value
-var_list_2: var_list <COMMA> var_value  ### WARNING: Recursion; needs refactoring! ###
+var_list: var_value+ % / ~ <COMMA> ~ /
 
 var_value  :
      var_value_1
@@ -544,12 +523,7 @@ AlterTableStmt_6: ALTER SEQUENCE IF EXISTS qualified_name alter_table_cmds
 AlterTableStmt_7: ALTER VIEW qualified_name alter_table_cmds
 AlterTableStmt_8: ALTER VIEW IF EXISTS qualified_name alter_table_cmds
 
-alter_table_cmds  :
-     alter_table_cmds_1
-   | alter_table_cmds_2
-;
-alter_table_cmds_1: alter_table_cmd
-alter_table_cmds_2: alter_table_cmds <COMMA> alter_table_cmd  ### WARNING: Recursion; needs refactoring! ###
+alter_table_cmds: alter_table_cmd+ % / ~ <COMMA> ~ /
 
 alter_table_cmd   :
      alter_table_cmd_1
@@ -654,23 +628,15 @@ opt_drop_behavior  : (
 opt_drop_behavior_1: CASCADE
 opt_drop_behavior_2: RESTRICT
 
-opt_collate_clause  : opt_collate_clause_1?
-opt_collate_clause_1: COLLATE any_name
+opt_collate_clause: ( COLLATE any_name )?
 
-alter_using  : alter_using_1?
-alter_using_1: USING a_expr
+alter_using: ( USING a_expr )?
 
 reloptions: <LPAREN> reloption_list <RPAREN>
 
-opt_reloptions  : opt_reloptions_1?
-opt_reloptions_1: WITH reloptions
+opt_reloptions: ( WITH reloptions )?
 
-reloption_list  :
-     reloption_list_1
-   | reloption_list_2
-;
-reloption_list_1: reloption_elem
-reloption_list_2: reloption_list <COMMA> reloption_elem  ### WARNING: Recursion; needs refactoring! ###
+reloption_list: reloption_elem+ % / ~ <COMMA> ~ /
 
 # This should match def_elem and also allow qualified names
 reloption_elem  :
@@ -692,12 +658,7 @@ reloption_elem_4: ColLabel <DOT> ColLabel
 #############################################################################
 AlterCompositeTypeStmt: ALTER TYPE any_name alter_type_cmds
 
-alter_type_cmds  :
-     alter_type_cmds_1
-   | alter_type_cmds_2
-;
-alter_type_cmds_1: alter_type_cmd
-alter_type_cmds_2: alter_type_cmds <COMMA> alter_type_cmd  ### WARNING: Recursion; needs refactoring! ###
+alter_type_cmds: alter_type_cmd+ % / ~ <COMMA> ~ /
 
 alter_type_cmd  :
      alter_type_cmd_1
@@ -776,8 +737,7 @@ copy_options_1: copy_opt_list
 copy_options_2: <LPAREN> copy_generic_opt_list <RPAREN>
 
 # old COPY option syntax
-copy_opt_list  : copy_opt_list_1?
-copy_opt_list_1: copy_opt_list copy_opt_item  ### WARNING: Recursion; needs refactoring! ###
+copy_opt_list: copy_opt_item* % ~
 
 copy_opt_item   :
      copy_opt_item_1
@@ -807,25 +767,16 @@ copy_opt_item_11: FORCE NOT NULL columnList
 copy_opt_item_12: ENCODING Sconst
 
 # The following exist for backward compatibility with very old versions
-opt_binary  : opt_binary_1?
-opt_binary_1: BINARY
+opt_binary: BINARY?
 
-opt_oids  : opt_oids_1?
-opt_oids_1: WITH OIDS
+opt_oids: ( WITH OIDS )?
 
-copy_delimiter  : copy_delimiter_1?
-copy_delimiter_1: opt_using DELIMITERS Sconst
+copy_delimiter: ( opt_using DELIMITERS Sconst )?
 
-opt_using  : opt_using_1?
-opt_using_1: USING
+opt_using: USING?
 
 # new COPY option syntax
-copy_generic_opt_list  :
-     copy_generic_opt_list_1
-   | copy_generic_opt_list_2
-;
-copy_generic_opt_list_1: copy_generic_opt_elem
-copy_generic_opt_list_2: copy_generic_opt_list <COMMA> copy_generic_opt_elem  ### WARNING: Recursion; needs refactoring! ###
+copy_generic_opt_list: copy_generic_opt_elem+ % / ~ <COMMA> ~ /
 
 copy_generic_opt_elem: ColLabel copy_generic_opt_arg
 
@@ -840,12 +791,7 @@ copy_generic_opt_arg_2: NumericOnly
 copy_generic_opt_arg_3: <STAR>
 copy_generic_opt_arg_4: <LPAREN> copy_generic_opt_arg_list <RPAREN>
 
-copy_generic_opt_arg_list  :
-     copy_generic_opt_arg_list_1
-   | copy_generic_opt_arg_list_2
-;
-copy_generic_opt_arg_list_1: copy_generic_opt_arg_list_item
-copy_generic_opt_arg_list_2: copy_generic_opt_arg_list <COMMA> copy_generic_opt_arg_list_item  ### WARNING: Recursion; needs refactoring! ###
+copy_generic_opt_arg_list: copy_generic_opt_arg_list_item+ % / ~ <COMMA> ~ /
 
 # beware of emitting non-string list elements here; see commands/define.c
 copy_generic_opt_arg_list_item: opt_boolean_or_string
@@ -889,25 +835,13 @@ OptTemp_5: GLOBAL TEMPORARY
 OptTemp_6: GLOBAL TEMP
 OptTemp_7: UNLOGGED
 
-OptTableElementList  : OptTableElementList_1?
-OptTableElementList_1: TableElementList
+OptTableElementList: TableElementList?
 
-OptTypedTableElementList  : OptTypedTableElementList_1?
-OptTypedTableElementList_1: <LPAREN> TypedTableElementList <RPAREN>
+OptTypedTableElementList: ( <LPAREN> TypedTableElementList <RPAREN> )?
 
-TableElementList  :
-     TableElementList_1
-   | TableElementList_2
-;
-TableElementList_1: TableElement
-TableElementList_2: TableElementList <COMMA> TableElement  ### WARNING: Recursion; needs refactoring! ###
+TableElementList: TableElement+ % / ~ <COMMA> ~ /
 
-TypedTableElementList  :
-     TypedTableElementList_1
-   | TypedTableElementList_2
-;
-TypedTableElementList_1: TypedTableElement
-TypedTableElementList_2: TypedTableElementList <COMMA> TypedTableElement  ### WARNING: Recursion; needs refactoring! ###
+TypedTableElementList: TypedTableElement+ % / ~ <COMMA> ~ /
 
 TableElement  :
      TableElement_1
@@ -929,8 +863,7 @@ columnDef: ColId Typename create_generic_options ColQualList
 
 columnOptions: ColId WITH OPTIONS ColQualList
 
-ColQualList  : ColQualList_1?
-ColQualList_1: ColQualList ColConstraint  ### WARNING: Recursion; needs refactoring! ###
+ColQualList: ColConstraint* % ~
 
 ColConstraint  :
      ColConstraint_1
@@ -1000,12 +933,12 @@ ConstraintAttr_4: INITIALLY IMMEDIATE
 
 TableLikeClause: LIKE qualified_name TableLikeOptionList
 
-TableLikeOptionList  : (
+TableLikeOptionList  :
      TableLikeOptionList_1
    | TableLikeOptionList_2
-)?
-TableLikeOptionList_1: TableLikeOptionList INCLUDING TableLikeOption  ### WARNING: Recursion; needs refactoring! ###
-TableLikeOptionList_2: TableLikeOptionList EXCLUDING TableLikeOption  ### WARNING: Recursion; needs refactoring! ###
+;
+TableLikeOptionList_1: TableLikeOption* % / ~ INCLUDING ~ /
+TableLikeOptionList_2: <TableLikeOption>2+ % / ~ EXCLUDING ~ /
 
 TableLikeOption  :
      TableLikeOption_1
@@ -1049,18 +982,11 @@ ConstraintElem_5: PRIMARY KEY ExistingIndex ConstraintAttributeSpec
 ConstraintElem_6: EXCLUDE access_method_clause <LPAREN> ExclusionConstraintList <RPAREN> opt_definition OptConsTableSpace ExclusionWhereClause ConstraintAttributeSpec
 ConstraintElem_7: FOREIGN KEY <LPAREN> columnList <RPAREN> REFERENCES qualified_name opt_column_list key_match key_actions ConstraintAttributeSpec
 
-opt_no_inherit  : opt_no_inherit_1?
-opt_no_inherit_1: NO INHERIT
+opt_no_inherit: ( NO INHERIT )?
 
-opt_column_list  : opt_column_list_1?
-opt_column_list_1: <LPAREN> columnList <RPAREN>
+opt_column_list: ( <LPAREN> columnList <RPAREN> )?
 
-columnList  :
-     columnList_1
-   | columnList_2
-;
-columnList_1: columnElem
-columnList_2: columnList <COMMA> columnElem  ### WARNING: Recursion; needs refactoring! ###
+columnList: columnElem+ % / ~ <COMMA> ~ /
 
 columnElem: ColId
 
@@ -1073,12 +999,7 @@ key_match_1: MATCH FULL
 key_match_2: MATCH PARTIAL
 key_match_3: MATCH SIMPLE
 
-ExclusionConstraintList  :
-     ExclusionConstraintList_1
-   | ExclusionConstraintList_2
-;
-ExclusionConstraintList_1: ExclusionConstraintElem
-ExclusionConstraintList_2: ExclusionConstraintList <COMMA> ExclusionConstraintElem  ### WARNING: Recursion; needs refactoring! ###
+ExclusionConstraintList: ExclusionConstraintElem+ % / ~ <COMMA> ~ /
 
 ExclusionConstraintElem  :
      ExclusionConstraintElem_1
@@ -1087,8 +1008,7 @@ ExclusionConstraintElem  :
 ExclusionConstraintElem_1: index_elem WITH any_operator
 ExclusionConstraintElem_2: index_elem WITH OPERATOR <LPAREN> any_operator <RPAREN>
 
-ExclusionWhereClause  : ExclusionWhereClause_1?
-ExclusionWhereClause_1: WHERE <LPAREN> a_expr <RPAREN>
+ExclusionWhereClause: ( WHERE <LPAREN> a_expr <RPAREN> )?
 
 # We combine the update and delete actions into one value temporarily
 # for simplicity of parsing, and then break them down again in the
@@ -1122,8 +1042,7 @@ key_action_3: CASCADE
 key_action_4: SET NULL
 key_action_5: SET DEFAULT
 
-OptInherit  : OptInherit_1?
-OptInherit_1: INHERITS <LPAREN> qualified_name_list <RPAREN>
+OptInherit: ( INHERITS <LPAREN> qualified_name_list <RPAREN> )?
 
 # WITH (options) is preferred, WITH OIDS and WITHOUT OIDS are legacy forms
 OptWith  : (
@@ -1144,18 +1063,16 @@ OnCommitOption_1: ON COMMIT DROP
 OnCommitOption_2: ON COMMIT DELETE ROWS
 OnCommitOption_3: ON COMMIT PRESERVE ROWS
 
-OptTableSpace  : OptTableSpace_1?
-OptTableSpace_1: TABLESPACE name
+OptTableSpace: ( TABLESPACE name )?
 
-OptConsTableSpace  : OptConsTableSpace_1?
-OptConsTableSpace_1: USING INDEX TABLESPACE name
+OptConsTableSpace: ( USING INDEX TABLESPACE name )?
 
 ExistingIndex: USING INDEX index_name
 
 #############################################################################
 #
-#		QUERY :
-#				CREATE TABLE relname AS SelectStmt [ WITH [NO] DATA ]
+#      QUERY :
+#            CREATE TABLE relname AS SelectStmt [ WITH [NO] DATA ]
 #
 #
 # Note: SELECT ... INTO is a now-deprecated alternative for this.
@@ -1181,17 +1098,16 @@ opt_with_data_2: WITH NO DATA
 #############################################################################
 CreateSeqStmt: CREATE OptTemp SEQUENCE qualified_name OptSeqOptList
 
-AlterSeqStmt: ALTER SEQUENCE qualified_name SeqOptList
-
-OptSeqOptList  : OptSeqOptList_1?
-OptSeqOptList_1: SeqOptList
-
-SeqOptList  :
-     SeqOptList_1
-   | SeqOptList_2
+AlterSeqStmt  :
+     AlterSeqStmt_1
+   | AlterSeqStmt_2
 ;
-SeqOptList_1: SeqOptElem
-SeqOptList_2: SeqOptList SeqOptElem  ### WARNING: Recursion; needs refactoring! ###
+AlterSeqStmt_1: ALTER SEQUENCE qualified_name SeqOptList
+AlterSeqStmt_2: ALTER SEQUENCE IF EXISTS qualified_name SeqOptList
+
+OptSeqOptList: SeqOptList?
+
+SeqOptList: SeqOptElem+ % ~
 
 SeqOptElem   :
      SeqOptElem_1
@@ -1220,8 +1136,7 @@ SeqOptElem_10: START opt_with NumericOnly
 SeqOptElem_11: RESTART
 SeqOptElem_12: RESTART opt_with NumericOnly
 
-opt_by  : opt_by_1?
-opt_by_1: BY
+opt_by: BY?
 
 NumericOnly  :
      NumericOnly_1
@@ -1232,12 +1147,7 @@ NumericOnly_1: FCONST
 NumericOnly_2: <DASH> FCONST
 NumericOnly_3: SignedIconst
 
-NumericOnly_list  :
-     NumericOnly_list_1
-   | NumericOnly_list_2
-;
-NumericOnly_list_1: NumericOnly
-NumericOnly_list_2: NumericOnly_list <COMMA> NumericOnly  ### WARNING: Recursion; needs refactoring! ###
+NumericOnly_list: NumericOnly+ % / ~ <COMMA> ~ /
 
 #############################################################################
 #
@@ -1253,8 +1163,7 @@ CreatePLangStmt  :
 CreatePLangStmt_1: CREATE opt_or_replace opt_trusted opt_procedural LANGUAGE ColId_or_Sconst
 CreatePLangStmt_2: CREATE opt_or_replace opt_trusted opt_procedural LANGUAGE ColId_or_Sconst HANDLER handler_name opt_inline_handler opt_validator
 
-opt_trusted  : opt_trusted_1?
-opt_trusted_1: TRUSTED
+opt_trusted: TRUSTED?
 
 # This ought to be just func_name, but that causes reduce/reduce conflicts
 # (CREATE LANGUAGE is the only place where func_name isn't followed by '(').
@@ -1266,8 +1175,7 @@ handler_name  :
 handler_name_1: name
 handler_name_2: name attrs
 
-opt_inline_handler  : opt_inline_handler_1?
-opt_inline_handler_1: INLINE handler_name
+opt_inline_handler: ( INLINE handler_name )?
 
 validator_clause  :
      validator_clause_1
@@ -1276,8 +1184,7 @@ validator_clause  :
 validator_clause_1: VALIDATOR handler_name
 validator_clause_2: NO VALIDATOR
 
-opt_validator  : opt_validator_1?
-opt_validator_1: validator_clause
+opt_validator: validator_clause?
 
 DropPLangStmt  :
      DropPLangStmt_1
@@ -1286,8 +1193,7 @@ DropPLangStmt  :
 DropPLangStmt_1: DROP opt_procedural LANGUAGE ColId_or_Sconst opt_drop_behavior
 DropPLangStmt_2: DROP opt_procedural LANGUAGE IF EXISTS ColId_or_Sconst opt_drop_behavior
 
-opt_procedural  : opt_procedural_1?
-opt_procedural_1: PROCEDURAL
+opt_procedural: PROCEDURAL?
 
 #############################################################################
 #
@@ -1297,8 +1203,7 @@ opt_procedural_1: PROCEDURAL
 #############################################################################
 CreateTableSpaceStmt: CREATE TABLESPACE name OptTableSpaceOwner LOCATION Sconst
 
-OptTableSpaceOwner  : OptTableSpaceOwner_1?
-OptTableSpaceOwner_1: OWNER name
+OptTableSpaceOwner: ( OWNER name )?
 
 #############################################################################
 #
@@ -1330,8 +1235,7 @@ CreateExtensionStmt  :
 CreateExtensionStmt_1: CREATE EXTENSION name opt_with create_extension_opt_list
 CreateExtensionStmt_2: CREATE EXTENSION IF NOT EXISTS name opt_with create_extension_opt_list
 
-create_extension_opt_list  : create_extension_opt_list_1?
-create_extension_opt_list_1: create_extension_opt_list create_extension_opt_item  ### WARNING: Recursion; needs refactoring! ###
+create_extension_opt_list: create_extension_opt_item* % ~
 
 create_extension_opt_item  :
      create_extension_opt_item_1
@@ -1349,8 +1253,7 @@ create_extension_opt_item_3: FROM ColId_or_Sconst
 #############################################################################
 AlterExtensionStmt: ALTER EXTENSION name UPDATE alter_extension_opt_list
 
-alter_extension_opt_list  : alter_extension_opt_list_1?
-alter_extension_opt_list_1: alter_extension_opt_list alter_extension_opt_item  ### WARNING: Recursion; needs refactoring! ###
+alter_extension_opt_list: alter_extension_opt_item* % ~
 
 alter_extension_opt_item: TO ColId_or_Sconst
 
@@ -1382,6 +1285,7 @@ AlterExtensionContentsStmt   :
    | AlterExtensionContentsStmt_20
    | AlterExtensionContentsStmt_21
    | AlterExtensionContentsStmt_22
+   | AlterExtensionContentsStmt_23
 ;
 AlterExtensionContentsStmt_1 : ALTER EXTENSION name add_drop AGGREGATE func_name aggr_args
 AlterExtensionContentsStmt_2 : ALTER EXTENSION name add_drop CAST <LPAREN> Typename AS Typename <RPAREN>
@@ -1395,16 +1299,17 @@ AlterExtensionContentsStmt_9 : ALTER EXTENSION name add_drop OPERATOR CLASS any_
 AlterExtensionContentsStmt_10: ALTER EXTENSION name add_drop OPERATOR FAMILY any_name USING access_method
 AlterExtensionContentsStmt_11: ALTER EXTENSION name add_drop SCHEMA name
 AlterExtensionContentsStmt_12: ALTER EXTENSION name add_drop TABLE any_name
-AlterExtensionContentsStmt_13: ALTER EXTENSION name add_drop TEXT SEARCH PARSER any_name
-AlterExtensionContentsStmt_14: ALTER EXTENSION name add_drop TEXT SEARCH DICTIONARY any_name
-AlterExtensionContentsStmt_15: ALTER EXTENSION name add_drop TEXT SEARCH TEMPLATE any_name
-AlterExtensionContentsStmt_16: ALTER EXTENSION name add_drop TEXT SEARCH CONFIGURATION any_name
-AlterExtensionContentsStmt_17: ALTER EXTENSION name add_drop SEQUENCE any_name
-AlterExtensionContentsStmt_18: ALTER EXTENSION name add_drop VIEW any_name
-AlterExtensionContentsStmt_19: ALTER EXTENSION name add_drop FOREIGN TABLE any_name
-AlterExtensionContentsStmt_20: ALTER EXTENSION name add_drop FOREIGN DATA WRAPPER name
-AlterExtensionContentsStmt_21: ALTER EXTENSION name add_drop SERVER name
-AlterExtensionContentsStmt_22: ALTER EXTENSION name add_drop TYPE any_name
+AlterExtensionContentsStmt_13: ALTER EXTENSION name add_drop EVENT TRIGGER name
+AlterExtensionContentsStmt_14: ALTER EXTENSION name add_drop TEXT SEARCH PARSER any_name
+AlterExtensionContentsStmt_15: ALTER EXTENSION name add_drop TEXT SEARCH DICTIONARY any_name
+AlterExtensionContentsStmt_16: ALTER EXTENSION name add_drop TEXT SEARCH TEMPLATE any_name
+AlterExtensionContentsStmt_17: ALTER EXTENSION name add_drop TEXT SEARCH CONFIGURATION any_name
+AlterExtensionContentsStmt_18: ALTER EXTENSION name add_drop SEQUENCE any_name
+AlterExtensionContentsStmt_19: ALTER EXTENSION name add_drop VIEW any_name
+AlterExtensionContentsStmt_20: ALTER EXTENSION name add_drop FOREIGN TABLE any_name
+AlterExtensionContentsStmt_21: ALTER EXTENSION name add_drop FOREIGN DATA WRAPPER name
+AlterExtensionContentsStmt_22: ALTER EXTENSION name add_drop SERVER name
+AlterExtensionContentsStmt_23: ALTER EXTENSION name add_drop TYPE any_name
 
 #############################################################################
 #
@@ -1425,15 +1330,9 @@ fdw_option_2: NO HANDLER
 fdw_option_3: VALIDATOR handler_name
 fdw_option_4: NO VALIDATOR
 
-fdw_options  :
-     fdw_options_1
-   | fdw_options_2
-;
-fdw_options_1: fdw_option
-fdw_options_2: fdw_options fdw_option  ### WARNING: Recursion; needs refactoring! ###
+fdw_options: fdw_option+ % ~
 
-opt_fdw_options  : opt_fdw_options_1?
-opt_fdw_options_1: fdw_options
+opt_fdw_options: fdw_options?
 
 #############################################################################
 #
@@ -1462,25 +1361,14 @@ AlterFdwStmt_1: ALTER FOREIGN DATA WRAPPER name opt_fdw_options alter_generic_op
 AlterFdwStmt_2: ALTER FOREIGN DATA WRAPPER name fdw_options
 
 # Options definition for CREATE FDW, SERVER and USER MAPPING
-create_generic_options  : create_generic_options_1?
-create_generic_options_1: OPTIONS <LPAREN> generic_option_list <RPAREN>
+create_generic_options: ( OPTIONS <LPAREN> generic_option_list <RPAREN> )?
 
-generic_option_list  :
-     generic_option_list_1
-   | generic_option_list_2
-;
-generic_option_list_1: generic_option_elem
-generic_option_list_2: generic_option_list <COMMA> generic_option_elem  ### WARNING: Recursion; needs refactoring! ###
+generic_option_list: generic_option_elem+ % / ~ <COMMA> ~ /
 
 # Options definition for ALTER FDW, SERVER and USER MAPPING
 alter_generic_options: OPTIONS <LPAREN> alter_generic_option_list <RPAREN>
 
-alter_generic_option_list  :
-     alter_generic_option_list_1
-   | alter_generic_option_list_2
-;
-alter_generic_option_list_1: alter_generic_option_elem
-alter_generic_option_list_2: alter_generic_option_list <COMMA> alter_generic_option_elem  ### WARNING: Recursion; needs refactoring! ###
+alter_generic_option_list: alter_generic_option_elem+ % / ~ <COMMA> ~ /
 
 alter_generic_option_elem  :
      alter_generic_option_elem_1
@@ -1508,8 +1396,7 @@ generic_option_arg: Sconst
 #############################################################################
 CreateForeignServerStmt: CREATE SERVER name opt_type opt_foreign_server_version FOREIGN DATA WRAPPER name create_generic_options
 
-opt_type  : opt_type_1?
-opt_type_1: TYPE Sconst
+opt_type: ( TYPE Sconst )?
 
 foreign_server_version  :
      foreign_server_version_1
@@ -1518,8 +1405,7 @@ foreign_server_version  :
 foreign_server_version_1: VERSION Sconst
 foreign_server_version_2: VERSION NULL
 
-opt_foreign_server_version  : opt_foreign_server_version_1?
-opt_foreign_server_version_1: foreign_server_version
+opt_foreign_server_version: foreign_server_version?
 
 #############################################################################
 #
@@ -1569,12 +1455,7 @@ OptForeignTableElementList  :
 OptForeignTableElementList_1: <LPAREN> ForeignTableElementList <RPAREN>
 OptForeignTableElementList_2: <LPAREN> <RPAREN>
 
-ForeignTableElementList  :
-     ForeignTableElementList_1
-   | ForeignTableElementList_2
-;
-ForeignTableElementList_1: ForeignTableElement
-ForeignTableElementList_2: ForeignTableElementList <COMMA> ForeignTableElement  ### WARNING: Recursion; needs refactoring! ###
+ForeignTableElementList: ForeignTableElement+ % / ~ <COMMA> ~ /
 
 ForeignTableElement: columnDef
 
@@ -1584,7 +1465,12 @@ ForeignTableElement: columnDef
 #             ALTER FOREIGN TABLE relname [...]
 #
 #############################################################################
-AlterForeignTableStmt: ALTER FOREIGN TABLE relation_expr alter_table_cmds
+AlterForeignTableStmt  :
+     AlterForeignTableStmt_1
+   | AlterForeignTableStmt_2
+;
+AlterForeignTableStmt_1: ALTER FOREIGN TABLE relation_expr alter_table_cmds
+AlterForeignTableStmt_2: ALTER FOREIGN TABLE IF EXISTS relation_expr alter_table_cmds
 
 #############################################################################
 #
@@ -1648,12 +1534,7 @@ TriggerActionTime_1: BEFORE
 TriggerActionTime_2: AFTER
 TriggerActionTime_3: INSTEAD OF
 
-TriggerEvents  :
-     TriggerEvents_1
-   | TriggerEvents_2
-;
-TriggerEvents_1: TriggerOneEvent
-TriggerEvents_2: TriggerEvents OR TriggerOneEvent  ### WARNING: Recursion; needs refactoring! ###
+TriggerEvents: TriggerOneEvent+ % / ~ OR ~ /
 
 TriggerOneEvent  :
      TriggerOneEvent_1
@@ -1668,11 +1549,9 @@ TriggerOneEvent_3: UPDATE
 TriggerOneEvent_4: UPDATE OF columnList
 TriggerOneEvent_5: TRUNCATE
 
-TriggerForSpec  : TriggerForSpec_1?
-TriggerForSpec_1: FOR TriggerForOptEach TriggerForType
+TriggerForSpec: ( FOR TriggerForOptEach TriggerForType )?
 
-TriggerForOptEach  : TriggerForOptEach_1?
-TriggerForOptEach_1: EACH
+TriggerForOptEach: EACH?
 
 TriggerForType  :
      TriggerForType_1
@@ -1681,15 +1560,14 @@ TriggerForType  :
 TriggerForType_1: ROW
 TriggerForType_2: STATEMENT
 
-TriggerWhen  : TriggerWhen_1?
-TriggerWhen_1: WHEN <LPAREN> a_expr <RPAREN>
+TriggerWhen: ( WHEN <LPAREN> a_expr <RPAREN> )?
 
-TriggerFuncArgs  : (
+TriggerFuncArgs  :
      TriggerFuncArgs_1
    | TriggerFuncArgs_2
-)?
+;
 TriggerFuncArgs_1: TriggerFuncArg
-TriggerFuncArgs_2: TriggerFuncArgs <COMMA> TriggerFuncArg  ### WARNING: Recursion; needs refactoring! ###
+TriggerFuncArgs_2: TriggerFuncArg* % / ~ <COMMA> ~ /
 
 TriggerFuncArg  :
      TriggerFuncArg_1
@@ -1702,11 +1580,9 @@ TriggerFuncArg_2: FCONST
 TriggerFuncArg_3: Sconst
 TriggerFuncArg_4: ColLabel
 
-OptConstrFromTable  : OptConstrFromTable_1?
-OptConstrFromTable_1: FROM qualified_name
+OptConstrFromTable: ( FROM qualified_name )?
 
-ConstraintAttributeSpec  : ConstraintAttributeSpec_1?
-ConstraintAttributeSpec_1: ConstraintAttributeSpec ConstraintAttributeElem  ### WARNING: Recursion; needs refactoring! ###
+ConstraintAttributeSpec: ConstraintAttributeElem* % ~
 
 ConstraintAttributeElem  :
      ConstraintAttributeElem_1
@@ -1729,6 +1605,40 @@ DropTrigStmt  :
 ;
 DropTrigStmt_1: DROP TRIGGER name ON qualified_name opt_drop_behavior
 DropTrigStmt_2: DROP TRIGGER IF EXISTS name ON qualified_name opt_drop_behavior
+
+#############################################################################
+#
+#      QUERIES :
+#            CREATE EVENT TRIGGER ...
+#            DROP EVENT TRIGGER ...
+#            ALTER EVENT TRIGGER ...
+#
+#############################################################################
+CreateEventTrigStmt  :
+     CreateEventTrigStmt_1
+   | CreateEventTrigStmt_2
+;
+CreateEventTrigStmt_1: CREATE EVENT TRIGGER name ON ColLabel EXECUTE PROCEDURE func_name <LPAREN> <RPAREN>
+CreateEventTrigStmt_2: CREATE EVENT TRIGGER name ON ColLabel WHEN event_trigger_when_list EXECUTE PROCEDURE func_name <LPAREN> <RPAREN>
+
+event_trigger_when_list: event_trigger_when_item+ % / ~ AND ~ /
+
+event_trigger_when_item: ColId IN <LPAREN> event_trigger_value_list <RPAREN>
+
+event_trigger_value_list: SCONST+ % / ~ <COMMA> ~ /
+
+AlterEventTrigStmt: ALTER EVENT TRIGGER name enable_trigger
+
+enable_trigger  :
+     enable_trigger_1
+   | enable_trigger_2
+   | enable_trigger_3
+   | enable_trigger_4
+;
+enable_trigger_1: ENABLE
+enable_trigger_2: ENABLE REPLICA
+enable_trigger_3: ENABLE ALWAYS
+enable_trigger_4: DISABLE
 
 #############################################################################
 #
@@ -1761,6 +1671,7 @@ DefineStmt   :
    | DefineStmt_11
    | DefineStmt_12
    | DefineStmt_13
+   | DefineStmt_14
 ;
 DefineStmt_1 : CREATE AGGREGATE func_name aggr_args definition
 DefineStmt_2 : CREATE AGGREGATE func_name old_aggr_definition
@@ -1769,21 +1680,17 @@ DefineStmt_4 : CREATE TYPE any_name definition
 DefineStmt_5 : CREATE TYPE any_name
 DefineStmt_6 : CREATE TYPE any_name AS <LPAREN> OptTableFuncElementList <RPAREN>
 DefineStmt_7 : CREATE TYPE any_name AS ENUM <LPAREN> opt_enum_val_list <RPAREN>
-DefineStmt_8 : CREATE TEXT SEARCH PARSER any_name definition
-DefineStmt_9 : CREATE TEXT SEARCH DICTIONARY any_name definition
-DefineStmt_10: CREATE TEXT SEARCH TEMPLATE any_name definition
-DefineStmt_11: CREATE TEXT SEARCH CONFIGURATION any_name definition
-DefineStmt_12: CREATE COLLATION any_name definition
-DefineStmt_13: CREATE COLLATION any_name FROM any_name
+DefineStmt_8 : CREATE TYPE any_name AS RANGE definition
+DefineStmt_9 : CREATE TEXT SEARCH PARSER any_name definition
+DefineStmt_10: CREATE TEXT SEARCH DICTIONARY any_name definition
+DefineStmt_11: CREATE TEXT SEARCH TEMPLATE any_name definition
+DefineStmt_12: CREATE TEXT SEARCH CONFIGURATION any_name definition
+DefineStmt_13: CREATE COLLATION any_name definition
+DefineStmt_14: CREATE COLLATION any_name FROM any_name
 
 definition: <LPAREN> def_list <RPAREN>
 
-def_list  :
-     def_list_1
-   | def_list_2
-;
-def_list_1: def_elem
-def_list_2: def_list <COMMA> def_elem  ### WARNING: Recursion; needs refactoring! ###
+def_list: def_elem+ % / ~ <COMMA> ~ /
 
 def_elem  :
      def_elem_1
@@ -1815,27 +1722,16 @@ aggr_args_2: <LPAREN> <STAR> <RPAREN>
 
 old_aggr_definition: <LPAREN> old_aggr_list <RPAREN>
 
-old_aggr_list  :
-     old_aggr_list_1
-   | old_aggr_list_2
-;
-old_aggr_list_1: old_aggr_elem
-old_aggr_list_2: old_aggr_list <COMMA> old_aggr_elem  ### WARNING: Recursion; needs refactoring! ###
+old_aggr_list: old_aggr_elem+ % / ~ <COMMA> ~ /
 
 # Must use IDENT here to avoid reduce/reduce conflicts; fortunately none of
 # the item names needed in old aggregate definitions are likely to become
 # SQL keywords.
 old_aggr_elem: IDENT <EQUAL> def_arg
 
-opt_enum_val_list  : opt_enum_val_list_1?
-opt_enum_val_list_1: enum_val_list
+opt_enum_val_list: enum_val_list?
 
-enum_val_list  :
-     enum_val_list_1
-   | enum_val_list_2
-;
-enum_val_list_1: Sconst
-enum_val_list_2: enum_val_list <COMMA> Sconst  ### WARNING: Recursion; needs refactoring! ###
+enum_val_list: Sconst+ % / ~ <COMMA> ~ /
 
 #############################################################################
 #
@@ -1863,12 +1759,7 @@ AlterEnumStmt_3: ALTER TYPE any_name ADD VALUE Sconst AFTER Sconst
 #############################################################################
 CreateOpClassStmt: CREATE OPERATOR CLASS any_name opt_default FOR TYPE Typename USING access_method opt_opfamily AS opclass_item_list
 
-opclass_item_list  :
-     opclass_item_list_1
-   | opclass_item_list_2
-;
-opclass_item_list_1: opclass_item
-opclass_item_list_2: opclass_item_list <COMMA> opclass_item  ### WARNING: Recursion; needs refactoring! ###
+opclass_item_list: opclass_item+ % / ~ <COMMA> ~ /
 
 opclass_item  :
      opclass_item_1
@@ -1883,11 +1774,9 @@ opclass_item_3: FUNCTION Iconst func_name func_args
 opclass_item_4: FUNCTION Iconst <LPAREN> type_list <RPAREN> func_name func_args
 opclass_item_5: STORAGE Typename
 
-opt_default  : opt_default_1?
-opt_default_1: DEFAULT
+opt_default: DEFAULT?
 
-opt_opfamily  : opt_opfamily_1?
-opt_opfamily_1: FAMILY any_name
+opt_opfamily: ( FAMILY any_name )?
 
 opclass_purpose  : (
      opclass_purpose_1
@@ -1899,8 +1788,7 @@ opclass_purpose_2: FOR ORDER BY any_name
 # RECHECK no longer does anything in opclass definitions,
 # but we still accept it to ease porting of old database
 # dumps.
-opt_recheck  : opt_recheck_1?
-opt_recheck_1: RECHECK
+opt_recheck: RECHECK?
 
 CreateOpFamilyStmt: CREATE OPERATOR FAMILY any_name USING access_method
 
@@ -1911,12 +1799,7 @@ AlterOpFamilyStmt  :
 AlterOpFamilyStmt_1: ALTER OPERATOR FAMILY any_name USING access_method ADD opclass_item_list
 AlterOpFamilyStmt_2: ALTER OPERATOR FAMILY any_name USING access_method DROP opclass_drop_list
 
-opclass_drop_list  :
-     opclass_drop_list_1
-   | opclass_drop_list_2
-;
-opclass_drop_list_1: opclass_drop
-opclass_drop_list_2: opclass_drop_list <COMMA> opclass_drop  ### WARNING: Recursion; needs refactoring! ###
+opclass_drop_list: opclass_drop+ % / ~ <COMMA> ~ /
 
 opclass_drop  :
      opclass_drop_1
@@ -2005,12 +1888,7 @@ drop_type_14: TEXT SEARCH DICTIONARY
 drop_type_15: TEXT SEARCH TEMPLATE
 drop_type_16: TEXT SEARCH CONFIGURATION
 
-any_name_list  :
-     any_name_list_1
-   | any_name_list_2
-;
-any_name_list_1: any_name
-any_name_list_2: any_name_list <COMMA> any_name  ### WARNING: Recursion; needs refactoring! ###
+any_name_list: any_name+ % / ~ <COMMA> ~ /
 
 any_name  :
      any_name_1
@@ -2024,7 +1902,7 @@ attrs  :
    | attrs_2
 ;
 attrs_1: <DOT> attr_name
-attrs_2: attrs <DOT> attr_name  ### WARNING: Recursion; needs refactoring! ###
+attrs_2: <attr_name>2+ % / ~ <DOT> ~ /
 
 #############################################################################
 #
@@ -2166,8 +2044,7 @@ SecLabelStmt_3: SECURITY LABEL opt_provider ON FUNCTION func_name func_args IS s
 SecLabelStmt_4: SECURITY LABEL opt_provider ON LARGE OBJECT NumericOnly IS security_label
 SecLabelStmt_5: SECURITY LABEL opt_provider ON opt_procedural LANGUAGE any_name IS security_label
 
-opt_provider  : opt_provider_1?
-opt_provider_1: FOR ColId_or_Sconst
+opt_provider: ( FOR ColId_or_Sconst )?
 
 security_label_type   :
      security_label_type_1
@@ -2260,8 +2137,7 @@ from_in  :
 from_in_1: FROM
 from_in_2: IN
 
-opt_from_in  : opt_from_in_1?
-opt_from_in_1: from_in
+opt_from_in: from_in?
 
 #############################################################################
 #
@@ -2297,12 +2173,7 @@ privileges_3: ALL PRIVILEGES
 privileges_4: ALL <LPAREN> columnList <RPAREN>
 privileges_5: ALL PRIVILEGES <LPAREN> columnList <RPAREN>
 
-privilege_list  :
-     privilege_list_1
-   | privilege_list_2
-;
-privilege_list_1: privilege
-privilege_list_2: privilege_list <COMMA> privilege  ### WARNING: Recursion; needs refactoring! ###
+privilege_list: privilege+ % / ~ <COMMA> ~ /
 
 privilege  :
      privilege_1
@@ -2332,6 +2203,8 @@ privilege_target   :
    | privilege_target_12
    | privilege_target_13
    | privilege_target_14
+   | privilege_target_15
+   | privilege_target_16
 ;
 privilege_target_1 : qualified_name_list
 privilege_target_2 : TABLE qualified_name_list
@@ -2340,20 +2213,17 @@ privilege_target_4 : FOREIGN DATA WRAPPER name_list
 privilege_target_5 : FOREIGN SERVER name_list
 privilege_target_6 : FUNCTION function_with_argtypes_list
 privilege_target_7 : DATABASE name_list
-privilege_target_8 : LANGUAGE name_list
-privilege_target_9 : LARGE OBJECT NumericOnly_list
-privilege_target_10: SCHEMA name_list
-privilege_target_11: TABLESPACE name_list
-privilege_target_12: ALL TABLES IN SCHEMA name_list
-privilege_target_13: ALL SEQUENCES IN SCHEMA name_list
-privilege_target_14: ALL FUNCTIONS IN SCHEMA name_list
+privilege_target_8 : DOMAIN any_name_list
+privilege_target_9 : LANGUAGE name_list
+privilege_target_10: LARGE OBJECT NumericOnly_list
+privilege_target_11: SCHEMA name_list
+privilege_target_12: TABLESPACE name_list
+privilege_target_13: TYPE any_name_list
+privilege_target_14: ALL TABLES IN SCHEMA name_list
+privilege_target_15: ALL SEQUENCES IN SCHEMA name_list
+privilege_target_16: ALL FUNCTIONS IN SCHEMA name_list
 
-grantee_list  :
-     grantee_list_1
-   | grantee_list_2
-;
-grantee_list_1: grantee
-grantee_list_2: grantee_list <COMMA> grantee  ### WARNING: Recursion; needs refactoring! ###
+grantee_list: grantee+ % / ~ <COMMA> ~ /
 
 grantee  :
      grantee_1
@@ -2362,15 +2232,9 @@ grantee  :
 grantee_1: RoleId
 grantee_2: GROUP RoleId
 
-opt_grant_grant_option  : opt_grant_grant_option_1?
-opt_grant_grant_option_1: WITH GRANT OPTION
+opt_grant_grant_option: ( WITH GRANT OPTION )?
 
-function_with_argtypes_list  :
-     function_with_argtypes_list_1
-   | function_with_argtypes_list_2
-;
-function_with_argtypes_list_1: function_with_argtypes
-function_with_argtypes_list_2: function_with_argtypes_list <COMMA> function_with_argtypes  ### WARNING: Recursion; needs refactoring! ###
+function_with_argtypes_list: function_with_argtypes+ % / ~ <COMMA> ~ /
 
 function_with_argtypes: func_name func_args
 
@@ -2388,11 +2252,9 @@ RevokeRoleStmt  :
 RevokeRoleStmt_1: REVOKE privilege_list FROM name_list opt_granted_by opt_drop_behavior
 RevokeRoleStmt_2: REVOKE ADMIN OPTION FOR privilege_list FROM name_list opt_granted_by opt_drop_behavior
 
-opt_grant_admin_option  : opt_grant_admin_option_1?
-opt_grant_admin_option_1: WITH ADMIN OPTION
+opt_grant_admin_option: ( WITH ADMIN OPTION )?
 
-opt_granted_by  : opt_granted_by_1?
-opt_granted_by_1: GRANTED BY RoleId
+opt_granted_by: ( GRANTED BY RoleId )?
 
 #############################################################################
 #
@@ -2401,8 +2263,7 @@ opt_granted_by_1: GRANTED BY RoleId
 #############################################################################
 AlterDefaultPrivilegesStmt: ALTER DEFAULT PRIVILEGES DefACLOptionList DefACLAction
 
-DefACLOptionList  : DefACLOptionList_1?
-DefACLOptionList_1: DefACLOptionList DefACLOption  ### WARNING: Recursion; needs refactoring! ###
+DefACLOptionList: DefACLOption* % ~
 
 DefACLOption  :
      DefACLOption_1
@@ -2444,24 +2305,15 @@ defacl_privilege_target_4: TYPES
 #############################################################################
 IndexStmt: CREATE opt_unique INDEX opt_concurrently opt_index_name ON qualified_name access_method_clause <LPAREN> index_params <RPAREN> opt_reloptions OptTableSpace where_clause
 
-opt_unique  : opt_unique_1?
-opt_unique_1: UNIQUE
+opt_unique: UNIQUE?
 
-opt_concurrently  : opt_concurrently_1?
-opt_concurrently_1: CONCURRENTLY
+opt_concurrently: CONCURRENTLY?
 
-opt_index_name  : opt_index_name_1?
-opt_index_name_1: index_name
+opt_index_name: index_name?
 
-access_method_clause  : access_method_clause_1?
-access_method_clause_1: USING access_method
+access_method_clause: ( USING access_method )?
 
-index_params  :
-     index_params_1
-   | index_params_2
-;
-index_params_1: index_elem
-index_params_2: index_params <COMMA> index_elem  ### WARNING: Recursion; needs refactoring! ###
+index_params: index_elem+ % / ~ <COMMA> ~ /
 
 # Index attributes can be either simple column references, or arbitrary
 # expressions in parens.  For backwards-compatibility reasons, we allow
@@ -2475,8 +2327,7 @@ index_elem_1: ColId opt_collate opt_class opt_asc_desc opt_nulls_order
 index_elem_2: func_expr opt_collate opt_class opt_asc_desc opt_nulls_order
 index_elem_3: <LPAREN> a_expr <RPAREN> opt_collate opt_class opt_asc_desc opt_nulls_order
 
-opt_collate  : opt_collate_1?
-opt_collate_1: COLLATE any_name
+opt_collate: ( COLLATE any_name )?
 
 opt_class  : (
      opt_class_1
@@ -2518,8 +2369,7 @@ CreateFunctionStmt_1: CREATE opt_or_replace FUNCTION func_name func_args_with_de
 CreateFunctionStmt_2: CREATE opt_or_replace FUNCTION func_name func_args_with_defaults RETURNS TABLE <LPAREN> table_func_column_list <RPAREN> createfunc_opt_list opt_definition
 CreateFunctionStmt_3: CREATE opt_or_replace FUNCTION func_name func_args_with_defaults createfunc_opt_list opt_definition
 
-opt_or_replace  : opt_or_replace_1?
-opt_or_replace_1: OR REPLACE
+opt_or_replace: ( OR REPLACE )?
 
 func_args  :
      func_args_1
@@ -2528,12 +2378,7 @@ func_args  :
 func_args_1: <LPAREN> func_args_list <RPAREN>
 func_args_2: <LPAREN> <RPAREN>
 
-func_args_list  :
-     func_args_list_1
-   | func_args_list_2
-;
-func_args_list_1: func_arg
-func_args_list_2: func_args_list <COMMA> func_arg  ### WARNING: Recursion; needs refactoring! ###
+func_args_list: func_arg+ % / ~ <COMMA> ~ /
 
 # func_args_with_defaults is separate because we only want to accept
 # defaults in CREATE FUNCTION, not in ALTER etc.
@@ -2544,12 +2389,7 @@ func_args_with_defaults  :
 func_args_with_defaults_1: <LPAREN> func_args_with_defaults_list <RPAREN>
 func_args_with_defaults_2: <LPAREN> <RPAREN>
 
-func_args_with_defaults_list  :
-     func_args_with_defaults_list_1
-   | func_args_with_defaults_list_2
-;
-func_args_with_defaults_list_1: func_arg_with_default
-func_args_with_defaults_list_2: func_args_with_defaults_list <COMMA> func_arg_with_default  ### WARNING: Recursion; needs refactoring! ###
+func_args_with_defaults_list: func_arg_with_default+ % / ~ <COMMA> ~ /
 
 # The style with arg_class first is SQL99 standard, but Oracle puts
 # param_name first; accept both since it's likely people will try both
@@ -2612,14 +2452,7 @@ func_arg_with_default_1: func_arg
 func_arg_with_default_2: func_arg DEFAULT a_expr
 func_arg_with_default_3: func_arg <EQUAL> a_expr
 
-createfunc_opt_list  :
-     createfunc_opt_list_1
-   | createfunc_opt_list_2
-;
-createfunc_opt_list_1: 
-# Must be at least one to prevent conflict
-    createfunc_opt_item
-createfunc_opt_list_2: createfunc_opt_list createfunc_opt_item  ### WARNING: Recursion; needs refactoring! ###
+createfunc_opt_list: createfunc_opt_item+ % ~
 
 # Options common to both CREATE FUNCTION and ALTER FUNCTION
 common_func_opt_item   :
@@ -2636,6 +2469,8 @@ common_func_opt_item   :
    | common_func_opt_item_11
    | common_func_opt_item_12
    | common_func_opt_item_13
+   | common_func_opt_item_14
+   | common_func_opt_item_15
 ;
 common_func_opt_item_1 : CALLED ON NULL INPUT
 common_func_opt_item_2 : RETURNS NULL ON NULL INPUT
@@ -2647,9 +2482,11 @@ common_func_opt_item_7 : EXTERNAL SECURITY DEFINER
 common_func_opt_item_8 : EXTERNAL SECURITY INVOKER
 common_func_opt_item_9 : SECURITY DEFINER
 common_func_opt_item_10: SECURITY INVOKER
-common_func_opt_item_11: COST NumericOnly
-common_func_opt_item_12: ROWS NumericOnly
-common_func_opt_item_13: FunctionSetResetClause
+common_func_opt_item_11: LEAKPROOF
+common_func_opt_item_12: NOT LEAKPROOF
+common_func_opt_item_13: COST NumericOnly
+common_func_opt_item_14: ROWS NumericOnly
+common_func_opt_item_15: FunctionSetResetClause
 
 createfunc_opt_item  :
      createfunc_opt_item_1
@@ -2669,17 +2506,11 @@ func_as  :
 func_as_1: Sconst
 func_as_2: Sconst <COMMA> Sconst
 
-opt_definition  : opt_definition_1?
-opt_definition_1: WITH definition
+opt_definition: ( WITH definition )?
 
 table_func_column: param_name func_type
 
-table_func_column_list  :
-     table_func_column_list_1
-   | table_func_column_list_2
-;
-table_func_column_list_1: table_func_column
-table_func_column_list_2: table_func_column_list <COMMA> table_func_column  ### WARNING: Recursion; needs refactoring! ###
+table_func_column_list: table_func_column+ % / ~ <COMMA> ~ /
 
 #############################################################################
 # ALTER FUNCTION
@@ -2691,14 +2522,7 @@ table_func_column_list_2: table_func_column_list <COMMA> table_func_column  ### 
 #############################################################################
 AlterFunctionStmt: ALTER FUNCTION function_with_argtypes alterfunc_opt_list opt_restrict
 
-alterfunc_opt_list  :
-     alterfunc_opt_list_1
-   | alterfunc_opt_list_2
-;
-alterfunc_opt_list_1: 
-# At least one option must be specified
-    common_func_opt_item
-alterfunc_opt_list_2: alterfunc_opt_list common_func_opt_item  ### WARNING: Recursion; needs refactoring! ###
+alterfunc_opt_list: common_func_opt_item+ % ~
 
 # Ignored, merely for SQL compliance
 opt_restrict: RESTRICT?
@@ -2749,7 +2573,7 @@ any_operator  :
    | any_operator_2
 ;
 any_operator_1: all_Op
-any_operator_2: ColId <DOT> any_operator  ### WARNING: Recursion; needs refactoring! ###
+any_operator_2: <ColId>2+ % / ~ <DOT> ~ /
 
 #############################################################################
 #
@@ -2761,12 +2585,7 @@ any_operator_2: ColId <DOT> any_operator  ### WARNING: Recursion; needs refactor
 #############################################################################
 DoStmt: DO dostmt_opt_list
 
-dostmt_opt_list  :
-     dostmt_opt_list_1
-   | dostmt_opt_list_2
-;
-dostmt_opt_list_1: dostmt_opt_item
-dostmt_opt_list_2: dostmt_opt_list dostmt_opt_item  ### WARNING: Recursion; needs refactoring! ###
+dostmt_opt_list: dostmt_opt_item+ % ~
 
 dostmt_opt_item  :
      dostmt_opt_item_1
@@ -2798,8 +2617,7 @@ cast_context_2: AS ASSIGNMENT
 
 DropCastStmt: DROP CAST opt_if_exists <LPAREN> Typename AS Typename <RPAREN> opt_drop_behavior
 
-opt_if_exists  : opt_if_exists_1?
-opt_if_exists_1: IF EXISTS
+opt_if_exists: ( IF EXISTS )?
 
 #############################################################################
 #
@@ -2825,8 +2643,7 @@ reindex_type  :
 reindex_type_1: INDEX
 reindex_type_2: TABLE
 
-opt_force  : opt_force_1?
-opt_force_1: FORCE
+opt_force: FORCE?
 
 #############################################################################
 #
@@ -2863,42 +2680,66 @@ RenameStmt   :
    | RenameStmt_27
    | RenameStmt_28
    | RenameStmt_29
+   | RenameStmt_30
+   | RenameStmt_31
+   | RenameStmt_32
+   | RenameStmt_33
+   | RenameStmt_34
+   | RenameStmt_35
+   | RenameStmt_36
+   | RenameStmt_37
+   | RenameStmt_38
+   | RenameStmt_39
+   | RenameStmt_40
+   | RenameStmt_41
+   | RenameStmt_42
 ;
 RenameStmt_1 : ALTER AGGREGATE func_name aggr_args RENAME TO name
 RenameStmt_2 : ALTER COLLATION any_name RENAME TO name
 RenameStmt_3 : ALTER CONVERSION any_name RENAME TO name
 RenameStmt_4 : ALTER DATABASE database_name RENAME TO database_name
-RenameStmt_5 : ALTER FUNCTION function_with_argtypes RENAME TO name
-RenameStmt_6 : ALTER GROUP RoleId RENAME TO RoleId
-RenameStmt_7 : ALTER opt_procedural LANGUAGE name RENAME TO name
-RenameStmt_8 : ALTER OPERATOR CLASS any_name USING access_method RENAME TO name
-RenameStmt_9 : ALTER OPERATOR FAMILY any_name USING access_method RENAME TO name
-RenameStmt_10: ALTER SCHEMA name RENAME TO name
-RenameStmt_11: ALTER TABLE relation_expr RENAME TO name
-RenameStmt_12: ALTER SEQUENCE qualified_name RENAME TO name
-RenameStmt_13: ALTER VIEW qualified_name RENAME TO name
-RenameStmt_14: ALTER INDEX qualified_name RENAME TO name
-RenameStmt_15: ALTER FOREIGN TABLE relation_expr RENAME TO name
-RenameStmt_16: ALTER TABLE relation_expr RENAME opt_column name TO name
-RenameStmt_17: ALTER FOREIGN TABLE relation_expr RENAME opt_column name TO name
-RenameStmt_18: ALTER TRIGGER name ON qualified_name RENAME TO name
-RenameStmt_19: ALTER ROLE RoleId RENAME TO RoleId
-RenameStmt_20: ALTER USER RoleId RENAME TO RoleId
-RenameStmt_21: ALTER TABLESPACE name RENAME TO name
-RenameStmt_22: ALTER TABLESPACE name SET reloptions
-RenameStmt_23: ALTER TABLESPACE name RESET reloptions
-RenameStmt_24: ALTER TEXT SEARCH PARSER any_name RENAME TO name
-RenameStmt_25: ALTER TEXT SEARCH DICTIONARY any_name RENAME TO name
-RenameStmt_26: ALTER TEXT SEARCH TEMPLATE any_name RENAME TO name
-RenameStmt_27: ALTER TEXT SEARCH CONFIGURATION any_name RENAME TO name
-RenameStmt_28: ALTER TYPE any_name RENAME TO name
-RenameStmt_29: ALTER TYPE any_name RENAME ATTRIBUTE name TO name opt_drop_behavior
+RenameStmt_5 : ALTER DOMAIN any_name RENAME TO name
+RenameStmt_6 : ALTER DOMAIN any_name RENAME CONSTRAINT name TO name
+RenameStmt_7 : ALTER FOREIGN DATA WRAPPER name RENAME TO name
+RenameStmt_8 : ALTER FUNCTION function_with_argtypes RENAME TO name
+RenameStmt_9 : ALTER GROUP RoleId RENAME TO RoleId
+RenameStmt_10: ALTER opt_procedural LANGUAGE name RENAME TO name
+RenameStmt_11: ALTER OPERATOR CLASS any_name USING access_method RENAME TO name
+RenameStmt_12: ALTER OPERATOR FAMILY any_name USING access_method RENAME TO name
+RenameStmt_13: ALTER SCHEMA name RENAME TO name
+RenameStmt_14: ALTER SERVER name RENAME TO name
+RenameStmt_15: ALTER TABLE relation_expr RENAME TO name
+RenameStmt_16: ALTER TABLE IF EXISTS relation_expr RENAME TO name
+RenameStmt_17: ALTER SEQUENCE qualified_name RENAME TO name
+RenameStmt_18: ALTER SEQUENCE IF EXISTS qualified_name RENAME TO name
+RenameStmt_19: ALTER VIEW qualified_name RENAME TO name
+RenameStmt_20: ALTER VIEW IF EXISTS qualified_name RENAME TO name
+RenameStmt_21: ALTER INDEX qualified_name RENAME TO name
+RenameStmt_22: ALTER INDEX IF EXISTS qualified_name RENAME TO name
+RenameStmt_23: ALTER FOREIGN TABLE relation_expr RENAME TO name
+RenameStmt_24: ALTER FOREIGN TABLE IF EXISTS relation_expr RENAME TO name
+RenameStmt_25: ALTER TABLE relation_expr RENAME opt_column name TO name
+RenameStmt_26: ALTER TABLE IF EXISTS relation_expr RENAME opt_column name TO name
+RenameStmt_27: ALTER TABLE relation_expr RENAME CONSTRAINT name TO name
+RenameStmt_28: ALTER FOREIGN TABLE relation_expr RENAME opt_column name TO name
+RenameStmt_29: ALTER FOREIGN TABLE IF EXISTS relation_expr RENAME opt_column name TO name
+RenameStmt_30: ALTER TRIGGER name ON qualified_name RENAME TO name
+RenameStmt_31: ALTER EVENT TRIGGER name RENAME TO name
+RenameStmt_32: ALTER ROLE RoleId RENAME TO RoleId
+RenameStmt_33: ALTER USER RoleId RENAME TO RoleId
+RenameStmt_34: ALTER TABLESPACE name RENAME TO name
+RenameStmt_35: ALTER TABLESPACE name SET reloptions
+RenameStmt_36: ALTER TABLESPACE name RESET reloptions
+RenameStmt_37: ALTER TEXT SEARCH PARSER any_name RENAME TO name
+RenameStmt_38: ALTER TEXT SEARCH DICTIONARY any_name RENAME TO name
+RenameStmt_39: ALTER TEXT SEARCH TEMPLATE any_name RENAME TO name
+RenameStmt_40: ALTER TEXT SEARCH CONFIGURATION any_name RENAME TO name
+RenameStmt_41: ALTER TYPE any_name RENAME TO name
+RenameStmt_42: ALTER TYPE any_name RENAME ATTRIBUTE name TO name opt_drop_behavior
 
-opt_column  : opt_column_1?
-opt_column_1: COLUMN
+opt_column: COLUMN?
 
-opt_set_data  : opt_set_data_1?
-opt_set_data_1: SET DATA
+opt_set_data: ( SET DATA )?
 
 #############################################################################
 #
@@ -2924,6 +2765,10 @@ AlterObjectSchemaStmt   :
    | AlterObjectSchemaStmt_16
    | AlterObjectSchemaStmt_17
    | AlterObjectSchemaStmt_18
+   | AlterObjectSchemaStmt_19
+   | AlterObjectSchemaStmt_20
+   | AlterObjectSchemaStmt_21
+   | AlterObjectSchemaStmt_22
 ;
 AlterObjectSchemaStmt_1 : ALTER AGGREGATE func_name aggr_args SET SCHEMA name
 AlterObjectSchemaStmt_2 : ALTER COLLATION any_name SET SCHEMA name
@@ -2935,14 +2780,18 @@ AlterObjectSchemaStmt_7 : ALTER OPERATOR any_operator oper_argtypes SET SCHEMA n
 AlterObjectSchemaStmt_8 : ALTER OPERATOR CLASS any_name USING access_method SET SCHEMA name
 AlterObjectSchemaStmt_9 : ALTER OPERATOR FAMILY any_name USING access_method SET SCHEMA name
 AlterObjectSchemaStmt_10: ALTER TABLE relation_expr SET SCHEMA name
-AlterObjectSchemaStmt_11: ALTER TEXT SEARCH PARSER any_name SET SCHEMA name
-AlterObjectSchemaStmt_12: ALTER TEXT SEARCH DICTIONARY any_name SET SCHEMA name
-AlterObjectSchemaStmt_13: ALTER TEXT SEARCH TEMPLATE any_name SET SCHEMA name
-AlterObjectSchemaStmt_14: ALTER TEXT SEARCH CONFIGURATION any_name SET SCHEMA name
-AlterObjectSchemaStmt_15: ALTER SEQUENCE qualified_name SET SCHEMA name
-AlterObjectSchemaStmt_16: ALTER VIEW qualified_name SET SCHEMA name
-AlterObjectSchemaStmt_17: ALTER FOREIGN TABLE relation_expr SET SCHEMA name
-AlterObjectSchemaStmt_18: ALTER TYPE any_name SET SCHEMA name
+AlterObjectSchemaStmt_11: ALTER TABLE IF EXISTS relation_expr SET SCHEMA name
+AlterObjectSchemaStmt_12: ALTER TEXT SEARCH PARSER any_name SET SCHEMA name
+AlterObjectSchemaStmt_13: ALTER TEXT SEARCH DICTIONARY any_name SET SCHEMA name
+AlterObjectSchemaStmt_14: ALTER TEXT SEARCH TEMPLATE any_name SET SCHEMA name
+AlterObjectSchemaStmt_15: ALTER TEXT SEARCH CONFIGURATION any_name SET SCHEMA name
+AlterObjectSchemaStmt_16: ALTER SEQUENCE qualified_name SET SCHEMA name
+AlterObjectSchemaStmt_17: ALTER SEQUENCE IF EXISTS qualified_name SET SCHEMA name
+AlterObjectSchemaStmt_18: ALTER VIEW qualified_name SET SCHEMA name
+AlterObjectSchemaStmt_19: ALTER VIEW IF EXISTS qualified_name SET SCHEMA name
+AlterObjectSchemaStmt_20: ALTER FOREIGN TABLE relation_expr SET SCHEMA name
+AlterObjectSchemaStmt_21: ALTER FOREIGN TABLE IF EXISTS relation_expr SET SCHEMA name
+AlterObjectSchemaStmt_22: ALTER TYPE any_name SET SCHEMA name
 
 #############################################################################
 #
@@ -2968,6 +2817,7 @@ AlterOwnerStmt   :
    | AlterOwnerStmt_16
    | AlterOwnerStmt_17
    | AlterOwnerStmt_18
+   | AlterOwnerStmt_19
 ;
 AlterOwnerStmt_1 : ALTER AGGREGATE func_name aggr_args OWNER TO RoleId
 AlterOwnerStmt_2 : ALTER COLLATION any_name OWNER TO RoleId
@@ -2987,6 +2837,7 @@ AlterOwnerStmt_15: ALTER TEXT SEARCH DICTIONARY any_name OWNER TO RoleId
 AlterOwnerStmt_16: ALTER TEXT SEARCH CONFIGURATION any_name OWNER TO RoleId
 AlterOwnerStmt_17: ALTER FOREIGN DATA WRAPPER name OWNER TO RoleId
 AlterOwnerStmt_18: ALTER SERVER name OWNER TO RoleId
+AlterOwnerStmt_19: ALTER EVENT TRIGGER name OWNER TO RoleId
 
 #############################################################################
 #
@@ -3005,12 +2856,7 @@ RuleActionList_2: RuleActionStmt
 RuleActionList_3: <LPAREN> RuleActionMulti <RPAREN>
 
 # the thrashing around here is to discard "empty" statements...
-RuleActionMulti  :
-     RuleActionMulti_1
-   | RuleActionMulti_2
-;
-RuleActionMulti_1: RuleActionMulti <SEMI> RuleActionStmtOrEmpty  ### WARNING: Recursion; needs refactoring! ###
-RuleActionMulti_2: RuleActionStmtOrEmpty
+RuleActionMulti: RuleActionStmtOrEmpty+ % / ~ <SEMI> ~ /
 
 RuleActionStmt:
      SelectStmt
@@ -3020,8 +2866,7 @@ RuleActionStmt:
    | NotifyStmt
 ;
 
-RuleActionStmtOrEmpty  : RuleActionStmtOrEmpty_1?
-RuleActionStmtOrEmpty_1: RuleActionStmt
+RuleActionStmtOrEmpty: RuleActionStmt?
 
 event  :
      event_1
@@ -3057,8 +2902,7 @@ DropRuleStmt_2: DROP RULE IF EXISTS name ON qualified_name opt_drop_behavior
 #############################################################################
 NotifyStmt: NOTIFY ColId notify_payload
 
-notify_payload  : notify_payload_1?
-notify_payload_1: <COMMA> Sconst
+notify_payload: ( <COMMA> Sconst )?
 
 ListenStmt: LISTEN ColId
 
@@ -3129,14 +2973,16 @@ transaction_mode_item_4: DEFERRABLE
 transaction_mode_item_5: NOT DEFERRABLE
 
 # Syntax with commas is SQL-spec, without commas is Postgres historical
+
+### WARNING: Recursion; needs refactoring! ###
 transaction_mode_list  :
      transaction_mode_list_1
    | transaction_mode_list_2
    | transaction_mode_list_3
 ;
 transaction_mode_list_1: transaction_mode_item
-transaction_mode_list_2: transaction_mode_list <COMMA> transaction_mode_item  ### WARNING: Recursion; needs refactoring! ###
-transaction_mode_list_3: transaction_mode_list transaction_mode_item  ### WARNING: Recursion; needs refactoring! ###
+transaction_mode_list_2: transaction_mode_list <COMMA> transaction_mode_item
+transaction_mode_list_3: transaction_mode_list transaction_mode_item
 
 transaction_mode_list_or_empty: transaction_mode_list?
 
@@ -3151,8 +2997,8 @@ ViewStmt  :
      ViewStmt_1
    | ViewStmt_2
 ;
-ViewStmt_1: CREATE OptTemp VIEW qualified_name opt_column_list AS SelectStmt opt_check_option
-ViewStmt_2: CREATE OR REPLACE OptTemp VIEW qualified_name opt_column_list AS SelectStmt opt_check_option
+ViewStmt_1: CREATE OptTemp VIEW qualified_name opt_column_list opt_reloptions AS SelectStmt opt_check_option
+ViewStmt_2: CREATE OR REPLACE OptTemp VIEW qualified_name opt_column_list opt_reloptions AS SelectStmt opt_check_option
 
 opt_check_option  : (
      opt_check_option_1
@@ -3178,8 +3024,7 @@ LoadStmt: LOAD file_name
 #############################################################################
 CreatedbStmt: CREATE DATABASE database_name opt_with createdb_opt_list
 
-createdb_opt_list  : createdb_opt_list_1?
-createdb_opt_list_1: createdb_opt_list createdb_opt_item  ### WARNING: Recursion; needs refactoring! ###
+createdb_opt_list: createdb_opt_item* % ~
 
 createdb_opt_item   :
      createdb_opt_item_1
@@ -3218,8 +3063,7 @@ createdb_opt_item_16: OWNER opt_equal DEFAULT
 
 #   Though the equals sign doesn't match other WITH options, pg_dump uses
 #   equals for backward compatibility, and it doesn't seem worth removing it.
-opt_equal  : opt_equal_1?
-opt_equal_1: <EQUAL>
+opt_equal: <EQUAL>?
 
 #############################################################################
 #
@@ -3235,8 +3079,7 @@ AlterDatabaseStmt_2: ALTER DATABASE database_name SET TABLESPACE name
 
 AlterDatabaseSetStmt: ALTER DATABASE database_name SetResetClause
 
-alterdb_opt_list  : alterdb_opt_list_1?
-alterdb_opt_list_1: alterdb_opt_list alterdb_opt_item  ### WARNING: Recursion; needs refactoring! ###
+alterdb_opt_list: alterdb_opt_item* % ~
 
 alterdb_opt_item: CONNECTION LIMIT opt_equal SignedIconst
 
@@ -3266,6 +3109,8 @@ AlterDomainStmt  :
    | AlterDomainStmt_3
    | AlterDomainStmt_4
    | AlterDomainStmt_5
+   | AlterDomainStmt_6
+   | AlterDomainStmt_7
 ;
 AlterDomainStmt_1: 
 # ALTER DOMAIN <domain> {SET DEFAULT <expr>|DROP DEFAULT}
@@ -3274,9 +3119,10 @@ AlterDomainStmt_2: ALTER DOMAIN any_name DROP NOT NULL
 AlterDomainStmt_3: ALTER DOMAIN any_name SET NOT NULL
 AlterDomainStmt_4: ALTER DOMAIN any_name ADD TableConstraint
 AlterDomainStmt_5: ALTER DOMAIN any_name DROP CONSTRAINT name opt_drop_behavior
+AlterDomainStmt_6: ALTER DOMAIN any_name DROP CONSTRAINT IF EXISTS name opt_drop_behavior
+AlterDomainStmt_7: ALTER DOMAIN any_name VALIDATE CONSTRAINT name
 
-opt_as  : opt_as_1?
-opt_as_1: AS
+opt_as: AS?
 
 #############################################################################
 #
@@ -3327,8 +3173,7 @@ ClusterStmt_1: CLUSTER opt_verbose qualified_name cluster_index_specification
 ClusterStmt_2: CLUSTER opt_verbose
 ClusterStmt_3: CLUSTER opt_verbose index_name ON qualified_name
 
-cluster_index_specification  : cluster_index_specification_1?
-cluster_index_specification_1: USING index_name
+cluster_index_specification: ( USING index_name )?
 
 #############################################################################
 #
@@ -3350,12 +3195,7 @@ VacuumStmt_3: VACUUM opt_full opt_freeze opt_verbose AnalyzeStmt
 VacuumStmt_4: VACUUM <LPAREN> vacuum_option_list <RPAREN>
 VacuumStmt_5: VACUUM <LPAREN> vacuum_option_list <RPAREN> qualified_name opt_name_list
 
-vacuum_option_list  :
-     vacuum_option_list_1
-   | vacuum_option_list_2
-;
-vacuum_option_list_1: vacuum_option_elem
-vacuum_option_list_2: vacuum_option_list <COMMA> vacuum_option_elem  ### WARNING: Recursion; needs refactoring! ###
+vacuum_option_list: vacuum_option_elem+ % / ~ <COMMA> ~ /
 
 vacuum_option_elem  :
      vacuum_option_elem_1
@@ -3382,17 +3222,13 @@ analyze_keyword  :
 analyze_keyword_1: ANALYZE
 analyze_keyword_2: ANALYSE
 
-opt_verbose  : opt_verbose_1?
-opt_verbose_1: VERBOSE
+opt_verbose: VERBOSE?
 
-opt_full  : opt_full_1?
-opt_full_1: FULL
+opt_full: FULL?
 
-opt_freeze  : opt_freeze_1?
-opt_freeze_1: FREEZE
+opt_freeze: FREEZE?
 
-opt_name_list  : opt_name_list_1?
-opt_name_list_1: <LPAREN> name_list <RPAREN>
+opt_name_list: ( <LPAREN> name_list <RPAREN> )?
 
 #############################################################################
 #
@@ -3423,12 +3259,7 @@ ExplainableStmt:
 # by default all are $$=$_[1]
 ;
 
-explain_option_list  :
-     explain_option_list_1
-   | explain_option_list_2
-;
-explain_option_list_1: explain_option_elem
-explain_option_list_2: explain_option_list <COMMA> explain_option_elem  ### WARNING: Recursion; needs refactoring! ###
+explain_option_list: explain_option_elem+ % / ~ <COMMA> ~ /
 
 explain_option_elem: explain_option_name explain_option_arg
 
@@ -3456,8 +3287,7 @@ explain_option_arg_2: NumericOnly
 #############################################################################
 PrepareStmt: PREPARE name prep_type_clause AS PreparableStmt
 
-prep_type_clause  : prep_type_clause_1?
-prep_type_clause_1: <LPAREN> type_list <RPAREN>
+prep_type_clause: ( <LPAREN> type_list <RPAREN> )?
 
 PreparableStmt:
      SelectStmt
@@ -3480,8 +3310,7 @@ ExecuteStmt  :
 ExecuteStmt_1: EXECUTE name execute_param_clause
 ExecuteStmt_2: CREATE OptTemp TABLE create_as_target AS EXECUTE name execute_param_clause opt_with_data
 
-execute_param_clause  : execute_param_clause_1?
-execute_param_clause_1: <LPAREN> expr_list <RPAREN>
+execute_param_clause: ( <LPAREN> expr_list <RPAREN> )?
 
 #############################################################################
 #
@@ -3517,17 +3346,11 @@ insert_rest_1: SelectStmt
 insert_rest_2: <LPAREN> insert_column_list <RPAREN> SelectStmt
 insert_rest_3: DEFAULT VALUES
 
-insert_column_list  :
-     insert_column_list_1
-   | insert_column_list_2
-;
-insert_column_list_1: insert_column_item
-insert_column_list_2: insert_column_list <COMMA> insert_column_item  ### WARNING: Recursion; needs refactoring! ###
+insert_column_list: insert_column_item+ % / ~ <COMMA> ~ /
 
 insert_column_item: ColId opt_indirection
 
-returning_clause  : returning_clause_1?
-returning_clause_1: RETURNING target_list
+returning_clause: ( RETURNING target_list )?
 
 #############################################################################
 #
@@ -3537,8 +3360,7 @@ returning_clause_1: RETURNING target_list
 #############################################################################
 DeleteStmt: opt_with_clause DELETE FROM relation_expr_opt_alias using_clause where_or_current_clause returning_clause
 
-using_clause  : using_clause_1?
-using_clause_1: USING from_list
+using_clause: ( USING from_list )?
 
 #############################################################################
 #
@@ -3548,8 +3370,7 @@ using_clause_1: USING from_list
 #############################################################################
 LockStmt: LOCK opt_table relation_expr_list opt_lock opt_nowait
 
-opt_lock  : opt_lock_1?
-opt_lock_1: IN lock_type MODE
+opt_lock: ( IN lock_type MODE )?
 
 lock_type  :
      lock_type_1
@@ -3570,8 +3391,7 @@ lock_type_6: SHARE ROW EXCLUSIVE
 lock_type_7: EXCLUSIVE
 lock_type_8: ACCESS EXCLUSIVE
 
-opt_nowait  : opt_nowait_1?
-opt_nowait_1: NOWAIT
+opt_nowait: NOWAIT?
 
 #############################################################################
 #
@@ -3581,12 +3401,7 @@ opt_nowait_1: NOWAIT
 #############################################################################
 UpdateStmt: opt_with_clause UPDATE relation_expr_opt_alias SET set_clause_list from_clause where_or_current_clause returning_clause
 
-set_clause_list  :
-     set_clause_list_1
-   | set_clause_list_2
-;
-set_clause_list_1: set_clause
-set_clause_list_2: set_clause_list <COMMA> set_clause  ### WARNING: Recursion; needs refactoring! ###
+set_clause_list: set_clause+ % / ~ <COMMA> ~ /
 
 set_clause  :
      set_clause_1
@@ -3601,12 +3416,7 @@ multiple_set_clause: <LPAREN> set_target_list <RPAREN> <EQUAL> ctext_row
 
 set_target: ColId opt_indirection
 
-set_target_list  :
-     set_target_list_1
-   | set_target_list_2
-;
-set_target_list_1: set_target
-set_target_list_2: set_target_list <COMMA> set_target  ### WARNING: Recursion; needs refactoring! ###
+set_target_list: set_target+ % / ~ <COMMA> ~ /
 
 #############################################################################
 #
@@ -3618,16 +3428,17 @@ DeclareCursorStmt: DECLARE cursor_name cursor_options CURSOR opt_hold FOR Select
 
 cursor_name: name
 
+### WARNING: Recursion; needs refactoring! ###
 cursor_options  : (
      cursor_options_1
    | cursor_options_2
    | cursor_options_3
    | cursor_options_4
 )?
-cursor_options_1: cursor_options NO SCROLL  ### WARNING: Recursion; needs refactoring! ###
-cursor_options_2: cursor_options SCROLL  ### WARNING: Recursion; needs refactoring! ###
-cursor_options_3: cursor_options BINARY  ### WARNING: Recursion; needs refactoring! ###
-cursor_options_4: cursor_options INSENSITIVE  ### WARNING: Recursion; needs refactoring! ###
+cursor_options_1: cursor_options NO SCROLL
+cursor_options_2: cursor_options SCROLL
+cursor_options_3: cursor_options BINARY
+cursor_options_4: cursor_options INSENSITIVE
 
 opt_hold  : (
      opt_hold_1
@@ -3684,12 +3495,13 @@ SelectStmt:
    | select_with_parens
 ;
 
+### WARNING: Recursion; needs refactoring! ###
 select_with_parens  :
      select_with_parens_1
    | select_with_parens_2
 ;
 select_with_parens_1: <LPAREN> select_no_parens <RPAREN>
-select_with_parens_2: <LPAREN> select_with_parens <RPAREN>  ### WARNING: Recursion; needs refactoring! ###
+select_with_parens_2: <LPAREN> select_with_parens <RPAREN>
 
 # This rule parses the equivalent of the standard's <query expression>.
 # The duplicative productions are annoying, but hard to get rid of without
@@ -3774,20 +3586,13 @@ with_clause  :
 with_clause_1: WITH cte_list
 with_clause_2: WITH RECURSIVE cte_list
 
-cte_list  :
-     cte_list_1
-   | cte_list_2
-;
-cte_list_1: common_table_expr
-cte_list_2: cte_list <COMMA> common_table_expr  ### WARNING: Recursion; needs refactoring! ###
+cte_list: common_table_expr+ % / ~ <COMMA> ~ /
 
 common_table_expr: name opt_name_list AS <LPAREN> PreparableStmt <RPAREN>
 
-opt_with_clause  : opt_with_clause_1?
-opt_with_clause_1: with_clause
+opt_with_clause: with_clause?
 
-into_clause  : into_clause_1?
-into_clause_1: INTO OptTempTableName
+into_clause: ( INTO OptTempTableName )?
 
 # Redundancy here is needed to avoid shift/reduce conflicts,
 # since TEMP is not a reserved word.  See also OptTemp.
@@ -3812,8 +3617,7 @@ OptTempTableName_7: UNLOGGED opt_table qualified_name
 OptTempTableName_8: TABLE qualified_name
 OptTempTableName_9: qualified_name
 
-opt_table  : opt_table_1?
-opt_table_1: TABLE
+opt_table: TABLE?
 
 opt_all  : (
      opt_all_1
@@ -3833,17 +3637,11 @@ opt_distinct_1: DISTINCT
 opt_distinct_2: DISTINCT ON <LPAREN> expr_list <RPAREN>
 opt_distinct_3: ALL
 
-opt_sort_clause  : opt_sort_clause_1?
-opt_sort_clause_1: sort_clause
+opt_sort_clause: sort_clause?
 
 sort_clause: ORDER BY sortby_list
 
-sortby_list  :
-     sortby_list_1
-   | sortby_list_2
-;
-sortby_list_1: sortby
-sortby_list_2: sortby_list <COMMA> sortby  ### WARNING: Recursion; needs refactoring! ###
+sortby_list: sortby+ % / ~ <COMMA> ~ /
 
 sortby  :
      sortby_1
@@ -3863,8 +3661,7 @@ select_limit_2: offset_clause limit_clause
 select_limit_3: limit_clause
 select_limit_4: offset_clause
 
-opt_select_limit  : opt_select_limit_1?
-opt_select_limit_1: select_limit
+opt_select_limit: select_limit?
 
 limit_clause  :
      limit_clause_1
@@ -3925,11 +3722,9 @@ first_or_next  :
 first_or_next_1: FIRST
 first_or_next_2: NEXT
 
-group_clause  : group_clause_1?
-group_clause_1: GROUP BY expr_list
+group_clause: ( GROUP BY expr_list )?
 
-having_clause  : having_clause_1?
-having_clause_1: HAVING a_expr
+having_clause: ( HAVING a_expr )?
 
 for_locking_clause  :
      for_locking_clause_1
@@ -3938,15 +3733,9 @@ for_locking_clause  :
 for_locking_clause_1: for_locking_items
 for_locking_clause_2: FOR READ ONLY
 
-opt_for_locking_clause  : opt_for_locking_clause_1?
-opt_for_locking_clause_1: for_locking_clause
+opt_for_locking_clause: for_locking_clause?
 
-for_locking_items  :
-     for_locking_items_1
-   | for_locking_items_2
-;
-for_locking_items_1: for_locking_item
-for_locking_items_2: for_locking_items for_locking_item  ### WARNING: Recursion; needs refactoring! ###
+for_locking_items: for_locking_item+ % ~
 
 for_locking_item  :
      for_locking_item_1
@@ -3955,15 +3744,14 @@ for_locking_item  :
 for_locking_item_1: FOR UPDATE locked_rels_list opt_nowait
 for_locking_item_2: FOR SHARE locked_rels_list opt_nowait
 
-locked_rels_list  : locked_rels_list_1?
-locked_rels_list_1: OF qualified_name_list
+locked_rels_list: ( OF qualified_name_list )?
 
 values_clause  :
      values_clause_1
    | values_clause_2
 ;
 values_clause_1: VALUES ctext_row
-values_clause_2: values_clause <COMMA> ctext_row  ### WARNING: Recursion; needs refactoring! ###
+values_clause_2: <ctext_row>2+ % / ~ <COMMA> ~ /
 
 #############################################################################
 #
@@ -3972,22 +3760,12 @@ values_clause_2: values_clause <COMMA> ctext_row  ### WARNING: Recursion; needs 
 #      where_clause   - qualifications for joins or restrictions
 #
 #############################################################################
-from_clause  : from_clause_1?
-from_clause_1: FROM from_list
+from_clause: ( FROM from_list )?
 
-from_list  :
-     from_list_1
-   | from_list_2
-;
-from_list_1: table_ref
-from_list_2: from_list <COMMA> table_ref  ### WARNING: Recursion; needs refactoring! ###
+from_list: table_ref+ % / ~ <COMMA> ~ /
 
-# table_ref is where an alias clause can be attached.   Note we cannot make
-# alias_clause have an empty production because that causes parse conflicts
-# between table_ref := '(' joined_table ')' alias_clause
-# and joined_table := '(' joined_table ')'.  So, we must have the
-# redundant-looking productions here instead.
-table_ref   :
+# table_ref is where an alias clause can be attached.
+table_ref  :
      table_ref_1
    | table_ref_2
    | table_ref_3
@@ -3997,20 +3775,16 @@ table_ref   :
    | table_ref_7
    | table_ref_8
    | table_ref_9
-   | table_ref_10
-   | table_ref_11
 ;
-table_ref_1 : relation_expr
-table_ref_2 : relation_expr alias_clause
-table_ref_3 : func_table
-table_ref_4 : func_table alias_clause
-table_ref_5 : func_table AS <LPAREN> TableFuncElementList <RPAREN>
-table_ref_6 : func_table AS ColId <LPAREN> TableFuncElementList <RPAREN>
-table_ref_7 : func_table ColId <LPAREN> TableFuncElementList <RPAREN>
-table_ref_8 : select_with_parens
-table_ref_9 : select_with_parens alias_clause
-table_ref_10: joined_table
-table_ref_11: <LPAREN> joined_table <RPAREN> alias_clause
+table_ref_1: relation_expr opt_alias_clause
+table_ref_2: func_table func_alias_clause
+table_ref_3: LATERAL_P func_table func_alias_clause
+table_ref_4: func_table func_alias_clause
+table_ref_5: LATERAL func_table func_alias_clause
+table_ref_6: select_with_parens opt_alias_clause
+table_ref_7: LATERAL select_with_parens opt_alias_clause
+table_ref_8: joined_table
+table_ref_9: <LPAREN> joined_table <RPAREN> alias_clause
 
 # It may seem silly to separate joined_table from table_ref, but there is
 # method in SQL92's madness: if you don't do it this way you get reduce-
@@ -4026,6 +3800,8 @@ table_ref_11: <LPAREN> joined_table <RPAREN> alias_clause
 # A NATURAL JOIN implicitly matches column names between
 # tables and the shape is determined by which columns are
 # in common. We'll collect columns during the later transformations.
+
+### WARNING: Recursion; needs refactoring! ###
 joined_table  :
      joined_table_1
    | joined_table_2
@@ -4034,7 +3810,7 @@ joined_table  :
    | joined_table_5
    | joined_table_6
 ;
-joined_table_1: <LPAREN> joined_table <RPAREN>  ### WARNING: Recursion; needs refactoring! ###
+joined_table_1: <LPAREN> joined_table <RPAREN>
 joined_table_2: table_ref CROSS JOIN table_ref
 joined_table_3: table_ref join_type JOIN table_ref join_qual
 joined_table_4: table_ref JOIN table_ref join_qual
@@ -4052,6 +3828,21 @@ alias_clause_2: AS ColId
 alias_clause_3: ColId <LPAREN> name_list <RPAREN>
 alias_clause_4: ColId
 
+opt_alias_clause: alias_clause?
+
+# func_alias_clause can include both an Alias and a coldeflist, so we make it
+# return a 2-element list that gets disassembled by calling production.
+func_alias_clause  : (
+     func_alias_clause_1
+   | func_alias_clause_2
+   | func_alias_clause_3
+   | func_alias_clause_4
+)?
+func_alias_clause_1: alias_clause
+func_alias_clause_2: AS <LPAREN> TableFuncElementList <RPAREN>
+func_alias_clause_3: AS ColId <LPAREN> TableFuncElementList <RPAREN>
+func_alias_clause_4: ColId <LPAREN> TableFuncElementList <RPAREN>
+
 join_type  :
      join_type_1
    | join_type_2
@@ -4064,8 +3855,7 @@ join_type_3: RIGHT join_outer
 join_type_4: INNER
 
 # OUTER is just noise...
-join_outer  : join_outer_1?
-join_outer_1: OUTER
+join_outer: OUTER?
 
 # JOIN qualification clauses
 # Possibilities are:
@@ -4092,12 +3882,7 @@ relation_expr_2: qualified_name <STAR>
 relation_expr_3: ONLY qualified_name
 relation_expr_4: ONLY <LPAREN> qualified_name <RPAREN>
 
-relation_expr_list  :
-     relation_expr_list_1
-   | relation_expr_list_2
-;
-relation_expr_list_1: relation_expr
-relation_expr_list_2: relation_expr_list <COMMA> relation_expr  ### WARNING: Recursion; needs refactoring! ###
+relation_expr_list: relation_expr+ % / ~ <COMMA> ~ /
 
 # Given "UPDATE foo set set ...", we have to decide without looking any
 # further ahead whether the first "set" is an alias or the UPDATE's SET
@@ -4117,8 +3902,7 @@ relation_expr_opt_alias_3: relation_expr AS ColId
 
 func_table: func_expr
 
-where_clause  : where_clause_1?
-where_clause_1: WHERE a_expr
+where_clause: ( WHERE a_expr )?
 
 # variant for UPDATE and DELETE
 where_or_current_clause  : (
@@ -4128,15 +3912,9 @@ where_or_current_clause  : (
 where_or_current_clause_1: WHERE a_expr
 where_or_current_clause_2: WHERE CURRENT OF cursor_name
 
-OptTableFuncElementList  : OptTableFuncElementList_1?
-OptTableFuncElementList_1: TableFuncElementList
+OptTableFuncElementList: TableFuncElementList?
 
-TableFuncElementList  :
-     TableFuncElementList_1
-   | TableFuncElementList_2
-;
-TableFuncElementList_1: TableFuncElement
-TableFuncElementList_2: TableFuncElementList <COMMA> TableFuncElement  ### WARNING: Recursion; needs refactoring! ###
+TableFuncElementList: TableFuncElement+ % / ~ <COMMA> ~ /
 
 TableFuncElement: ColId Typename opt_collate_clause
 
@@ -4164,12 +3942,12 @@ Typename_4: SETOF SimpleTypename ARRAY <LSQUARE> Iconst <RSQUARE>
 Typename_5: SimpleTypename ARRAY
 Typename_6: SETOF SimpleTypename ARRAY
 
-opt_array_bounds  : (
+opt_array_bounds  :
      opt_array_bounds_1
    | opt_array_bounds_2
-)?
-opt_array_bounds_1: opt_array_bounds <LSQUARE> <RSQUARE>  ### WARNING: Recursion; needs refactoring! ###
-opt_array_bounds_2: opt_array_bounds <LSQUARE> Iconst <RSQUARE>  ### WARNING: Recursion; needs refactoring! ###
+;
+opt_array_bounds_1: <RSQUARE>* % / ~ <LSQUARE> ~ /
+opt_array_bounds_2: <RSQUARE>2+ % / ~ <LSQUARE> Iconst ~ /
 
 SimpleTypename  :
      SimpleTypename_1
@@ -4221,8 +3999,7 @@ GenericType  :
 GenericType_1: type_function_name opt_type_modifiers
 GenericType_2: type_function_name attrs opt_type_modifiers
 
-opt_type_modifiers  : opt_type_modifiers_1?
-opt_type_modifiers_1: <LPAREN> expr_list <RPAREN>
+opt_type_modifiers: ( <LPAREN> expr_list <RPAREN> )?
 
 # SQL92 numeric data types
 Numeric   :
@@ -4252,8 +4029,7 @@ Numeric_11: BOOLEAN
 
 # Check FLOAT() precision limits assuming IEEE floating
 # types - thomas 1997-09-18
-opt_float  : opt_float_1?
-opt_float_1: <LPAREN> Iconst <RPAREN>
+opt_float: ( <LPAREN> Iconst <RPAREN> )?
 
 # SQL92 bit-field data types
 # The following implements BIT() and BIT VARYING().
@@ -4313,11 +4089,9 @@ character_4: NATIONAL CHARACTER opt_varying
 character_5: NATIONAL CHAR opt_varying
 character_6: NCHAR opt_varying
 
-opt_varying  : opt_varying_1?
-opt_varying_1: VARYING
+opt_varying: VARYING?
 
-opt_charset  : opt_charset_1?
-opt_charset_1: CHARACTER SET ColId
+opt_charset: ( CHARACTER SET ColId )?
 
 # SQL92 date/time types
 ConstDatetime  :
@@ -4396,6 +4170,8 @@ interval_second_2: SECOND <LPAREN> Iconst <RPAREN>
 #
 # c_expr is all the productions that are common to a_expr and b_expr;
 # it's factored out just to eliminate redundant coding.
+
+### WARNING: Recursion; needs refactoring! ###
 a_expr   :
      a_expr_1
    | a_expr_2
@@ -4458,64 +4234,64 @@ a_expr   :
    | a_expr_59
 ;
 a_expr_1 : c_expr
-a_expr_2 : a_expr TYPECAST Typename  ### WARNING: Recursion; needs refactoring! ###
-a_expr_3 : a_expr COLLATE any_name  ### WARNING: Recursion; needs refactoring! ###
-a_expr_4 : a_expr AT TIME ZONE a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_5 : <PLUS> a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_6 : <DASH> a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_7 : a_expr <PLUS> a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_8 : a_expr <DASH> a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_9 : a_expr <STAR> a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_10: a_expr <SLASH> a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_11: a_expr <PERCENT> a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_12: a_expr <CARET> a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_13: a_expr <LANGLE> a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_14: a_expr <RANGLE> a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_15: a_expr <EQUAL> a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_16: a_expr qual_Op a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_17: qual_Op a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_18: a_expr qual_Op  ### WARNING: Recursion; needs refactoring! ###
-a_expr_19: a_expr AND a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_20: a_expr OR a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_21: NOT a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_22: a_expr LIKE a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_23: a_expr LIKE a_expr ESCAPE a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_24: a_expr NOT LIKE a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_25: a_expr NOT LIKE a_expr ESCAPE a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_26: a_expr ILIKE a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_27: a_expr ILIKE a_expr ESCAPE a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_28: a_expr NOT ILIKE a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_29: a_expr NOT ILIKE a_expr ESCAPE a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_30: a_expr SIMILAR TO a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_31: a_expr SIMILAR TO a_expr ESCAPE a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_32: a_expr NOT SIMILAR TO a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_33: a_expr NOT SIMILAR TO a_expr ESCAPE a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_34: a_expr IS NULL  ### WARNING: Recursion; needs refactoring! ###
-a_expr_35: a_expr ISNULL  ### WARNING: Recursion; needs refactoring! ###
-a_expr_36: a_expr IS NOT NULL  ### WARNING: Recursion; needs refactoring! ###
-a_expr_37: a_expr NOTNULL  ### WARNING: Recursion; needs refactoring! ###
+a_expr_2 : a_expr TYPECAST Typename
+a_expr_3 : a_expr COLLATE any_name
+a_expr_4 : a_expr AT TIME ZONE a_expr
+a_expr_5 : <PLUS> a_expr
+a_expr_6 : <DASH> a_expr
+a_expr_7 : a_expr <PLUS> a_expr
+a_expr_8 : a_expr <DASH> a_expr
+a_expr_9 : a_expr <STAR> a_expr
+a_expr_10: a_expr <SLASH> a_expr
+a_expr_11: a_expr <PERCENT> a_expr
+a_expr_12: a_expr <CARET> a_expr
+a_expr_13: a_expr <LANGLE> a_expr
+a_expr_14: a_expr <RANGLE> a_expr
+a_expr_15: a_expr <EQUAL> a_expr
+a_expr_16: a_expr qual_Op a_expr
+a_expr_17: qual_Op a_expr
+a_expr_18: a_expr qual_Op
+a_expr_19: a_expr AND a_expr
+a_expr_20: a_expr OR a_expr
+a_expr_21: NOT a_expr
+a_expr_22: a_expr LIKE a_expr
+a_expr_23: a_expr LIKE a_expr ESCAPE a_expr
+a_expr_24: a_expr NOT LIKE a_expr
+a_expr_25: a_expr NOT LIKE a_expr ESCAPE a_expr
+a_expr_26: a_expr ILIKE a_expr
+a_expr_27: a_expr ILIKE a_expr ESCAPE a_expr
+a_expr_28: a_expr NOT ILIKE a_expr
+a_expr_29: a_expr NOT ILIKE a_expr ESCAPE a_expr
+a_expr_30: a_expr SIMILAR TO a_expr
+a_expr_31: a_expr SIMILAR TO a_expr ESCAPE a_expr
+a_expr_32: a_expr NOT SIMILAR TO a_expr
+a_expr_33: a_expr NOT SIMILAR TO a_expr ESCAPE a_expr
+a_expr_34: a_expr IS NULL
+a_expr_35: a_expr ISNULL
+a_expr_36: a_expr IS NOT NULL
+a_expr_37: a_expr NOTNULL
 a_expr_38: row OVERLAPS row
-a_expr_39: a_expr IS TRUE  ### WARNING: Recursion; needs refactoring! ###
-a_expr_40: a_expr IS NOT TRUE  ### WARNING: Recursion; needs refactoring! ###
-a_expr_41: a_expr IS FALSE  ### WARNING: Recursion; needs refactoring! ###
-a_expr_42: a_expr IS NOT FALSE  ### WARNING: Recursion; needs refactoring! ###
-a_expr_43: a_expr IS UNKNOWN  ### WARNING: Recursion; needs refactoring! ###
-a_expr_44: a_expr IS NOT UNKNOWN  ### WARNING: Recursion; needs refactoring! ###
-a_expr_45: a_expr IS DISTINCT FROM a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_46: a_expr IS NOT DISTINCT FROM a_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_47: a_expr IS OF <LPAREN> type_list <RPAREN>  ### WARNING: Recursion; needs refactoring! ###
-a_expr_48: a_expr IS NOT OF <LPAREN> type_list <RPAREN>  ### WARNING: Recursion; needs refactoring! ###
-a_expr_49: a_expr BETWEEN opt_asymmetric b_expr AND b_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_50: a_expr NOT BETWEEN opt_asymmetric b_expr AND b_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_51: a_expr BETWEEN SYMMETRIC b_expr AND b_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_52: a_expr NOT BETWEEN SYMMETRIC b_expr AND b_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_53: a_expr IN in_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_54: a_expr NOT IN in_expr  ### WARNING: Recursion; needs refactoring! ###
-a_expr_55: a_expr subquery_Op sub_type select_with_parens  ### WARNING: Recursion; needs refactoring! ###
-a_expr_56: a_expr subquery_Op sub_type <LPAREN> a_expr <RPAREN>  ### WARNING: Recursion; needs refactoring! ###
+a_expr_39: a_expr IS TRUE
+a_expr_40: a_expr IS NOT TRUE
+a_expr_41: a_expr IS FALSE
+a_expr_42: a_expr IS NOT FALSE
+a_expr_43: a_expr IS UNKNOWN
+a_expr_44: a_expr IS NOT UNKNOWN
+a_expr_45: a_expr IS DISTINCT FROM a_expr
+a_expr_46: a_expr IS NOT DISTINCT FROM a_expr
+a_expr_47: a_expr IS OF <LPAREN> type_list <RPAREN>
+a_expr_48: a_expr IS NOT OF <LPAREN> type_list <RPAREN>
+a_expr_49: a_expr BETWEEN opt_asymmetric b_expr AND b_expr
+a_expr_50: a_expr NOT BETWEEN opt_asymmetric b_expr AND b_expr
+a_expr_51: a_expr BETWEEN SYMMETRIC b_expr AND b_expr
+a_expr_52: a_expr NOT BETWEEN SYMMETRIC b_expr AND b_expr
+a_expr_53: a_expr IN in_expr
+a_expr_54: a_expr NOT IN in_expr
+a_expr_55: a_expr subquery_Op sub_type select_with_parens
+a_expr_56: a_expr subquery_Op sub_type <LPAREN> a_expr <RPAREN>
 a_expr_57: UNIQUE select_with_parens
-a_expr_58: a_expr IS DOCUMENT  ### WARNING: Recursion; needs refactoring! ###
-a_expr_59: a_expr IS NOT DOCUMENT  ### WARNING: Recursion; needs refactoring! ###
+a_expr_58: a_expr IS DOCUMENT
+a_expr_59: a_expr IS NOT DOCUMENT
 
 # Restricted expressions
 #
@@ -4524,6 +4300,8 @@ a_expr_59: a_expr IS NOT DOCUMENT  ### WARNING: Recursion; needs refactoring! ##
 # Presently, AND, NOT, IS, and IN are the a_expr keywords that would
 # cause trouble in the places where b_expr is used.  For simplicity, we
 # just eliminate all the boolean-keyword-operator productions from b_expr.
+
+### WARNING: Recursion; needs refactoring! ###
 b_expr   :
      b_expr_1
    | b_expr_2
@@ -4549,27 +4327,27 @@ b_expr   :
    | b_expr_22
 ;
 b_expr_1 : c_expr
-b_expr_2 : b_expr TYPECAST Typename  ### WARNING: Recursion; needs refactoring! ###
-b_expr_3 : <PLUS> b_expr  ### WARNING: Recursion; needs refactoring! ###
-b_expr_4 : <DASH> b_expr  ### WARNING: Recursion; needs refactoring! ###
-b_expr_5 : b_expr <PLUS> b_expr  ### WARNING: Recursion; needs refactoring! ###
-b_expr_6 : b_expr <DASH> b_expr  ### WARNING: Recursion; needs refactoring! ###
-b_expr_7 : b_expr <STAR> b_expr  ### WARNING: Recursion; needs refactoring! ###
-b_expr_8 : b_expr <SLASH> b_expr  ### WARNING: Recursion; needs refactoring! ###
-b_expr_9 : b_expr <PERCENT> b_expr  ### WARNING: Recursion; needs refactoring! ###
-b_expr_10: b_expr <CARET> b_expr  ### WARNING: Recursion; needs refactoring! ###
-b_expr_11: b_expr <LANGLE> b_expr  ### WARNING: Recursion; needs refactoring! ###
-b_expr_12: b_expr <RANGLE> b_expr  ### WARNING: Recursion; needs refactoring! ###
-b_expr_13: b_expr <EQUAL> b_expr  ### WARNING: Recursion; needs refactoring! ###
-b_expr_14: b_expr qual_Op b_expr  ### WARNING: Recursion; needs refactoring! ###
-b_expr_15: qual_Op b_expr  ### WARNING: Recursion; needs refactoring! ###
-b_expr_16: b_expr qual_Op  ### WARNING: Recursion; needs refactoring! ###
-b_expr_17: b_expr IS DISTINCT FROM b_expr  ### WARNING: Recursion; needs refactoring! ###
-b_expr_18: b_expr IS NOT DISTINCT FROM b_expr  ### WARNING: Recursion; needs refactoring! ###
-b_expr_19: b_expr IS OF <LPAREN> type_list <RPAREN>  ### WARNING: Recursion; needs refactoring! ###
-b_expr_20: b_expr IS NOT OF <LPAREN> type_list <RPAREN>  ### WARNING: Recursion; needs refactoring! ###
-b_expr_21: b_expr IS DOCUMENT  ### WARNING: Recursion; needs refactoring! ###
-b_expr_22: b_expr IS NOT DOCUMENT  ### WARNING: Recursion; needs refactoring! ###
+b_expr_2 : b_expr TYPECAST Typename
+b_expr_3 : <PLUS> b_expr
+b_expr_4 : <DASH> b_expr
+b_expr_5 : b_expr <PLUS> b_expr
+b_expr_6 : b_expr <DASH> b_expr
+b_expr_7 : b_expr <STAR> b_expr
+b_expr_8 : b_expr <SLASH> b_expr
+b_expr_9 : b_expr <PERCENT> b_expr
+b_expr_10: b_expr <CARET> b_expr
+b_expr_11: b_expr <LANGLE> b_expr
+b_expr_12: b_expr <RANGLE> b_expr
+b_expr_13: b_expr <EQUAL> b_expr
+b_expr_14: b_expr qual_Op b_expr
+b_expr_15: qual_Op b_expr
+b_expr_16: b_expr qual_Op
+b_expr_17: b_expr IS DISTINCT FROM b_expr
+b_expr_18: b_expr IS NOT DISTINCT FROM b_expr
+b_expr_19: b_expr IS OF <LPAREN> type_list <RPAREN>
+b_expr_20: b_expr IS NOT OF <LPAREN> type_list <RPAREN>
+b_expr_21: b_expr IS DOCUMENT
+b_expr_22: b_expr IS NOT DOCUMENT
 
 # Productions that can be used in both a_expr and b_expr.
 #
@@ -4658,6 +4436,7 @@ func_expr   :
    | func_expr_47
    | func_expr_48
    | func_expr_49
+   | func_expr_50
 ;
 func_expr_1 : func_name <LPAREN> <RPAREN> over_clause
 func_expr_2 : func_name <LPAREN> func_arg_list <RPAREN> over_clause
@@ -4667,47 +4446,48 @@ func_expr_5 : func_name <LPAREN> func_arg_list sort_clause <RPAREN> over_clause
 func_expr_6 : func_name <LPAREN> ALL func_arg_list opt_sort_clause <RPAREN> over_clause
 func_expr_7 : func_name <LPAREN> DISTINCT func_arg_list opt_sort_clause <RPAREN> over_clause
 func_expr_8 : func_name <LPAREN> <STAR> <RPAREN> over_clause
-func_expr_9 : CURRENT_DATE
-func_expr_10: CURRENT_TIME
-func_expr_11: CURRENT_TIME <LPAREN> Iconst <RPAREN>
-func_expr_12: CURRENT_TIMESTAMP
-func_expr_13: CURRENT_TIMESTAMP <LPAREN> Iconst <RPAREN>
-func_expr_14: LOCALTIME
-func_expr_15: LOCALTIME <LPAREN> Iconst <RPAREN>
-func_expr_16: LOCALTIMESTAMP
-func_expr_17: LOCALTIMESTAMP <LPAREN> Iconst <RPAREN>
-func_expr_18: CURRENT_ROLE
-func_expr_19: CURRENT_USER
-func_expr_20: SESSION_USER
-func_expr_21: USER
-func_expr_22: CURRENT_CATALOG
-func_expr_23: CURRENT_SCHEMA
-func_expr_24: CAST <LPAREN> a_expr AS Typename <RPAREN>
-func_expr_25: EXTRACT <LPAREN> extract_list <RPAREN>
-func_expr_26: OVERLAY <LPAREN> overlay_list <RPAREN>
-func_expr_27: POSITION <LPAREN> position_list <RPAREN>
-func_expr_28: SUBSTRING <LPAREN> substr_list <RPAREN>
-func_expr_29: TREAT <LPAREN> a_expr AS Typename <RPAREN>
-func_expr_30: TRIM <LPAREN> BOTH trim_list <RPAREN>
-func_expr_31: TRIM <LPAREN> LEADING trim_list <RPAREN>
-func_expr_32: TRIM <LPAREN> TRAILING trim_list <RPAREN>
-func_expr_33: TRIM <LPAREN> trim_list <RPAREN>
-func_expr_34: NULLIF <LPAREN> a_expr <COMMA> a_expr <RPAREN>
-func_expr_35: COALESCE <LPAREN> expr_list <RPAREN>
-func_expr_36: GREATEST <LPAREN> expr_list <RPAREN>
-func_expr_37: LEAST <LPAREN> expr_list <RPAREN>
-func_expr_38: XMLCONCAT <LPAREN> expr_list <RPAREN>
-func_expr_39: XMLELEMENT <LPAREN> NAME ColLabel <RPAREN>
-func_expr_40: XMLELEMENT <LPAREN> NAME ColLabel <COMMA> xml_attributes <RPAREN>
-func_expr_41: XMLELEMENT <LPAREN> NAME ColLabel <COMMA> expr_list <RPAREN>
-func_expr_42: XMLELEMENT <LPAREN> NAME ColLabel <COMMA> xml_attributes <COMMA> expr_list <RPAREN>
-func_expr_43: XMLEXISTS <LPAREN> c_expr xmlexists_argument <RPAREN>
-func_expr_44: XMLFOREST <LPAREN> xml_attribute_list <RPAREN>
-func_expr_45: XMLPARSE <LPAREN> document_or_content a_expr xml_whitespace_option <RPAREN>
-func_expr_46: XMLPI <LPAREN> NAME ColLabel <RPAREN>
-func_expr_47: XMLPI <LPAREN> NAME ColLabel <COMMA> a_expr <RPAREN>
-func_expr_48: XMLROOT <LPAREN> a_expr <COMMA> xml_root_version opt_xml_root_standalone <RPAREN>
-func_expr_49: XMLSERIALIZE <LPAREN> document_or_content a_expr AS SimpleTypename <RPAREN>
+func_expr_9 : COLLATION FOR <LPAREN> a_expr <RPAREN>
+func_expr_10: CURRENT_DATE
+func_expr_11: CURRENT_TIME
+func_expr_12: CURRENT_TIME <LPAREN> Iconst <RPAREN>
+func_expr_13: CURRENT_TIMESTAMP
+func_expr_14: CURRENT_TIMESTAMP <LPAREN> Iconst <RPAREN>
+func_expr_15: LOCALTIME
+func_expr_16: LOCALTIME <LPAREN> Iconst <RPAREN>
+func_expr_17: LOCALTIMESTAMP
+func_expr_18: LOCALTIMESTAMP <LPAREN> Iconst <RPAREN>
+func_expr_19: CURRENT_ROLE
+func_expr_20: CURRENT_USER
+func_expr_21: SESSION_USER
+func_expr_22: USER
+func_expr_23: CURRENT_CATALOG
+func_expr_24: CURRENT_SCHEMA
+func_expr_25: CAST <LPAREN> a_expr AS Typename <RPAREN>
+func_expr_26: EXTRACT <LPAREN> extract_list <RPAREN>
+func_expr_27: OVERLAY <LPAREN> overlay_list <RPAREN>
+func_expr_28: POSITION <LPAREN> position_list <RPAREN>
+func_expr_29: SUBSTRING <LPAREN> substr_list <RPAREN>
+func_expr_30: TREAT <LPAREN> a_expr AS Typename <RPAREN>
+func_expr_31: TRIM <LPAREN> BOTH trim_list <RPAREN>
+func_expr_32: TRIM <LPAREN> LEADING trim_list <RPAREN>
+func_expr_33: TRIM <LPAREN> TRAILING trim_list <RPAREN>
+func_expr_34: TRIM <LPAREN> trim_list <RPAREN>
+func_expr_35: NULLIF <LPAREN> a_expr <COMMA> a_expr <RPAREN>
+func_expr_36: COALESCE <LPAREN> expr_list <RPAREN>
+func_expr_37: GREATEST <LPAREN> expr_list <RPAREN>
+func_expr_38: LEAST <LPAREN> expr_list <RPAREN>
+func_expr_39: XMLCONCAT <LPAREN> expr_list <RPAREN>
+func_expr_40: XMLELEMENT <LPAREN> NAME ColLabel <RPAREN>
+func_expr_41: XMLELEMENT <LPAREN> NAME ColLabel <COMMA> xml_attributes <RPAREN>
+func_expr_42: XMLELEMENT <LPAREN> NAME ColLabel <COMMA> expr_list <RPAREN>
+func_expr_43: XMLELEMENT <LPAREN> NAME ColLabel <COMMA> xml_attributes <COMMA> expr_list <RPAREN>
+func_expr_44: XMLEXISTS <LPAREN> c_expr xmlexists_argument <RPAREN>
+func_expr_45: XMLFOREST <LPAREN> xml_attribute_list <RPAREN>
+func_expr_46: XMLPARSE <LPAREN> document_or_content a_expr xml_whitespace_option <RPAREN>
+func_expr_47: XMLPI <LPAREN> NAME ColLabel <RPAREN>
+func_expr_48: XMLPI <LPAREN> NAME ColLabel <COMMA> a_expr <RPAREN>
+func_expr_49: XMLROOT <LPAREN> a_expr <COMMA> xml_root_version opt_xml_root_standalone <RPAREN>
+func_expr_50: XMLSERIALIZE <LPAREN> document_or_content a_expr AS SimpleTypename <RPAREN>
 
 # SQL/XML support
 xml_root_version  :
@@ -4728,12 +4508,7 @@ opt_xml_root_standalone_3: <COMMA> STANDALONE NO VALUE
 
 xml_attributes: XMLATTRIBUTES <LPAREN> xml_attribute_list <RPAREN>
 
-xml_attribute_list  :
-     xml_attribute_list_1
-   | xml_attribute_list_2
-;
-xml_attribute_list_1: xml_attribute_el
-xml_attribute_list_2: xml_attribute_list <COMMA> xml_attribute_el  ### WARNING: Recursion; needs refactoring! ###
+xml_attribute_list: xml_attribute_el+ % / ~ <COMMA> ~ /
 
 xml_attribute_el  :
      xml_attribute_el_1
@@ -4769,15 +4544,9 @@ xmlexists_argument_3: PASSING BY REF c_expr
 xmlexists_argument_4: PASSING BY REF c_expr BY REF
 
 # Window Definitions
-window_clause  : window_clause_1?
-window_clause_1: WINDOW window_definition_list
+window_clause: ( WINDOW window_definition_list )?
 
-window_definition_list  :
-     window_definition_list_1
-   | window_definition_list_2
-;
-window_definition_list_1: window_definition
-window_definition_list_2: window_definition_list <COMMA> window_definition  ### WARNING: Recursion; needs refactoring! ###
+window_definition_list: window_definition+ % / ~ <COMMA> ~ /
 
 window_definition: ColId AS window_specification
 
@@ -4798,11 +4567,9 @@ window_specification: <LPAREN> opt_existing_window_name opt_partition_clause opt
 # that the shift/reduce conflict is resolved in favor of reducing the rule.
 # These keywords are thus precluded from being an existing_window_name but
 # are not reserved for any other purpose.
-opt_existing_window_name  : opt_existing_window_name_1?
-opt_existing_window_name_1: ColId
+opt_existing_window_name: ColId?
 
-opt_partition_clause  : opt_partition_clause_1?
-opt_partition_clause_1: PARTITION BY expr_list
+opt_partition_clause: ( PARTITION BY expr_list )?
 
 # For frame clauses, we return a WindowDef, but only some fields are used:
 # frameOptions, startOffset, and endOffset.
@@ -4921,20 +4688,10 @@ subquery_Op_4: NOT LIKE
 subquery_Op_5: ILIKE
 subquery_Op_6: NOT ILIKE
 
-expr_list  :
-     expr_list_1
-   | expr_list_2
-;
-expr_list_1: a_expr
-expr_list_2: expr_list <COMMA> a_expr  ### WARNING: Recursion; needs refactoring! ###
+expr_list: a_expr+ % / ~ <COMMA> ~ /
 
 # function arguments can have names
-func_arg_list  :
-     func_arg_list_1
-   | func_arg_list_2
-;
-func_arg_list_1: func_arg_expr
-func_arg_list_2: func_arg_list <COMMA> func_arg_expr  ### WARNING: Recursion; needs refactoring! ###
+func_arg_list: func_arg_expr+ % / ~ <COMMA> ~ /
 
 func_arg_expr  :
      func_arg_expr_1
@@ -4943,12 +4700,7 @@ func_arg_expr  :
 func_arg_expr_1: a_expr
 func_arg_expr_2: param_name COLON_EQUALS a_expr
 
-type_list  :
-     type_list_1
-   | type_list_2
-;
-type_list_1: Typename
-type_list_2: type_list <COMMA> Typename  ### WARNING: Recursion; needs refactoring! ###
+type_list: Typename+ % / ~ <COMMA> ~ /
 
 array_expr  :
      array_expr_1
@@ -4959,15 +4711,9 @@ array_expr_1: <LSQUARE> expr_list <RSQUARE>
 array_expr_2: <LSQUARE> array_expr_list <RSQUARE>
 array_expr_3: <LSQUARE> <RSQUARE>
 
-array_expr_list  :
-     array_expr_list_1
-   | array_expr_list_2
-;
-array_expr_list_1: array_expr
-array_expr_list_2: array_expr_list <COMMA> array_expr  ### WARNING: Recursion; needs refactoring! ###
+array_expr_list: array_expr+ % / ~ <COMMA> ~ /
 
-extract_list  : extract_list_1?
-extract_list_1: extract_arg FROM a_expr
+extract_list: ( extract_arg FROM a_expr )?
 
 # Allow delimited string Sconst in extract_arg as an SQL extension.
 # - thomas 2001-04-12
@@ -5005,8 +4751,7 @@ overlay_list_2: a_expr overlay_placing substr_from
 overlay_placing: PLACING a_expr
 
 # position_list uses b_expr not a_expr to avoid conflict with general IN
-position_list  : position_list_1?
-position_list_1: b_expr IN b_expr
+position_list: ( b_expr IN b_expr )?
 
 # SUBSTRING() arguments
 # SQL9x defines a specific syntax for arguments to SUBSTRING():
@@ -5059,22 +4804,13 @@ in_expr_2: <LPAREN> expr_list <RPAREN>
 #   CASE a WHEN b THEN c ... ELSE d END
 case_expr: CASE case_arg when_clause_list case_default END
 
-when_clause_list  :
-     when_clause_list_1
-   | when_clause_list_2
-;
-when_clause_list_1: 
-# There must be at least one
-    when_clause
-when_clause_list_2: when_clause_list when_clause  ### WARNING: Recursion; needs refactoring! ###
+when_clause_list: when_clause+ % ~
 
 when_clause: WHEN a_expr THEN a_expr
 
-case_default  : case_default_1?
-case_default_1: ELSE a_expr
+case_default: ( ELSE a_expr )?
 
-case_arg  : case_arg_1?
-case_arg_1: a_expr
+case_arg: a_expr?
 
 columnref  :
      columnref_1
@@ -5094,15 +4830,9 @@ indirection_el_2: <DOT> <STAR>
 indirection_el_3: <LSQUARE> a_expr <RSQUARE>
 indirection_el_4: <LSQUARE> a_expr <COLON> a_expr <RSQUARE>
 
-indirection  :
-     indirection_1
-   | indirection_2
-;
-indirection_1: indirection_el
-indirection_2: indirection indirection_el  ### WARNING: Recursion; needs refactoring! ###
+indirection: indirection_el+ % ~
 
-opt_indirection  : opt_indirection_1?
-opt_indirection_1: opt_indirection indirection_el  ### WARNING: Recursion; needs refactoring! ###
+opt_indirection: indirection_el* % ~
 
 opt_asymmetric: ASYMMETRIC?
 
@@ -5117,12 +4847,7 @@ ctext_expr  :
 ctext_expr_1: a_expr
 ctext_expr_2: DEFAULT
 
-ctext_expr_list  :
-     ctext_expr_list_1
-   | ctext_expr_list_2
-;
-ctext_expr_list_1: ctext_expr
-ctext_expr_list_2: ctext_expr_list <COMMA> ctext_expr  ### WARNING: Recursion; needs refactoring! ###
+ctext_expr_list: ctext_expr+ % / ~ <COMMA> ~ /
 
 # We should allow ROW '(' ctext_expr_list ')' too, but that seems to require
 # making VALUES a fully reserved word, which will probably break more apps
@@ -5134,12 +4859,7 @@ ctext_row: <LPAREN> ctext_expr_list <RPAREN>
 #   target list for SELECT
 #
 #############################################################################
-target_list  :
-     target_list_1
-   | target_list_2
-;
-target_list_1: target_el
-target_list_2: target_list <COMMA> target_el  ### WARNING: Recursion; needs refactoring! ###
+target_list: target_el+ % / ~ <COMMA> ~ /
 
 target_el  :
      target_el_1
@@ -5157,12 +4877,7 @@ target_el_4: <STAR>
 #   Names and constants
 #
 #############################################################################
-qualified_name_list  :
-     qualified_name_list_1
-   | qualified_name_list_2
-;
-qualified_name_list_1: qualified_name
-qualified_name_list_2: qualified_name_list <COMMA> qualified_name  ### WARNING: Recursion; needs refactoring! ###
+qualified_name_list: qualified_name+ % / ~ <COMMA> ~ /
 
 # The production for a qualified relation name has to exactly match the
 # production for a qualified func_name, because in a FROM clause we cannot
@@ -5176,12 +4891,7 @@ qualified_name  :
 qualified_name_1: ColId
 qualified_name_2: ColId indirection
 
-name_list  :
-     name_list_1
-   | name_list_2
-;
-name_list_1: name
-name_list_2: name_list <COMMA> name  ### WARNING: Recursion; needs refactoring! ###
+name_list: name+ % / ~ <COMMA> ~ /
 
 name: ColId
 

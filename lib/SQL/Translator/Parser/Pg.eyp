@@ -2142,8 +2142,8 @@ ExistingIndex:   USING INDEX index_name            { $_[3] }
 
 /*****************************************************************************
  *
- *		QUERY :
- *				CREATE TABLE relname AS SelectStmt [ WITH [NO] DATA ]
+ *      QUERY :
+ *            CREATE TABLE relname AS SelectStmt [ WITH [NO] DATA ]
  *
  *
  * Note: SELECT ... INTO is a now-deprecated alternative for this.
@@ -2207,12 +2207,20 @@ CreateSeqStmt:
 AlterSeqStmt:
          ALTER SEQUENCE qualified_name SeqOptList {
                return SQL::Translator::Statement::AlterSeq->new(
-                  sequence => $_[3],
-                  options  => $_[4],
+                  sequence   => $_[3],
+                  options    => $_[4],
+                  missing_ok => FALSE,
+               );
+            }
+         | ALTER SEQUENCE IF EXISTS qualified_name SeqOptList {
+               return SQL::Translator::Statement::AlterSeq->new(
+                  sequence   => $_[5],
+                  options    => $_[6],
+                  missing_ok => TRUE,
                );
             }
       ;
-
+      
 OptSeqOptList: SeqOptList                   { $_[1] }
          | /*EMPTY*/                        { NULL }
       ;
@@ -2550,6 +2558,14 @@ AlterExtensionContentsStmt:
                   action  => $_[4],
                   objtype => OBJECT_TABLE,
                   objname => $_[6],
+               );
+            }
+         | ALTER EXTENSION name add_drop EVENT TRIGGER name {
+               return SQL::Translator::Statement::AlterExtensionContents->new(
+                  extname => $_[3],
+                  action  => $_[4],
+                  objtype => OBJECT_EVENT_TRIGGER,
+                  objname => $_[0]->lappend($_[7]),
                );
             }
          | ALTER EXTENSION name add_drop TEXT SEARCH PARSER any_name {
@@ -2919,9 +2935,18 @@ ForeignTableElement:
 AlterForeignTableStmt:
          ALTER FOREIGN TABLE relation_expr alter_table_cmds {
                return SQL::Translator::Statement::AlterTable->new(
-                  relation => $_[4],
-                  cmds     => $_[5],
-                  relkind  => OBJECT_FOREIGN_TABLE,
+                  relation   => $_[4],
+                  cmds       => $_[5],
+                  relkind    => OBJECT_FOREIGN_TABLE,
+                  missing_ok => FALSE,
+               );
+            }
+         | ALTER FOREIGN TABLE IF EXISTS relation_expr alter_table_cmds {
+               return SQL::Translator::Statement::AlterTable->new(
+                  relation   => $_[6],
+                  cmds       => $_[7],
+                  relkind    => OBJECT_FOREIGN_TABLE,
+                  missing_ok => TRUE,
                );
             }
       ;
@@ -3175,6 +3200,65 @@ DropTrigStmt:
 /*****************************************************************************
  *
  *      QUERIES :
+ *            CREATE EVENT TRIGGER ...
+ *            DROP EVENT TRIGGER ...
+ *            ALTER EVENT TRIGGER ...
+ *
+ *****************************************************************************/
+
+CreateEventTrigStmt:
+         CREATE EVENT TRIGGER name ON ColLabel EXECUTE PROCEDURE func_name '(' ')' {
+               return SQL::Translator::Statement::CreateEventTrig->new(
+                  trigname   => $_[4],
+                  eventname  => $_[6],
+                  whenclause => NULL,
+                  funcname   => $_[9],
+               );
+            }
+        | CREATE EVENT TRIGGER name ON ColLabel WHEN event_trigger_when_list EXECUTE PROCEDURE func_name '(' ')' {
+               return SQL::Translator::Statement::CreateEventTrig->new(
+                  trigname   => $_[4],
+                  eventname  => $_[6],
+                  whenclause => $_[8],
+                  funcname   => $_[11],
+               );
+            }
+      ;
+
+event_trigger_when_list:
+        event_trigger_when_item                              { [ $_[1] ] }
+      | event_trigger_when_list AND event_trigger_when_item  { $_[0]->lappend($_[1], $_[3]) }
+      ;
+
+event_trigger_when_item:
+        ColId IN '(' event_trigger_value_list ')'  { $_[0]->makeDefElem($_[1], $_[4]) }
+      ;
+
+event_trigger_value_list:
+        SCONST                               { [ $_[1] ] }
+      | event_trigger_value_list ',' SCONST  { $_[0]->lappend($_[1], $_[3]) }
+      ;
+
+AlterEventTrigStmt:
+        ALTER EVENT TRIGGER name enable_trigger {
+               return SQL::Translator::Statement::AlterEventTrig->new(
+                  trigname   => $_[4],
+                  tgenabled  => $_[5],
+               );
+            }
+      ;
+
+enable_trigger:
+           ENABLE             { TRIGGER_FIRES_ON_ORIGIN }
+         | ENABLE REPLICA     { TRIGGER_FIRES_ON_REPLICA }
+         | ENABLE ALWAYS      { TRIGGER_FIRES_ALWAYS }
+         | DISABLE            { TRIGGER_DISABLED }
+      ;
+      
+
+/*****************************************************************************
+ *
+ *      QUERIES :
  *            CREATE ASSERTION ...
  *            DROP ASSERTION ...
  *
@@ -3271,6 +3355,12 @@ DefineStmt:
                return SQL::Translator::Statement::CreateEnum->new(
                   typeName => $_[3],
                   vals     => $_[7],
+               );
+            }
+         | CREATE TYPE any_name AS RANGE definition {
+               return SQL::Translator::Statement::CreateRange->new(
+                  typeName => $_[3],
+                  params   => $_[6],
                );
             }
          | CREATE TEXT SEARCH PARSER any_name definition {
@@ -4312,6 +4402,13 @@ privilege_target:
                   objs     => $_[2],
                );
             }
+         | DOMAIN any_name_list {
+               return SQL::Translator::Statement::PrivTarget->new(
+                  targtype => ACL_TARGET_OBJECT,
+                  objtype  => ACL_OBJECT_DOMAIN,
+                  objs     => $_[2],
+               );
+            }
          | LANGUAGE name_list {
                return SQL::Translator::Statement::PrivTarget->new(
                   targtype => ACL_TARGET_OBJECT,
@@ -4337,6 +4434,13 @@ privilege_target:
                return SQL::Translator::Statement::PrivTarget->new(
                   targtype => ACL_TARGET_OBJECT,
                   objtype  => ACL_OBJECT_TABLESPACE,
+                  objs     => $_[2],
+               );
+            }
+         | TYPE any_name_list {
+               return SQL::Translator::Statement::PrivTarget->new(
+                  targtype => ACL_TARGET_OBJECT,
+                  objtype  => ACL_OBJECT_TYPE,
                   objs     => $_[2],
                );
             }
@@ -4857,6 +4961,8 @@ common_func_opt_item:
          | EXTERNAL SECURITY INVOKER  { $_[0]->makeDefElem("security",   FALSE      ) }
          | SECURITY DEFINER           { $_[0]->makeDefElem("security",   TRUE       ) }
          | SECURITY INVOKER           { $_[0]->makeDefElem("security",   FALSE      ) }
+         | LEAKPROOF                  { $_[0]->makeDefElem("leakproof",  TRUE       ) }
+         | NOT LEAKPROOF              { $_[0]->makeDefElem("leakproof",  FALSE      ) }
          | COST NumericOnly           { $_[0]->makeDefElem("cost",       $_[2]      ) }
          | ROWS NumericOnly           { $_[0]->makeDefElem("rows",       $_[2]      ) }
          | FunctionSetResetClause   /* we abuse the normal content of a DefElem here */
@@ -5194,6 +5300,32 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   missing_ok          => FALSE,
                );
             }
+         | ALTER DOMAIN any_name RENAME TO name {
+               return SQL::Translator::Statement::Rename->new(
+                  renameType          => OBJECT_DOMAIN,
+                  subname             => $_[3],
+                  newname             => $_[6],
+                  missing_ok          => FALSE,
+               );
+            }
+         | ALTER DOMAIN any_name RENAME CONSTRAINT name TO name {
+               return SQL::Translator::Statement::Rename->new(
+                  renameType          => OBJECT_CONSTRAINT,
+                  relationType        => OBJECT_DOMAIN,
+                  object              => $_[3],
+                  subname             => $_[6],
+                  newname             => $_[8],
+                  missing_ok          => FALSE,
+               );
+            }
+         | ALTER FOREIGN DATA WRAPPER name RENAME TO name {
+               return SQL::Translator::Statement::Rename->new(
+                  renameType          => OBJECT_FDW,
+                  subname             => $_[5],
+                  newname             => $_[8],
+                  missing_ok          => FALSE,
+               );
+            }
          | ALTER FUNCTION function_with_argtypes RENAME TO name {
                return SQL::Translator::Statement::Rename->new(
                   renameType          => OBJECT_FUNCTION,
@@ -5245,6 +5377,14 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   missing_ok          => FALSE,
                );
             }
+         | ALTER SERVER name RENAME TO name {
+               return SQL::Translator::Statement::Rename->new(
+                  renameType          => OBJECT_FOREIGN_SERVER,
+                  subname             => $_[3],
+                  newname             => $_[6],
+                  missing_ok          => FALSE,
+               );
+            }
          | ALTER TABLE relation_expr RENAME TO name {
                return SQL::Translator::Statement::Rename->new(
                   renameType          => OBJECT_TABLE,
@@ -5252,6 +5392,15 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   subname             => NULL,
                   newname             => $_[6],
                   missing_ok          => FALSE,
+               );
+            }
+         | ALTER TABLE IF EXISTS relation_expr RENAME TO name {
+               return SQL::Translator::Statement::Rename->new(
+                  renameType          => OBJECT_TABLE,
+                  relation            => $_[5],
+                  subname             => NULL,
+                  newname             => $_[8],
+                  missing_ok          => TRUE,
                );
             }
          | ALTER SEQUENCE qualified_name RENAME TO name {
@@ -5263,6 +5412,15 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   missing_ok          => FALSE,
                );
             }
+         | ALTER SEQUENCE IF EXISTS qualified_name RENAME TO name {
+               return SQL::Translator::Statement::Rename->new(
+                  renameType          => OBJECT_SEQUENCE,
+                  relation            => $_[5],
+                  subname             => NULL,
+                  newname             => $_[7],
+                  missing_ok          => TRUE,
+               );
+            }
          | ALTER VIEW qualified_name RENAME TO name {
                return SQL::Translator::Statement::Rename->new(
                   renameType          => OBJECT_VIEW,
@@ -5270,6 +5428,15 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   subname             => NULL,
                   newname             => $_[6],
                   missing_ok          => FALSE,
+               );
+            }
+         | ALTER VIEW IF EXISTS qualified_name RENAME TO name {
+               return SQL::Translator::Statement::Rename->new(
+                  renameType          => OBJECT_VIEW,
+                  relation            => $_[5],
+                  subname             => NULL,
+                  newname             => $_[8],
+                  missing_ok          => TRUE,
                );
             }
          | ALTER INDEX qualified_name RENAME TO name {
@@ -5281,6 +5448,15 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   missing_ok          => FALSE,
                );
             }
+         | ALTER INDEX IF EXISTS qualified_name RENAME TO name {
+               return SQL::Translator::Statement::Rename->new(
+                  renameType          => OBJECT_INDEX,
+                  relation            => $_[5],
+                  subname             => NULL,
+                  newname             => $_[8],
+                  missing_ok          => TRUE,
+               );
+            }
          | ALTER FOREIGN TABLE relation_expr RENAME TO name {
                return SQL::Translator::Statement::Rename->new(
                   renameType          => OBJECT_FOREIGN_TABLE,
@@ -5290,9 +5466,38 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   missing_ok          => FALSE,
                );
             }
+         | ALTER FOREIGN TABLE IF EXISTS relation_expr RENAME TO name {
+               return SQL::Translator::Statement::Rename->new(
+                  renameType          => OBJECT_FOREIGN_TABLE,
+                  relation            => $_[6],
+                  subname             => NULL,
+                  newname             => $_[9],
+                  missing_ok          => TRUE,
+               );
+            }
          | ALTER TABLE relation_expr RENAME opt_column name TO name {
                return SQL::Translator::Statement::Rename->new(
                   renameType          => OBJECT_COLUMN,
+                  relationType        => OBJECT_TABLE,
+                  relation            => $_[3],
+                  subname             => $_[6],
+                  newname             => $_[8],
+                  missing_ok          => FALSE,
+               );
+            }
+         | ALTER TABLE IF EXISTS relation_expr RENAME opt_column name TO name {
+               return SQL::Translator::Statement::Rename->new(
+                  renameType          => OBJECT_COLUMN,
+                  relationType        => OBJECT_TABLE,
+                  relation            => $_[5],
+                  subname             => $_[8],
+                  newname             => $_[10],
+                  missing_ok          => TRUE,
+               );
+            }
+         | ALTER TABLE relation_expr RENAME CONSTRAINT name TO name {
+               return SQL::Translator::Statement::Rename->new(
+                  renameType          => OBJECT_CONSTRAINT,
                   relationType        => OBJECT_TABLE,
                   relation            => $_[3],
                   subname             => $_[6],
@@ -5310,10 +5515,28 @@ RenameStmt: ALTER AGGREGATE func_name aggr_args RENAME TO name {
                   missing_ok          => FALSE,
                );
             }
+         | ALTER FOREIGN TABLE IF EXISTS relation_expr RENAME opt_column name TO name {
+               return SQL::Translator::Statement::Rename->new(
+                  renameType          => OBJECT_COLUMN,
+                  relationType        => OBJECT_FOREIGN_TABLE,
+                  relation            => $_[6],
+                  subname             => $_[9],
+                  newname             => $_[11],
+                  missing_ok          => TRUE,
+               );
+            }
          | ALTER TRIGGER name ON qualified_name RENAME TO name {
                return SQL::Translator::Statement::Rename->new(
                   renameType          => OBJECT_TRIGGER,
                   relation            => $_[5],
+                  subname             => $_[3],
+                  newname             => $_[8],
+                  missing_ok          => FALSE,
+               );
+            }
+         | ALTER EVENT TRIGGER name RENAME TO name {
+               return SQL::Translator::Statement::Rename->new(
+                  renameType          => OBJECT_EVENT_TRIGGER,
                   subname             => $_[3],
                   newname             => $_[8],
                   missing_ok          => FALSE,
@@ -5502,6 +5725,15 @@ AlterObjectSchemaStmt:
                   objectType => OBJECT_TABLE,
                   relation   => $_[3],
                   newschema  => $_[6],
+                  missing_ok => FALSE,
+               );
+            }
+         | ALTER TABLE IF EXISTS relation_expr SET SCHEMA name {
+               return SQL::Translator::Statement::AlterObjectSchema->new(
+                  objectType => OBJECT_TABLE,
+                  relation   => $_[3],
+                  newschema  => $_[6],
+                  missing_ok => TRUE,
                );
             }
          | ALTER TEXT SEARCH PARSER any_name SET SCHEMA name {
@@ -5537,6 +5769,15 @@ AlterObjectSchemaStmt:
                   objectType => OBJECT_SEQUENCE,
                   relation   => $_[3],
                   newschema  => $_[6],
+                  missing_ok => FALSE,                  
+               );
+            }
+         | ALTER SEQUENCE IF EXISTS qualified_name SET SCHEMA name {
+               return SQL::Translator::Statement::AlterObjectSchema->new(
+                  objectType => OBJECT_SEQUENCE,
+                  relation   => $_[5],
+                  newschema  => $_[8],
+                  missing_ok => TRUE,
                );
             }
          | ALTER VIEW qualified_name SET SCHEMA name {
@@ -5544,6 +5785,15 @@ AlterObjectSchemaStmt:
                   objectType => OBJECT_VIEW,
                   relation   => $_[3],
                   newschema  => $_[6],
+                  missing_ok => FALSE,
+               );
+            }
+         | ALTER VIEW IF EXISTS qualified_name SET SCHEMA name {
+               return SQL::Translator::Statement::AlterObjectSchema->new(
+                  objectType => OBJECT_VIEW,
+                  relation   => $_[5],
+                  newschema  => $_[8],
+                  missing_ok => TRUE,
                );
             }
          | ALTER FOREIGN TABLE relation_expr SET SCHEMA name {
@@ -5551,6 +5801,15 @@ AlterObjectSchemaStmt:
                   objectType => OBJECT_FOREIGN_TABLE,
                   relation   => $_[4],
                   newschema  => $_[7],
+                  missing_ok => FALSE,
+               );
+            }
+         | ALTER FOREIGN TABLE IF EXISTS relation_expr SET SCHEMA name {
+               return SQL::Translator::Statement::AlterObjectSchema->new(
+                  objectType => OBJECT_FOREIGN_TABLE,
+                  relation   => $_[6],
+                  newschema  => $_[9],
+                  missing_ok => TRUE,
                );
             }
          | ALTER TYPE any_name SET SCHEMA name {
@@ -5697,6 +5956,13 @@ AlterOwnerStmt: ALTER AGGREGATE func_name aggr_args OWNER TO RoleId {
                   objectType => OBJECT_FOREIGN_SERVER,
                   object     => $_[0]->lappend($_[3]),
                   newowner   => $_[6],
+               );
+            }
+         | ALTER EVENT TRIGGER name OWNER TO RoleId {
+               return SQL::Translator::Statement::AlterOwner->new(
+                  objectType => OBJECT_EVENT_TRIGGER,
+                  object     => $_[0]->lappend($_[4]),
+                  newowner   => $_[7],
                );
             }
       ;
@@ -5957,23 +6223,25 @@ transaction_mode_list_or_empty:
  *
  *****************************************************************************/
 
-ViewStmt: CREATE OptTemp VIEW qualified_name opt_column_list
+ViewStmt: CREATE OptTemp VIEW qualified_name opt_column_list opt_reloptions
             AS SelectStmt opt_check_option {
                my $n = SQL::Translator::Statement::View->new(
                   view    => $_[4],
                   aliases => $_[5],
-                  query   => $_[7],
+                  query   => $_[8],
+                  options => $_[6],
                   replace => FALSE,
                );
                $n->view->relpersistence($_[2]);
                return $n;
             }
-      | CREATE OR REPLACE OptTemp VIEW qualified_name opt_column_list
+      | CREATE OR REPLACE OptTemp VIEW qualified_name opt_column_list opt_reloptions
             AS SelectStmt opt_check_option {
                my $n = SQL::Translator::Statement::View->new(
                   view    => $_[6],
                   aliases => $_[7],
-                  query   => $_[9],
+                  query   => $_[10],
+                  options => $_[8],
                   replace => TRUE,
                );
                $n->view->relpersistence($_[4]);
@@ -6177,10 +6445,29 @@ AlterDomainStmt:
          /* ALTER DOMAIN <domain> DROP CONSTRAINT <name> [RESTRICT|CASCADE] */
          | ALTER DOMAIN any_name DROP CONSTRAINT name opt_drop_behavior {
                return SQL::Translator::Statement::AlterDomain->new(
-                  subtype  => 'X',
-                  typeName => $_[3],
-                  name     => $_[6],
-                  behavior => $_[7],
+                  subtype    => 'X',
+                  typeName   => $_[3],
+                  name       => $_[6],
+                  behavior   => $_[7],
+                  missing_ok => FALSE,
+               );
+            }
+         /* ALTER DOMAIN <domain> DROP CONSTRAINT IF EXISTS <name> [RESTRICT|CASCADE] */
+         | ALTER DOMAIN any_name DROP CONSTRAINT IF EXISTS name opt_drop_behavior {
+               return SQL::Translator::Statement::AlterDomain->new(
+                  subtype    => 'X',
+                  typeName   => $_[3],
+                  name       => $_[8],
+                  behavior   => $_[9],
+                  missing_ok => TRUE,
+               );
+            }
+         /* ALTER DOMAIN <domain> VALIDATE CONSTRAINT <name> */
+         | ALTER DOMAIN any_name VALIDATE CONSTRAINT name {
+               return SQL::Translator::Statement::AlterDomain->new(
+                  subtype    => 'V',
+                  typeName   => $_[3],
+                  name       => $_[6],
                );
             }
          ;
@@ -7290,54 +7577,47 @@ from_list:
       ;
 
 /*
- * table_ref is where an alias clause can be attached.   Note we cannot make
- * alias_clause have an empty production because that causes parse conflicts
- * between table_ref := '(' joined_table ')' alias_clause
- * and joined_table := '(' joined_table ')'.  So, we must have the
- * redundant-looking productions here instead.
+ * table_ref is where an alias clause can be attached.
  */
-table_ref:   relation_expr { $_[1] }
-         | relation_expr alias_clause {
+table_ref: 
+           relation_expr opt_alias_clause {
                $_[1]->alias($_[2]);
                return $_[1];
-            }
-         | func_table {
+           }
+			| func_table func_alias_clause
+				{
+					RangeFunction *n = makeNode(RangeFunction);
+					n->lateral = false;
+					n->funccallnode = $1;
+					n->alias = linitial($2);
+					n->coldeflist = lsecond($2);
+					$$ = (Node *) n;
+				}
+			| LATERAL func_table func_alias_clause
+				{
+					RangeFunction *n = makeNode(RangeFunction);
+					n->lateral = true;
+					n->funccallnode = $2;
+					n->alias = linitial($3);
+					n->coldeflist = lsecond($3);
+					$$ = (Node *) n;
+				}
+         | func_table func_alias_clause {
                return SQL::Translator::Statement::Range::Function->new(
+                  lateral      => FALSE,
                   funccallnode => $_[1],
-                  coldeflist   => NIL,
+                  alias        => $_[2]->[0],
+                  coldeflist   => $_[2]->[1],
                );
-            }
-         | func_table alias_clause {
+           }
+         | LATERAL func_table func_alias_clause {
                return SQL::Translator::Statement::Range::Function->new(
-                  funccallnode => $_[1],
-                  alias        => $_[2],
-                  coldeflist   => NIL,
+                  lateral      => TRUE,
+                  funccallnode => $_[2],
+                  alias        => $_[3]->[0],
+                  coldeflist   => $_[3]->[1],
                );
-            }
-         | func_table AS '(' TableFuncElementList ')' {
-               return SQL::Translator::Statement::Range::Function->new(
-                  funccallnode => $_[1],
-                  coldeflist   => $_[4],
-               );
-            }
-         | func_table AS ColId '(' TableFuncElementList ')' {
-               return SQL::Translator::Statement::Range::Function->new(
-                  funccallnode => $_[1],
-                  alias => SQL::Translator::Statement::Alias->new(
-                     aliasname => $_[3]
-                  ),
-                  coldeflist   => $_[5],
-               );
-            }
-         | func_table ColId '(' TableFuncElementList ')' {
-               return SQL::Translator::Statement::Range::Function->new(
-                  funccallnode => $_[1],
-                  alias => SQL::Translator::Statement::Alias->new(
-                     aliasname => $_[2]
-                  ),
-                  coldeflist   => $_[4],
-               );
-            }
+           }
          /*
           * The SQL spec does not permit a subselect
           * (<derived_table>) without an alias clause,
@@ -7349,7 +7629,7 @@ table_ref:   relation_expr { $_[1] }
           * However, it does seem like a good idea to emit
           * an error message that's better than "syntax error".
           */
-         | select_with_parens {
+         | select_with_parens opt_alias_clause {
                $_[0]->ereport(ERROR,
                      ERRCODE_SYNTAX_ERROR,
                      ($_[1]->isa('SQL::Translator::Statement::Select') && $_[1]->valuesLists ? (
@@ -7359,13 +7639,30 @@ table_ref:   relation_expr { $_[1] }
                         "Subquery in FROM must have an alias",
                         "For example, FROM (SELECT ...) [AS] foo.",
                      )),
-                     $_[0]->YYLLoc($_[1], 1));
-               return undef;
-            }
-         | select_with_parens alias_clause {
+                     $_[0]->YYLLoc($_[1], 1))
+                  unless ($_[2]);
+
                return SQL::Translator::Statement::Range::SubSelect->new(
                   subquery => $_[1],
-                  alias => $_[2],
+                  alias    => $_[2],
+               );
+            }
+         | LATERAL select_with_parens opt_alias_clause {
+               $_[0]->ereport(ERROR,
+                     ERRCODE_SYNTAX_ERROR,
+                     ($_[2]->isa('SQL::Translator::Statement::Select') && $_[2]->valuesLists ? (
+                        "VALUES in FROM must have an alias",
+                        "For example, FROM (VALUES ...) [AS] foo.",
+                     ) : (
+                        "Subquery in FROM must have an alias",
+                        "For example, FROM (SELECT ...) [AS] foo.",
+                     )),
+                     $_[0]->YYLLoc($_[2], 1))
+                  unless ($_[3]);
+
+               return SQL::Translator::Statement::Range::SubSelect->new(
+                  subquery => $_[2],
+                  alias    => $_[3],
                );
             }
          | joined_table { $_[1] }
@@ -7479,6 +7776,29 @@ alias_clause:
                   aliasname => $_[1],
                );
             }
+      ;
+
+opt_alias_clause:
+           alias_clause               { $_[1] }
+         | /*EMPTY*/                  { NULL  }
+      ;
+
+/*
+ * func_alias_clause can include both an Alias and a coldeflist, so we make it
+ * return a 2-element list that gets disassembled by calling production.
+ */
+func_alias_clause:
+           alias_clause                           { [ $_[1], NIL  ] }
+         | AS '(' TableFuncElementList ')'        { [ NULL, $_[3] ] }
+         | AS ColId '(' TableFuncElementList ')'  { [
+               SQL::Translator::Statement::Alias->new( aliasname => $_[2] ),
+               $_[4]
+            ] }
+         | ColId '(' TableFuncElementList ')'     { [
+               SQL::Translator::Statement::Alias->new( aliasname => $_[1] ),
+               $_[3]
+            ] }
+         | /*EMPTY*/                              { [ NULL, NIL   ] }
       ;
 
 join_type:
@@ -8521,6 +8841,7 @@ c_expr:    columnref                      { $_[1] }
                return SQL::Translator::Statement::RowExpr->new(
                   args       => $_[1],
                   row_typeid => InvalidOid,   #* not analyzed yet
+                  colnames   => NIL,          #* to be filled in during analysis
                   location   => $_[0]->YYLLoc($_[1], 1),
                );
             }
@@ -8640,6 +8961,18 @@ func_expr:   func_name '(' ')' over_clause {
                   agg_distinct  => FALSE,
                   func_variadic => FALSE,
                   over          => $_[5],
+                  location      => $_[0]->YYLLoc($_[1], 1),
+               );
+            }
+         | COLLATION FOR '(' a_expr ')' {
+               return SQL::Translator::Statement::Function::Call->new(
+                  funcname      => $_[0]->SystemFuncName("pg_collation_for"),
+                  args          => [ $_[4] ],
+                  agg_order     => NIL,
+                  agg_star      => FALSE,
+                  agg_distinct  => FALSE,
+                  func_variadic => FALSE,
+                  over          => NULL,
                   location      => $_[0]->YYLLoc($_[1], 1),
                );
             }
