@@ -4,7 +4,7 @@
 stmtblock: stmtmulti
 
 # the thrashing around here is to discard "empty" statements...
-stmtmulti: stmt+ % / ~ <SEMI> ~ /
+stmtmulti: stmt+ % / ~  ~ <C_SEMI> ~  ~ /
 
 stmt: (
      AlterEventTrigStmt
@@ -335,9 +335,9 @@ set_rest_more   :
 set_rest_more_1 : 
 # Generic SET syntaxes:
     var_name TO var_list
-set_rest_more_2 : var_name <EQUAL> var_list
+set_rest_more_2 : var_name  ~ <C_EQUAL> ~  var_list
 set_rest_more_3 : var_name TO DEFAULT
-set_rest_more_4 : var_name <EQUAL> DEFAULT
+set_rest_more_4 : var_name  ~ <C_EQUAL> ~  DEFAULT
 set_rest_more_5 : var_name FROM CURRENT
 set_rest_more_6 : TIME ZONE zone_value
 set_rest_more_7 : CATALOG Sconst
@@ -349,9 +349,9 @@ set_rest_more_12: SESSION AUTHORIZATION DEFAULT
 set_rest_more_13: XML OPTION document_or_content
 set_rest_more_14: TRANSACTION SNAPSHOT Sconst
 
-var_name: ColId+ % / ~ <DOT> ~ /
+var_name: ColId+ % / ~  ~ <C_DOT> ~  ~ /
 
-var_list: var_value+ % / ~ <COMMA> ~ /
+var_list: var_value+ % / ~  ~ <C_COMMA> ~  ~ /
 
 var_value  :
      var_value_1
@@ -401,7 +401,7 @@ zone_value  :
 zone_value_1: Sconst
 zone_value_2: IDENT
 zone_value_3: ConstInterval Sconst opt_interval
-zone_value_4: ConstInterval <LPAREN> Iconst <RPAREN> Sconst opt_interval
+zone_value_4: ConstInterval  ~ <C_LPAREN> ~  Iconst  ~ <C_RPAREN> ~  Sconst opt_interval
 zone_value_5: NumericOnly
 zone_value_6: DEFAULT
 zone_value_7: LOCAL
@@ -523,7 +523,7 @@ AlterTableStmt_6: ALTER SEQUENCE IF EXISTS qualified_name alter_table_cmds
 AlterTableStmt_7: ALTER VIEW qualified_name alter_table_cmds
 AlterTableStmt_8: ALTER VIEW IF EXISTS qualified_name alter_table_cmds
 
-alter_table_cmds: alter_table_cmd+ % / ~ <COMMA> ~ /
+alter_table_cmds: alter_table_cmd+ % / ~  ~ <C_COMMA> ~  ~ /
 
 alter_table_cmd   :
      alter_table_cmd_1
@@ -632,11 +632,11 @@ opt_collate_clause: ( COLLATE any_name )?
 
 alter_using: ( USING a_expr )?
 
-reloptions: <LPAREN> reloption_list <RPAREN>
+reloptions:  ~ <C_LPAREN> ~  reloption_list  ~ <C_RPAREN> ~ 
 
 opt_reloptions: ( WITH reloptions )?
 
-reloption_list: reloption_elem+ % / ~ <COMMA> ~ /
+reloption_list: reloption_elem+ % / ~  ~ <C_COMMA> ~  ~ /
 
 # This should match def_elem and also allow qualified names
 reloption_elem  :
@@ -645,10 +645,10 @@ reloption_elem  :
    | reloption_elem_3
    | reloption_elem_4
 ;
-reloption_elem_1: ColLabel <EQUAL> def_arg
+reloption_elem_1: ColLabel  ~ <C_EQUAL> ~  def_arg
 reloption_elem_2: ColLabel
-reloption_elem_3: ColLabel <DOT> ColLabel <EQUAL> def_arg
-reloption_elem_4: ColLabel <DOT> ColLabel
+reloption_elem_3: ColLabel  ~ <C_DOT> ~  ColLabel  ~ <C_EQUAL> ~  def_arg
+reloption_elem_4: ColLabel  ~ <C_DOT> ~  ColLabel
 
 #############################################################################
 #
@@ -658,7 +658,7 @@ reloption_elem_4: ColLabel <DOT> ColLabel
 #############################################################################
 AlterCompositeTypeStmt: ALTER TYPE any_name alter_type_cmds
 
-alter_type_cmds: alter_type_cmd+ % / ~ <COMMA> ~ /
+alter_type_cmds: alter_type_cmd+ % / ~  ~ <C_COMMA> ~  ~ /
 
 alter_type_cmd  :
      alter_type_cmd_1
@@ -734,7 +734,7 @@ copy_options  :
    | copy_options_2
 ;
 copy_options_1: copy_opt_list
-copy_options_2: <LPAREN> copy_generic_opt_list <RPAREN>
+copy_options_2:  ~ <C_LPAREN> ~  copy_generic_opt_list  ~ <C_RPAREN> ~ 
 
 # old COPY option syntax
 copy_opt_list: copy_opt_item* % ~
@@ -762,7 +762,7 @@ copy_opt_item_6 : HEADER
 copy_opt_item_7 : QUOTE opt_as Sconst
 copy_opt_item_8 : ESCAPE opt_as Sconst
 copy_opt_item_9 : FORCE QUOTE columnList
-copy_opt_item_10: FORCE QUOTE <STAR>
+copy_opt_item_10: FORCE QUOTE  ~ <C_STAR> ~ 
 copy_opt_item_11: FORCE NOT NULL columnList
 copy_opt_item_12: ENCODING Sconst
 
@@ -776,7 +776,7 @@ copy_delimiter: ( opt_using DELIMITERS Sconst )?
 opt_using: USING?
 
 # new COPY option syntax
-copy_generic_opt_list: copy_generic_opt_elem+ % / ~ <COMMA> ~ /
+copy_generic_opt_list: copy_generic_opt_elem+ % / ~  ~ <C_COMMA> ~  ~ /
 
 copy_generic_opt_elem: ColLabel copy_generic_opt_arg
 
@@ -788,10 +788,10 @@ copy_generic_opt_arg  : (
 )?
 copy_generic_opt_arg_1: opt_boolean_or_string
 copy_generic_opt_arg_2: NumericOnly
-copy_generic_opt_arg_3: <STAR>
-copy_generic_opt_arg_4: <LPAREN> copy_generic_opt_arg_list <RPAREN>
+copy_generic_opt_arg_3:  ~ <C_STAR> ~ 
+copy_generic_opt_arg_4:  ~ <C_LPAREN> ~  copy_generic_opt_arg_list  ~ <C_RPAREN> ~ 
 
-copy_generic_opt_arg_list: copy_generic_opt_arg_list_item+ % / ~ <COMMA> ~ /
+copy_generic_opt_arg_list: copy_generic_opt_arg_list_item+ % / ~  ~ <C_COMMA> ~  ~ /
 
 # beware of emitting non-string list elements here; see commands/define.c
 copy_generic_opt_arg_list_item: opt_boolean_or_string
@@ -808,8 +808,8 @@ CreateStmt  :
    | CreateStmt_3
    | CreateStmt_4
 ;
-CreateStmt_1: CREATE OptTemp TABLE qualified_name <LPAREN> OptTableElementList <RPAREN> OptInherit OptWith OnCommitOption OptTableSpace
-CreateStmt_2: CREATE OptTemp TABLE IF NOT EXISTS qualified_name <LPAREN> OptTableElementList <RPAREN> OptInherit OptWith OnCommitOption OptTableSpace
+CreateStmt_1: CREATE OptTemp TABLE qualified_name  ~ <C_LPAREN> ~  OptTableElementList  ~ <C_RPAREN> ~  OptInherit OptWith OnCommitOption OptTableSpace
+CreateStmt_2: CREATE OptTemp TABLE IF NOT EXISTS qualified_name  ~ <C_LPAREN> ~  OptTableElementList  ~ <C_RPAREN> ~  OptInherit OptWith OnCommitOption OptTableSpace
 CreateStmt_3: CREATE OptTemp TABLE qualified_name OF any_name OptTypedTableElementList OptWith OnCommitOption OptTableSpace
 CreateStmt_4: CREATE OptTemp TABLE IF NOT EXISTS qualified_name OF any_name OptTypedTableElementList OptWith OnCommitOption OptTableSpace
 
@@ -837,11 +837,11 @@ OptTemp_7: UNLOGGED
 
 OptTableElementList: TableElementList?
 
-OptTypedTableElementList: ( <LPAREN> TypedTableElementList <RPAREN> )?
+OptTypedTableElementList: (  ~ <C_LPAREN> ~  TypedTableElementList  ~ <C_RPAREN> ~  )?
 
-TableElementList: TableElement+ % / ~ <COMMA> ~ /
+TableElementList: TableElement+ % / ~  ~ <C_COMMA> ~  ~ /
 
-TypedTableElementList: TypedTableElement+ % / ~ <COMMA> ~ /
+TypedTableElementList: TypedTableElement+ % / ~  ~ <C_COMMA> ~  ~ /
 
 TableElement  :
      TableElement_1
@@ -903,7 +903,7 @@ ColConstraintElem_1: NOT NULL
 ColConstraintElem_2: NULL
 ColConstraintElem_3: UNIQUE opt_definition OptConsTableSpace
 ColConstraintElem_4: PRIMARY KEY opt_definition OptConsTableSpace
-ColConstraintElem_5: CHECK <LPAREN> a_expr <RPAREN> opt_no_inherit
+ColConstraintElem_5: CHECK  ~ <C_LPAREN> ~  a_expr  ~ <C_RPAREN> ~  opt_no_inherit
 ColConstraintElem_6: DEFAULT b_expr
 ColConstraintElem_7: REFERENCES qualified_name opt_column_list key_match key_actions
 
@@ -974,19 +974,19 @@ ConstraintElem  :
    | ConstraintElem_6
    | ConstraintElem_7
 ;
-ConstraintElem_1: CHECK <LPAREN> a_expr <RPAREN> ConstraintAttributeSpec
-ConstraintElem_2: UNIQUE <LPAREN> columnList <RPAREN> opt_definition OptConsTableSpace ConstraintAttributeSpec
+ConstraintElem_1: CHECK  ~ <C_LPAREN> ~  a_expr  ~ <C_RPAREN> ~  ConstraintAttributeSpec
+ConstraintElem_2: UNIQUE  ~ <C_LPAREN> ~  columnList  ~ <C_RPAREN> ~  opt_definition OptConsTableSpace ConstraintAttributeSpec
 ConstraintElem_3: UNIQUE ExistingIndex ConstraintAttributeSpec
-ConstraintElem_4: PRIMARY KEY <LPAREN> columnList <RPAREN> opt_definition OptConsTableSpace ConstraintAttributeSpec
+ConstraintElem_4: PRIMARY KEY  ~ <C_LPAREN> ~  columnList  ~ <C_RPAREN> ~  opt_definition OptConsTableSpace ConstraintAttributeSpec
 ConstraintElem_5: PRIMARY KEY ExistingIndex ConstraintAttributeSpec
-ConstraintElem_6: EXCLUDE access_method_clause <LPAREN> ExclusionConstraintList <RPAREN> opt_definition OptConsTableSpace ExclusionWhereClause ConstraintAttributeSpec
-ConstraintElem_7: FOREIGN KEY <LPAREN> columnList <RPAREN> REFERENCES qualified_name opt_column_list key_match key_actions ConstraintAttributeSpec
+ConstraintElem_6: EXCLUDE access_method_clause  ~ <C_LPAREN> ~  ExclusionConstraintList  ~ <C_RPAREN> ~  opt_definition OptConsTableSpace ExclusionWhereClause ConstraintAttributeSpec
+ConstraintElem_7: FOREIGN KEY  ~ <C_LPAREN> ~  columnList  ~ <C_RPAREN> ~  REFERENCES qualified_name opt_column_list key_match key_actions ConstraintAttributeSpec
 
 opt_no_inherit: ( NO INHERIT )?
 
-opt_column_list: ( <LPAREN> columnList <RPAREN> )?
+opt_column_list: (  ~ <C_LPAREN> ~  columnList  ~ <C_RPAREN> ~  )?
 
-columnList: columnElem+ % / ~ <COMMA> ~ /
+columnList: columnElem+ % / ~  ~ <C_COMMA> ~  ~ /
 
 columnElem: ColId
 
@@ -999,16 +999,16 @@ key_match_1: MATCH FULL
 key_match_2: MATCH PARTIAL
 key_match_3: MATCH SIMPLE
 
-ExclusionConstraintList: ExclusionConstraintElem+ % / ~ <COMMA> ~ /
+ExclusionConstraintList: ExclusionConstraintElem+ % / ~  ~ <C_COMMA> ~  ~ /
 
 ExclusionConstraintElem  :
      ExclusionConstraintElem_1
    | ExclusionConstraintElem_2
 ;
 ExclusionConstraintElem_1: index_elem WITH any_operator
-ExclusionConstraintElem_2: index_elem WITH OPERATOR <LPAREN> any_operator <RPAREN>
+ExclusionConstraintElem_2: index_elem WITH OPERATOR  ~ <C_LPAREN> ~  any_operator  ~ <C_RPAREN> ~ 
 
-ExclusionWhereClause: ( WHERE <LPAREN> a_expr <RPAREN> )?
+ExclusionWhereClause: ( WHERE  ~ <C_LPAREN> ~  a_expr  ~ <C_RPAREN> ~  )?
 
 # We combine the update and delete actions into one value temporarily
 # for simplicity of parsing, and then break them down again in the
@@ -1042,7 +1042,7 @@ key_action_3: CASCADE
 key_action_4: SET NULL
 key_action_5: SET DEFAULT
 
-OptInherit: ( INHERITS <LPAREN> qualified_name_list <RPAREN> )?
+OptInherit: ( INHERITS  ~ <C_LPAREN> ~  qualified_name_list  ~ <C_RPAREN> ~  )?
 
 # WITH (options) is preferred, WITH OIDS and WITHOUT OIDS are legacy forms
 OptWith  : (
@@ -1144,10 +1144,10 @@ NumericOnly  :
    | NumericOnly_3
 ;
 NumericOnly_1: FCONST
-NumericOnly_2: <DASH> FCONST
+NumericOnly_2:  ~ <C_DASH> ~  FCONST
 NumericOnly_3: SignedIconst
 
-NumericOnly_list: NumericOnly+ % / ~ <COMMA> ~ /
+NumericOnly_list: NumericOnly+ % / ~  ~ <C_COMMA> ~  ~ /
 
 #############################################################################
 #
@@ -1288,7 +1288,7 @@ AlterExtensionContentsStmt   :
    | AlterExtensionContentsStmt_23
 ;
 AlterExtensionContentsStmt_1 : ALTER EXTENSION name add_drop AGGREGATE func_name aggr_args
-AlterExtensionContentsStmt_2 : ALTER EXTENSION name add_drop CAST <LPAREN> Typename AS Typename <RPAREN>
+AlterExtensionContentsStmt_2 : ALTER EXTENSION name add_drop CAST  ~ <C_LPAREN> ~  Typename AS Typename  ~ <C_RPAREN> ~ 
 AlterExtensionContentsStmt_3 : ALTER EXTENSION name add_drop COLLATION any_name
 AlterExtensionContentsStmt_4 : ALTER EXTENSION name add_drop CONVERSION any_name
 AlterExtensionContentsStmt_5 : ALTER EXTENSION name add_drop DOMAIN any_name
@@ -1361,14 +1361,14 @@ AlterFdwStmt_1: ALTER FOREIGN DATA WRAPPER name opt_fdw_options alter_generic_op
 AlterFdwStmt_2: ALTER FOREIGN DATA WRAPPER name fdw_options
 
 # Options definition for CREATE FDW, SERVER and USER MAPPING
-create_generic_options: ( OPTIONS <LPAREN> generic_option_list <RPAREN> )?
+create_generic_options: ( OPTIONS  ~ <C_LPAREN> ~  generic_option_list  ~ <C_RPAREN> ~  )?
 
-generic_option_list: generic_option_elem+ % / ~ <COMMA> ~ /
+generic_option_list: generic_option_elem+ % / ~  ~ <C_COMMA> ~  ~ /
 
 # Options definition for ALTER FDW, SERVER and USER MAPPING
-alter_generic_options: OPTIONS <LPAREN> alter_generic_option_list <RPAREN>
+alter_generic_options: OPTIONS  ~ <C_LPAREN> ~  alter_generic_option_list  ~ <C_RPAREN> ~ 
 
-alter_generic_option_list: alter_generic_option_elem+ % / ~ <COMMA> ~ /
+alter_generic_option_list: alter_generic_option_elem+ % / ~  ~ <C_COMMA> ~  ~ /
 
 alter_generic_option_elem  :
      alter_generic_option_elem_1
@@ -1452,10 +1452,10 @@ OptForeignTableElementList  :
      OptForeignTableElementList_1
    | OptForeignTableElementList_2
 ;
-OptForeignTableElementList_1: <LPAREN> ForeignTableElementList <RPAREN>
-OptForeignTableElementList_2: <LPAREN> <RPAREN>
+OptForeignTableElementList_1:  ~ <C_LPAREN> ~  ForeignTableElementList  ~ <C_RPAREN> ~ 
+OptForeignTableElementList_2:  ~ <C_LPAREN> ~   ~ <C_RPAREN> ~ 
 
-ForeignTableElementList: ForeignTableElement+ % / ~ <COMMA> ~ /
+ForeignTableElementList: ForeignTableElement+ % / ~  ~ <C_COMMA> ~  ~ /
 
 ForeignTableElement: columnDef
 
@@ -1522,8 +1522,8 @@ CreateTrigStmt  :
      CreateTrigStmt_1
    | CreateTrigStmt_2
 ;
-CreateTrigStmt_1: CREATE TRIGGER name TriggerActionTime TriggerEvents ON qualified_name TriggerForSpec TriggerWhen EXECUTE PROCEDURE func_name <LPAREN> TriggerFuncArgs <RPAREN>
-CreateTrigStmt_2: CREATE CONSTRAINT TRIGGER name AFTER TriggerEvents ON qualified_name OptConstrFromTable ConstraintAttributeSpec FOR EACH ROW TriggerWhen EXECUTE PROCEDURE func_name <LPAREN> TriggerFuncArgs <RPAREN>
+CreateTrigStmt_1: CREATE TRIGGER name TriggerActionTime TriggerEvents ON qualified_name TriggerForSpec TriggerWhen EXECUTE PROCEDURE func_name  ~ <C_LPAREN> ~  TriggerFuncArgs  ~ <C_RPAREN> ~ 
+CreateTrigStmt_2: CREATE CONSTRAINT TRIGGER name AFTER TriggerEvents ON qualified_name OptConstrFromTable ConstraintAttributeSpec FOR EACH ROW TriggerWhen EXECUTE PROCEDURE func_name  ~ <C_LPAREN> ~  TriggerFuncArgs  ~ <C_RPAREN> ~ 
 
 TriggerActionTime  :
      TriggerActionTime_1
@@ -1560,14 +1560,14 @@ TriggerForType  :
 TriggerForType_1: ROW
 TriggerForType_2: STATEMENT
 
-TriggerWhen: ( WHEN <LPAREN> a_expr <RPAREN> )?
+TriggerWhen: ( WHEN  ~ <C_LPAREN> ~  a_expr  ~ <C_RPAREN> ~  )?
 
 TriggerFuncArgs  :
      TriggerFuncArgs_1
    | TriggerFuncArgs_2
 ;
 TriggerFuncArgs_1: TriggerFuncArg
-TriggerFuncArgs_2: TriggerFuncArg* % / ~ <COMMA> ~ /
+TriggerFuncArgs_2: TriggerFuncArg* % / ~  ~ <C_COMMA> ~  ~ /
 
 TriggerFuncArg  :
      TriggerFuncArg_1
@@ -1618,14 +1618,14 @@ CreateEventTrigStmt  :
      CreateEventTrigStmt_1
    | CreateEventTrigStmt_2
 ;
-CreateEventTrigStmt_1: CREATE EVENT TRIGGER name ON ColLabel EXECUTE PROCEDURE func_name <LPAREN> <RPAREN>
-CreateEventTrigStmt_2: CREATE EVENT TRIGGER name ON ColLabel WHEN event_trigger_when_list EXECUTE PROCEDURE func_name <LPAREN> <RPAREN>
+CreateEventTrigStmt_1: CREATE EVENT TRIGGER name ON ColLabel EXECUTE PROCEDURE func_name  ~ <C_LPAREN> ~   ~ <C_RPAREN> ~ 
+CreateEventTrigStmt_2: CREATE EVENT TRIGGER name ON ColLabel WHEN event_trigger_when_list EXECUTE PROCEDURE func_name  ~ <C_LPAREN> ~   ~ <C_RPAREN> ~ 
 
 event_trigger_when_list: event_trigger_when_item+ % / ~ AND ~ /
 
-event_trigger_when_item: ColId IN <LPAREN> event_trigger_value_list <RPAREN>
+event_trigger_when_item: ColId IN  ~ <C_LPAREN> ~  event_trigger_value_list  ~ <C_RPAREN> ~ 
 
-event_trigger_value_list: SCONST+ % / ~ <COMMA> ~ /
+event_trigger_value_list: SCONST+ % / ~  ~ <C_COMMA> ~  ~ /
 
 AlterEventTrigStmt: ALTER EVENT TRIGGER name enable_trigger
 
@@ -1647,7 +1647,7 @@ enable_trigger_4: DISABLE
 #            DROP ASSERTION ...
 #
 #############################################################################
-CreateAssertStmt: CREATE ASSERTION name CHECK <LPAREN> a_expr <RPAREN> ConstraintAttributeSpec
+CreateAssertStmt: CREATE ASSERTION name CHECK  ~ <C_LPAREN> ~  a_expr  ~ <C_RPAREN> ~  ConstraintAttributeSpec
 
 DropAssertStmt: DROP ASSERTION name opt_drop_behavior
 
@@ -1678,8 +1678,8 @@ DefineStmt_2 : CREATE AGGREGATE func_name old_aggr_definition
 DefineStmt_3 : CREATE OPERATOR any_operator definition
 DefineStmt_4 : CREATE TYPE any_name definition
 DefineStmt_5 : CREATE TYPE any_name
-DefineStmt_6 : CREATE TYPE any_name AS <LPAREN> OptTableFuncElementList <RPAREN>
-DefineStmt_7 : CREATE TYPE any_name AS ENUM <LPAREN> opt_enum_val_list <RPAREN>
+DefineStmt_6 : CREATE TYPE any_name AS  ~ <C_LPAREN> ~  OptTableFuncElementList  ~ <C_RPAREN> ~ 
+DefineStmt_7 : CREATE TYPE any_name AS ENUM  ~ <C_LPAREN> ~  opt_enum_val_list  ~ <C_RPAREN> ~ 
 DefineStmt_8 : CREATE TYPE any_name AS RANGE definition
 DefineStmt_9 : CREATE TEXT SEARCH PARSER any_name definition
 DefineStmt_10: CREATE TEXT SEARCH DICTIONARY any_name definition
@@ -1688,15 +1688,15 @@ DefineStmt_12: CREATE TEXT SEARCH CONFIGURATION any_name definition
 DefineStmt_13: CREATE COLLATION any_name definition
 DefineStmt_14: CREATE COLLATION any_name FROM any_name
 
-definition: <LPAREN> def_list <RPAREN>
+definition:  ~ <C_LPAREN> ~  def_list  ~ <C_RPAREN> ~ 
 
-def_list: def_elem+ % / ~ <COMMA> ~ /
+def_list: def_elem+ % / ~  ~ <C_COMMA> ~  ~ /
 
 def_elem  :
      def_elem_1
    | def_elem_2
 ;
-def_elem_1: ColLabel <EQUAL> def_arg
+def_elem_1: ColLabel  ~ <C_EQUAL> ~  def_arg
 def_elem_2: ColLabel
 
 # Note: any simple identifier will be returned as a type name!
@@ -1717,21 +1717,21 @@ aggr_args  :
      aggr_args_1
    | aggr_args_2
 ;
-aggr_args_1: <LPAREN> type_list <RPAREN>
-aggr_args_2: <LPAREN> <STAR> <RPAREN>
+aggr_args_1:  ~ <C_LPAREN> ~  type_list  ~ <C_RPAREN> ~ 
+aggr_args_2:  ~ <C_LPAREN> ~   ~ <C_STAR> ~   ~ <C_RPAREN> ~ 
 
-old_aggr_definition: <LPAREN> old_aggr_list <RPAREN>
+old_aggr_definition:  ~ <C_LPAREN> ~  old_aggr_list  ~ <C_RPAREN> ~ 
 
-old_aggr_list: old_aggr_elem+ % / ~ <COMMA> ~ /
+old_aggr_list: old_aggr_elem+ % / ~  ~ <C_COMMA> ~  ~ /
 
 # Must use IDENT here to avoid reduce/reduce conflicts; fortunately none of
 # the item names needed in old aggregate definitions are likely to become
 # SQL keywords.
-old_aggr_elem: IDENT <EQUAL> def_arg
+old_aggr_elem: IDENT  ~ <C_EQUAL> ~  def_arg
 
 opt_enum_val_list: enum_val_list?
 
-enum_val_list: Sconst+ % / ~ <COMMA> ~ /
+enum_val_list: Sconst+ % / ~  ~ <C_COMMA> ~  ~ /
 
 #############################################################################
 #
@@ -1759,7 +1759,7 @@ AlterEnumStmt_3: ALTER TYPE any_name ADD VALUE Sconst AFTER Sconst
 #############################################################################
 CreateOpClassStmt: CREATE OPERATOR CLASS any_name opt_default FOR TYPE Typename USING access_method opt_opfamily AS opclass_item_list
 
-opclass_item_list: opclass_item+ % / ~ <COMMA> ~ /
+opclass_item_list: opclass_item+ % / ~  ~ <C_COMMA> ~  ~ /
 
 opclass_item  :
      opclass_item_1
@@ -1771,7 +1771,7 @@ opclass_item  :
 opclass_item_1: OPERATOR Iconst any_operator opclass_purpose opt_recheck
 opclass_item_2: OPERATOR Iconst any_operator oper_argtypes opclass_purpose opt_recheck
 opclass_item_3: FUNCTION Iconst func_name func_args
-opclass_item_4: FUNCTION Iconst <LPAREN> type_list <RPAREN> func_name func_args
+opclass_item_4: FUNCTION Iconst  ~ <C_LPAREN> ~  type_list  ~ <C_RPAREN> ~  func_name func_args
 opclass_item_5: STORAGE Typename
 
 opt_default: DEFAULT?
@@ -1799,14 +1799,14 @@ AlterOpFamilyStmt  :
 AlterOpFamilyStmt_1: ALTER OPERATOR FAMILY any_name USING access_method ADD opclass_item_list
 AlterOpFamilyStmt_2: ALTER OPERATOR FAMILY any_name USING access_method DROP opclass_drop_list
 
-opclass_drop_list: opclass_drop+ % / ~ <COMMA> ~ /
+opclass_drop_list: opclass_drop+ % / ~  ~ <C_COMMA> ~  ~ /
 
 opclass_drop  :
      opclass_drop_1
    | opclass_drop_2
 ;
-opclass_drop_1: OPERATOR Iconst <LPAREN> type_list <RPAREN>
-opclass_drop_2: FUNCTION Iconst <LPAREN> type_list <RPAREN>
+opclass_drop_1: OPERATOR Iconst  ~ <C_LPAREN> ~  type_list  ~ <C_RPAREN> ~ 
+opclass_drop_2: FUNCTION Iconst  ~ <C_LPAREN> ~  type_list  ~ <C_RPAREN> ~ 
 
 DropOpClassStmt  :
      DropOpClassStmt_1
@@ -1888,7 +1888,7 @@ drop_type_14: TEXT SEARCH DICTIONARY
 drop_type_15: TEXT SEARCH TEMPLATE
 drop_type_16: TEXT SEARCH CONFIGURATION
 
-any_name_list: any_name+ % / ~ <COMMA> ~ /
+any_name_list: any_name+ % / ~  ~ <C_COMMA> ~  ~ /
 
 any_name  :
      any_name_1
@@ -1901,8 +1901,8 @@ attrs  :
      attrs_1
    | attrs_2
 ;
-attrs_1: <DOT> attr_name
-attrs_2: <attr_name>2+ % / ~ <DOT> ~ /
+attrs_1:  ~ <C_DOT> ~  attr_name
+attrs_2: <attr_name>2+ % / ~  ~ <C_DOT> ~  ~ /
 
 #############################################################################
 #
@@ -1970,7 +1970,7 @@ CommentStmt_8 : COMMENT ON TRIGGER name ON any_name IS comment_text
 CommentStmt_9 : COMMENT ON OPERATOR CLASS any_name USING access_method IS comment_text
 CommentStmt_10: COMMENT ON OPERATOR FAMILY any_name USING access_method IS comment_text
 CommentStmt_11: COMMENT ON LARGE OBJECT NumericOnly IS comment_text
-CommentStmt_12: COMMENT ON CAST <LPAREN> Typename AS Typename <RPAREN> IS comment_text
+CommentStmt_12: COMMENT ON CAST  ~ <C_LPAREN> ~  Typename AS Typename  ~ <C_RPAREN> ~  IS comment_text
 CommentStmt_13: COMMENT ON opt_procedural LANGUAGE any_name IS comment_text
 CommentStmt_14: COMMENT ON TEXT SEARCH PARSER any_name IS comment_text
 CommentStmt_15: COMMENT ON TEXT SEARCH DICTIONARY any_name IS comment_text
@@ -2170,10 +2170,10 @@ privileges  :
 privileges_1: privilege_list
 privileges_2: ALL
 privileges_3: ALL PRIVILEGES
-privileges_4: ALL <LPAREN> columnList <RPAREN>
-privileges_5: ALL PRIVILEGES <LPAREN> columnList <RPAREN>
+privileges_4: ALL  ~ <C_LPAREN> ~  columnList  ~ <C_RPAREN> ~ 
+privileges_5: ALL PRIVILEGES  ~ <C_LPAREN> ~  columnList  ~ <C_RPAREN> ~ 
 
-privilege_list: privilege+ % / ~ <COMMA> ~ /
+privilege_list: privilege+ % / ~  ~ <C_COMMA> ~  ~ /
 
 privilege  :
      privilege_1
@@ -2223,7 +2223,7 @@ privilege_target_14: ALL TABLES IN SCHEMA name_list
 privilege_target_15: ALL SEQUENCES IN SCHEMA name_list
 privilege_target_16: ALL FUNCTIONS IN SCHEMA name_list
 
-grantee_list: grantee+ % / ~ <COMMA> ~ /
+grantee_list: grantee+ % / ~  ~ <C_COMMA> ~  ~ /
 
 grantee  :
      grantee_1
@@ -2234,7 +2234,7 @@ grantee_2: GROUP RoleId
 
 opt_grant_grant_option: ( WITH GRANT OPTION )?
 
-function_with_argtypes_list: function_with_argtypes+ % / ~ <COMMA> ~ /
+function_with_argtypes_list: function_with_argtypes+ % / ~  ~ <C_COMMA> ~  ~ /
 
 function_with_argtypes: func_name func_args
 
@@ -2303,7 +2303,7 @@ defacl_privilege_target_4: TYPES
 # Note: we cannot put TABLESPACE clause after WHERE clause unless we are
 # willing to make TABLESPACE a fully reserved word.
 #############################################################################
-IndexStmt: CREATE opt_unique INDEX opt_concurrently opt_index_name ON qualified_name access_method_clause <LPAREN> index_params <RPAREN> opt_reloptions OptTableSpace where_clause
+IndexStmt: CREATE opt_unique INDEX opt_concurrently opt_index_name ON qualified_name access_method_clause  ~ <C_LPAREN> ~  index_params  ~ <C_RPAREN> ~  opt_reloptions OptTableSpace where_clause
 
 opt_unique: UNIQUE?
 
@@ -2313,7 +2313,7 @@ opt_index_name: index_name?
 
 access_method_clause: ( USING access_method )?
 
-index_params: index_elem+ % / ~ <COMMA> ~ /
+index_params: index_elem+ % / ~  ~ <C_COMMA> ~  ~ /
 
 # Index attributes can be either simple column references, or arbitrary
 # expressions in parens.  For backwards-compatibility reasons, we allow
@@ -2325,7 +2325,7 @@ index_elem  :
 ;
 index_elem_1: ColId opt_collate opt_class opt_asc_desc opt_nulls_order
 index_elem_2: func_expr opt_collate opt_class opt_asc_desc opt_nulls_order
-index_elem_3: <LPAREN> a_expr <RPAREN> opt_collate opt_class opt_asc_desc opt_nulls_order
+index_elem_3:  ~ <C_LPAREN> ~  a_expr  ~ <C_RPAREN> ~  opt_collate opt_class opt_asc_desc opt_nulls_order
 
 opt_collate: ( COLLATE any_name )?
 
@@ -2366,7 +2366,7 @@ CreateFunctionStmt  :
    | CreateFunctionStmt_3
 ;
 CreateFunctionStmt_1: CREATE opt_or_replace FUNCTION func_name func_args_with_defaults RETURNS func_return createfunc_opt_list opt_definition
-CreateFunctionStmt_2: CREATE opt_or_replace FUNCTION func_name func_args_with_defaults RETURNS TABLE <LPAREN> table_func_column_list <RPAREN> createfunc_opt_list opt_definition
+CreateFunctionStmt_2: CREATE opt_or_replace FUNCTION func_name func_args_with_defaults RETURNS TABLE  ~ <C_LPAREN> ~  table_func_column_list  ~ <C_RPAREN> ~  createfunc_opt_list opt_definition
 CreateFunctionStmt_3: CREATE opt_or_replace FUNCTION func_name func_args_with_defaults createfunc_opt_list opt_definition
 
 opt_or_replace: ( OR REPLACE )?
@@ -2375,10 +2375,10 @@ func_args  :
      func_args_1
    | func_args_2
 ;
-func_args_1: <LPAREN> func_args_list <RPAREN>
-func_args_2: <LPAREN> <RPAREN>
+func_args_1:  ~ <C_LPAREN> ~  func_args_list  ~ <C_RPAREN> ~ 
+func_args_2:  ~ <C_LPAREN> ~   ~ <C_RPAREN> ~ 
 
-func_args_list: func_arg+ % / ~ <COMMA> ~ /
+func_args_list: func_arg+ % / ~  ~ <C_COMMA> ~  ~ /
 
 # func_args_with_defaults is separate because we only want to accept
 # defaults in CREATE FUNCTION, not in ALTER etc.
@@ -2386,10 +2386,10 @@ func_args_with_defaults  :
      func_args_with_defaults_1
    | func_args_with_defaults_2
 ;
-func_args_with_defaults_1: <LPAREN> func_args_with_defaults_list <RPAREN>
-func_args_with_defaults_2: <LPAREN> <RPAREN>
+func_args_with_defaults_1:  ~ <C_LPAREN> ~  func_args_with_defaults_list  ~ <C_RPAREN> ~ 
+func_args_with_defaults_2:  ~ <C_LPAREN> ~   ~ <C_RPAREN> ~ 
 
-func_args_with_defaults_list: func_arg_with_default+ % / ~ <COMMA> ~ /
+func_args_with_defaults_list: func_arg_with_default+ % / ~  ~ <C_COMMA> ~  ~ /
 
 # The style with arg_class first is SQL99 standard, but Oracle puts
 # param_name first; accept both since it's likely people will try both
@@ -2440,8 +2440,8 @@ func_type  :
    | func_type_3
 ;
 func_type_1: Typename
-func_type_2: type_function_name attrs <PERCENT> TYPE
-func_type_3: SETOF type_function_name attrs <PERCENT> TYPE
+func_type_2: type_function_name attrs  ~ <C_PERCENT> ~  TYPE
+func_type_3: SETOF type_function_name attrs  ~ <C_PERCENT> ~  TYPE
 
 func_arg_with_default  :
      func_arg_with_default_1
@@ -2450,7 +2450,7 @@ func_arg_with_default  :
 ;
 func_arg_with_default_1: func_arg
 func_arg_with_default_2: func_arg DEFAULT a_expr
-func_arg_with_default_3: func_arg <EQUAL> a_expr
+func_arg_with_default_3: func_arg  ~ <C_EQUAL> ~  a_expr
 
 createfunc_opt_list: createfunc_opt_item+ % ~
 
@@ -2504,13 +2504,13 @@ func_as  :
    | func_as_2
 ;
 func_as_1: Sconst
-func_as_2: Sconst <COMMA> Sconst
+func_as_2: Sconst  ~ <C_COMMA> ~  Sconst
 
 opt_definition: ( WITH definition )?
 
 table_func_column: param_name func_type
 
-table_func_column_list: table_func_column+ % / ~ <COMMA> ~ /
+table_func_column_list: table_func_column+ % / ~  ~ <C_COMMA> ~  ~ /
 
 #############################################################################
 # ALTER FUNCTION
@@ -2563,17 +2563,17 @@ oper_argtypes  :
    | oper_argtypes_3
    | oper_argtypes_4
 ;
-oper_argtypes_1: <LPAREN> Typename <RPAREN>
-oper_argtypes_2: <LPAREN> Typename <COMMA> Typename <RPAREN>
-oper_argtypes_3: <LPAREN> NONE <COMMA> Typename <RPAREN>
-oper_argtypes_4: <LPAREN> Typename <COMMA> NONE <RPAREN>
+oper_argtypes_1:  ~ <C_LPAREN> ~  Typename  ~ <C_RPAREN> ~ 
+oper_argtypes_2:  ~ <C_LPAREN> ~  Typename  ~ <C_COMMA> ~  Typename  ~ <C_RPAREN> ~ 
+oper_argtypes_3:  ~ <C_LPAREN> ~  NONE  ~ <C_COMMA> ~  Typename  ~ <C_RPAREN> ~ 
+oper_argtypes_4:  ~ <C_LPAREN> ~  Typename  ~ <C_COMMA> ~  NONE  ~ <C_RPAREN> ~ 
 
 any_operator  :
      any_operator_1
    | any_operator_2
 ;
 any_operator_1: all_Op
-any_operator_2: <ColId>2+ % / ~ <DOT> ~ /
+any_operator_2: <ColId>2+ % / ~  ~ <C_DOT> ~  ~ /
 
 #############################################################################
 #
@@ -2604,9 +2604,9 @@ CreateCastStmt  :
    | CreateCastStmt_2
    | CreateCastStmt_3
 ;
-CreateCastStmt_1: CREATE CAST <LPAREN> Typename AS Typename <RPAREN> WITH FUNCTION function_with_argtypes cast_context
-CreateCastStmt_2: CREATE CAST <LPAREN> Typename AS Typename <RPAREN> WITHOUT FUNCTION cast_context
-CreateCastStmt_3: CREATE CAST <LPAREN> Typename AS Typename <RPAREN> WITH INOUT cast_context
+CreateCastStmt_1: CREATE CAST  ~ <C_LPAREN> ~  Typename AS Typename  ~ <C_RPAREN> ~  WITH FUNCTION function_with_argtypes cast_context
+CreateCastStmt_2: CREATE CAST  ~ <C_LPAREN> ~  Typename AS Typename  ~ <C_RPAREN> ~  WITHOUT FUNCTION cast_context
+CreateCastStmt_3: CREATE CAST  ~ <C_LPAREN> ~  Typename AS Typename  ~ <C_RPAREN> ~  WITH INOUT cast_context
 
 cast_context  : (
      cast_context_1
@@ -2615,7 +2615,7 @@ cast_context  : (
 cast_context_1: AS IMPLICIT
 cast_context_2: AS ASSIGNMENT
 
-DropCastStmt: DROP CAST opt_if_exists <LPAREN> Typename AS Typename <RPAREN> opt_drop_behavior
+DropCastStmt: DROP CAST opt_if_exists  ~ <C_LPAREN> ~  Typename AS Typename  ~ <C_RPAREN> ~  opt_drop_behavior
 
 opt_if_exists: ( IF EXISTS )?
 
@@ -2853,10 +2853,10 @@ RuleActionList  :
 ;
 RuleActionList_1: NOTHING
 RuleActionList_2: RuleActionStmt
-RuleActionList_3: <LPAREN> RuleActionMulti <RPAREN>
+RuleActionList_3:  ~ <C_LPAREN> ~  RuleActionMulti  ~ <C_RPAREN> ~ 
 
 # the thrashing around here is to discard "empty" statements...
-RuleActionMulti: RuleActionStmtOrEmpty+ % / ~ <SEMI> ~ /
+RuleActionMulti: RuleActionStmtOrEmpty+ % / ~  ~ <C_SEMI> ~  ~ /
 
 RuleActionStmt:
      SelectStmt
@@ -2902,7 +2902,7 @@ DropRuleStmt_2: DROP RULE IF EXISTS name ON qualified_name opt_drop_behavior
 #############################################################################
 NotifyStmt: NOTIFY ColId notify_payload
 
-notify_payload: ( <COMMA> Sconst )?
+notify_payload: (  ~ <C_COMMA> ~  Sconst )?
 
 ListenStmt: LISTEN ColId
 
@@ -2911,7 +2911,7 @@ UnlistenStmt  :
    | UnlistenStmt_2
 ;
 UnlistenStmt_1: UNLISTEN ColId
-UnlistenStmt_2: UNLISTEN <STAR>
+UnlistenStmt_2: UNLISTEN  ~ <C_STAR> ~ 
 
 #############################################################################
 #
@@ -2981,7 +2981,7 @@ transaction_mode_list  :
    | transaction_mode_list_3
 ;
 transaction_mode_list_1: transaction_mode_item
-transaction_mode_list_2: transaction_mode_list <COMMA> transaction_mode_item
+transaction_mode_list_2: transaction_mode_list  ~ <C_COMMA> ~  transaction_mode_item
 transaction_mode_list_3: transaction_mode_list transaction_mode_item
 
 transaction_mode_list_or_empty: transaction_mode_list?
@@ -3063,7 +3063,7 @@ createdb_opt_item_16: OWNER opt_equal DEFAULT
 
 #   Though the equals sign doesn't match other WITH options, pg_dump uses
 #   equals for backward compatibility, and it doesn't seem worth removing it.
-opt_equal: <EQUAL>?
+opt_equal: (  ~ <C_EQUAL> ~  )?
 
 #############################################################################
 #
@@ -3192,10 +3192,10 @@ VacuumStmt  :
 VacuumStmt_1: VACUUM opt_full opt_freeze opt_verbose
 VacuumStmt_2: VACUUM opt_full opt_freeze opt_verbose qualified_name
 VacuumStmt_3: VACUUM opt_full opt_freeze opt_verbose AnalyzeStmt
-VacuumStmt_4: VACUUM <LPAREN> vacuum_option_list <RPAREN>
-VacuumStmt_5: VACUUM <LPAREN> vacuum_option_list <RPAREN> qualified_name opt_name_list
+VacuumStmt_4: VACUUM  ~ <C_LPAREN> ~  vacuum_option_list  ~ <C_RPAREN> ~ 
+VacuumStmt_5: VACUUM  ~ <C_LPAREN> ~  vacuum_option_list  ~ <C_RPAREN> ~  qualified_name opt_name_list
 
-vacuum_option_list: vacuum_option_elem+ % / ~ <COMMA> ~ /
+vacuum_option_list: vacuum_option_elem+ % / ~  ~ <C_COMMA> ~  ~ /
 
 vacuum_option_elem  :
      vacuum_option_elem_1
@@ -3228,7 +3228,7 @@ opt_full: FULL?
 
 opt_freeze: FREEZE?
 
-opt_name_list: ( <LPAREN> name_list <RPAREN> )?
+opt_name_list: (  ~ <C_LPAREN> ~  name_list  ~ <C_RPAREN> ~  )?
 
 #############################################################################
 #
@@ -3246,7 +3246,7 @@ ExplainStmt  :
 ExplainStmt_1: EXPLAIN ExplainableStmt
 ExplainStmt_2: EXPLAIN analyze_keyword opt_verbose ExplainableStmt
 ExplainStmt_3: EXPLAIN VERBOSE ExplainableStmt
-ExplainStmt_4: EXPLAIN <LPAREN> explain_option_list <RPAREN> ExplainableStmt
+ExplainStmt_4: EXPLAIN  ~ <C_LPAREN> ~  explain_option_list  ~ <C_RPAREN> ~  ExplainableStmt
 
 ExplainableStmt:
      SelectStmt
@@ -3259,7 +3259,7 @@ ExplainableStmt:
 # by default all are $$=$_[1]
 ;
 
-explain_option_list: explain_option_elem+ % / ~ <COMMA> ~ /
+explain_option_list: explain_option_elem+ % / ~  ~ <C_COMMA> ~  ~ /
 
 explain_option_elem: explain_option_name explain_option_arg
 
@@ -3287,7 +3287,7 @@ explain_option_arg_2: NumericOnly
 #############################################################################
 PrepareStmt: PREPARE name prep_type_clause AS PreparableStmt
 
-prep_type_clause: ( <LPAREN> type_list <RPAREN> )?
+prep_type_clause: (  ~ <C_LPAREN> ~  type_list  ~ <C_RPAREN> ~  )?
 
 PreparableStmt:
      SelectStmt
@@ -3310,7 +3310,7 @@ ExecuteStmt  :
 ExecuteStmt_1: EXECUTE name execute_param_clause
 ExecuteStmt_2: CREATE OptTemp TABLE create_as_target AS EXECUTE name execute_param_clause opt_with_data
 
-execute_param_clause: ( <LPAREN> expr_list <RPAREN> )?
+execute_param_clause: (  ~ <C_LPAREN> ~  expr_list  ~ <C_RPAREN> ~  )?
 
 #############################################################################
 #
@@ -3343,10 +3343,10 @@ insert_rest  :
    | insert_rest_3
 ;
 insert_rest_1: SelectStmt
-insert_rest_2: <LPAREN> insert_column_list <RPAREN> SelectStmt
+insert_rest_2:  ~ <C_LPAREN> ~  insert_column_list  ~ <C_RPAREN> ~  SelectStmt
 insert_rest_3: DEFAULT VALUES
 
-insert_column_list: insert_column_item+ % / ~ <COMMA> ~ /
+insert_column_list: insert_column_item+ % / ~  ~ <C_COMMA> ~  ~ /
 
 insert_column_item: ColId opt_indirection
 
@@ -3401,7 +3401,7 @@ opt_nowait: NOWAIT?
 #############################################################################
 UpdateStmt: opt_with_clause UPDATE relation_expr_opt_alias SET set_clause_list from_clause where_or_current_clause returning_clause
 
-set_clause_list: set_clause+ % / ~ <COMMA> ~ /
+set_clause_list: set_clause+ % / ~  ~ <C_COMMA> ~  ~ /
 
 set_clause  :
      set_clause_1
@@ -3410,13 +3410,13 @@ set_clause  :
 set_clause_1: single_set_clause
 set_clause_2: multiple_set_clause
 
-single_set_clause: set_target <EQUAL> ctext_expr
+single_set_clause: set_target  ~ <C_EQUAL> ~  ctext_expr
 
-multiple_set_clause: <LPAREN> set_target_list <RPAREN> <EQUAL> ctext_row
+multiple_set_clause:  ~ <C_LPAREN> ~  set_target_list  ~ <C_RPAREN> ~   ~ <C_EQUAL> ~  ctext_row
 
 set_target: ColId opt_indirection
 
-set_target_list: set_target+ % / ~ <COMMA> ~ /
+set_target_list: set_target+ % / ~  ~ <C_COMMA> ~  ~ /
 
 #############################################################################
 #
@@ -3500,8 +3500,8 @@ select_with_parens  :
      select_with_parens_1
    | select_with_parens_2
 ;
-select_with_parens_1: <LPAREN> select_no_parens <RPAREN>
-select_with_parens_2: <LPAREN> select_with_parens <RPAREN>
+select_with_parens_1:  ~ <C_LPAREN> ~  select_no_parens  ~ <C_RPAREN> ~ 
+select_with_parens_2:  ~ <C_LPAREN> ~  select_with_parens  ~ <C_RPAREN> ~ 
 
 # This rule parses the equivalent of the standard's <query expression>.
 # The duplicative productions are annoying, but hard to get rid of without
@@ -3586,9 +3586,9 @@ with_clause  :
 with_clause_1: WITH cte_list
 with_clause_2: WITH RECURSIVE cte_list
 
-cte_list: common_table_expr+ % / ~ <COMMA> ~ /
+cte_list: common_table_expr+ % / ~  ~ <C_COMMA> ~  ~ /
 
-common_table_expr: name opt_name_list AS <LPAREN> PreparableStmt <RPAREN>
+common_table_expr: name opt_name_list AS  ~ <C_LPAREN> ~  PreparableStmt  ~ <C_RPAREN> ~ 
 
 opt_with_clause: with_clause?
 
@@ -3634,14 +3634,14 @@ opt_distinct  : (
    | opt_distinct_3
 )?
 opt_distinct_1: DISTINCT
-opt_distinct_2: DISTINCT ON <LPAREN> expr_list <RPAREN>
+opt_distinct_2: DISTINCT ON  ~ <C_LPAREN> ~  expr_list  ~ <C_RPAREN> ~ 
 opt_distinct_3: ALL
 
 opt_sort_clause: sort_clause?
 
 sort_clause: ORDER BY sortby_list
 
-sortby_list: sortby+ % / ~ <COMMA> ~ /
+sortby_list: sortby+ % / ~  ~ <C_COMMA> ~  ~ /
 
 sortby  :
      sortby_1
@@ -3669,7 +3669,7 @@ limit_clause  :
    | limit_clause_3
 ;
 limit_clause_1: LIMIT select_limit_value
-limit_clause_2: LIMIT select_limit_value <COMMA> select_offset_value 
+limit_clause_2: LIMIT select_limit_value  ~ <C_COMMA> ~  select_offset_value 
 # Disabled because it was too confusing, bjm 2002-02-18
     
 ## SQLite supports this format, so we'll go ahead and re-enable this.
@@ -3701,7 +3701,7 @@ opt_select_fetch_first_value  : (
    | opt_select_fetch_first_value_2
 )?
 opt_select_fetch_first_value_1: SignedIconst
-opt_select_fetch_first_value_2: <LPAREN> a_expr <RPAREN>
+opt_select_fetch_first_value_2:  ~ <C_LPAREN> ~  a_expr  ~ <C_RPAREN> ~ 
 
 # Again, the trailing ROW/ROWS in this case prevent the full expression
 # syntax.  c_expr is the best we can do.
@@ -3751,7 +3751,7 @@ values_clause  :
    | values_clause_2
 ;
 values_clause_1: VALUES ctext_row
-values_clause_2: <ctext_row>2+ % / ~ <COMMA> ~ /
+values_clause_2: <ctext_row>2+ % / ~  ~ <C_COMMA> ~  ~ /
 
 #############################################################################
 #
@@ -3762,7 +3762,7 @@ values_clause_2: <ctext_row>2+ % / ~ <COMMA> ~ /
 #############################################################################
 from_clause: ( FROM from_list )?
 
-from_list: table_ref+ % / ~ <COMMA> ~ /
+from_list: table_ref+ % / ~  ~ <C_COMMA> ~  ~ /
 
 # table_ref is where an alias clause can be attached.
 table_ref  :
@@ -3778,13 +3778,13 @@ table_ref  :
 ;
 table_ref_1: relation_expr opt_alias_clause
 table_ref_2: func_table func_alias_clause
-table_ref_3: LATERAL_P func_table func_alias_clause
+table_ref_3: LATERAL func_table func_alias_clause
 table_ref_4: func_table func_alias_clause
 table_ref_5: LATERAL func_table func_alias_clause
 table_ref_6: select_with_parens opt_alias_clause
 table_ref_7: LATERAL select_with_parens opt_alias_clause
 table_ref_8: joined_table
-table_ref_9: <LPAREN> joined_table <RPAREN> alias_clause
+table_ref_9:  ~ <C_LPAREN> ~  joined_table  ~ <C_RPAREN> ~  alias_clause
 
 # It may seem silly to separate joined_table from table_ref, but there is
 # method in SQL92's madness: if you don't do it this way you get reduce-
@@ -3810,7 +3810,7 @@ joined_table  :
    | joined_table_5
    | joined_table_6
 ;
-joined_table_1: <LPAREN> joined_table <RPAREN>
+joined_table_1:  ~ <C_LPAREN> ~  joined_table  ~ <C_RPAREN> ~ 
 joined_table_2: table_ref CROSS JOIN table_ref
 joined_table_3: table_ref join_type JOIN table_ref join_qual
 joined_table_4: table_ref JOIN table_ref join_qual
@@ -3823,9 +3823,9 @@ alias_clause  :
    | alias_clause_3
    | alias_clause_4
 ;
-alias_clause_1: AS ColId <LPAREN> name_list <RPAREN>
+alias_clause_1: AS ColId  ~ <C_LPAREN> ~  name_list  ~ <C_RPAREN> ~ 
 alias_clause_2: AS ColId
-alias_clause_3: ColId <LPAREN> name_list <RPAREN>
+alias_clause_3: ColId  ~ <C_LPAREN> ~  name_list  ~ <C_RPAREN> ~ 
 alias_clause_4: ColId
 
 opt_alias_clause: alias_clause?
@@ -3839,9 +3839,9 @@ func_alias_clause  : (
    | func_alias_clause_4
 )?
 func_alias_clause_1: alias_clause
-func_alias_clause_2: AS <LPAREN> TableFuncElementList <RPAREN>
-func_alias_clause_3: AS ColId <LPAREN> TableFuncElementList <RPAREN>
-func_alias_clause_4: ColId <LPAREN> TableFuncElementList <RPAREN>
+func_alias_clause_2: AS  ~ <C_LPAREN> ~  TableFuncElementList  ~ <C_RPAREN> ~ 
+func_alias_clause_3: AS ColId  ~ <C_LPAREN> ~  TableFuncElementList  ~ <C_RPAREN> ~ 
+func_alias_clause_4: ColId  ~ <C_LPAREN> ~  TableFuncElementList  ~ <C_RPAREN> ~ 
 
 join_type  :
      join_type_1
@@ -3868,7 +3868,7 @@ join_qual  :
      join_qual_1
    | join_qual_2
 ;
-join_qual_1: USING <LPAREN> name_list <RPAREN>
+join_qual_1: USING  ~ <C_LPAREN> ~  name_list  ~ <C_RPAREN> ~ 
 join_qual_2: ON a_expr
 
 relation_expr  :
@@ -3878,11 +3878,11 @@ relation_expr  :
    | relation_expr_4
 ;
 relation_expr_1: qualified_name
-relation_expr_2: qualified_name <STAR>
+relation_expr_2: qualified_name  ~ <C_STAR> ~ 
 relation_expr_3: ONLY qualified_name
-relation_expr_4: ONLY <LPAREN> qualified_name <RPAREN>
+relation_expr_4: ONLY  ~ <C_LPAREN> ~  qualified_name  ~ <C_RPAREN> ~ 
 
-relation_expr_list: relation_expr+ % / ~ <COMMA> ~ /
+relation_expr_list: relation_expr+ % / ~  ~ <C_COMMA> ~  ~ /
 
 # Given "UPDATE foo set set ...", we have to decide without looking any
 # further ahead whether the first "set" is an alias or the UPDATE's SET
@@ -3914,7 +3914,7 @@ where_or_current_clause_2: WHERE CURRENT OF cursor_name
 
 OptTableFuncElementList: TableFuncElementList?
 
-TableFuncElementList: TableFuncElement+ % / ~ <COMMA> ~ /
+TableFuncElementList: TableFuncElement+ % / ~  ~ <C_COMMA> ~  ~ /
 
 TableFuncElement: ColId Typename opt_collate_clause
 
@@ -3937,17 +3937,17 @@ Typename  :
 ;
 Typename_1: SimpleTypename opt_array_bounds
 Typename_2: SETOF SimpleTypename opt_array_bounds
-Typename_3: SimpleTypename ARRAY <LSQUARE> Iconst <RSQUARE>
-Typename_4: SETOF SimpleTypename ARRAY <LSQUARE> Iconst <RSQUARE>
-Typename_5: SimpleTypename ARRAY
+Typename_3:       SimpleTypename ARRAY  ~ <C_LSQUARE> ~  Iconst  ~ <C_RSQUARE> ~ 
+Typename_4: SETOF SimpleTypename ARRAY  ~ <C_LSQUARE> ~  Iconst  ~ <C_RSQUARE> ~ 
+Typename_5:       SimpleTypename ARRAY
 Typename_6: SETOF SimpleTypename ARRAY
 
 opt_array_bounds  :
      opt_array_bounds_1
    | opt_array_bounds_2
 ;
-opt_array_bounds_1: <RSQUARE>* % / ~ <LSQUARE> ~ /
-opt_array_bounds_2: <RSQUARE>2+ % / ~ <LSQUARE> Iconst ~ /
+opt_array_bounds_1:  ~ <C_RSQUARE>*  % / ~ <C_LSQUARE> ~ /
+opt_array_bounds_2:  ~ <C_RSQUARE>2+ % / ~ <C_LSQUARE> ~ Iconst ~ /
 
 SimpleTypename  :
      SimpleTypename_1
@@ -3964,7 +3964,7 @@ SimpleTypename_3: Bit
 SimpleTypename_4: Character
 SimpleTypename_5: ConstDatetime
 SimpleTypename_6: ConstInterval opt_interval
-SimpleTypename_7: ConstInterval <LPAREN> Iconst <RPAREN> opt_interval
+SimpleTypename_7: ConstInterval  ~ <C_LPAREN> ~  Iconst  ~ <C_RPAREN> ~  opt_interval
 
 # We have a separate ConstTypename to allow defaulting fixed-length
 # types such as CHAR() and BIT() to an unspecified length.
@@ -3999,7 +3999,7 @@ GenericType  :
 GenericType_1: type_function_name opt_type_modifiers
 GenericType_2: type_function_name attrs opt_type_modifiers
 
-opt_type_modifiers: ( <LPAREN> expr_list <RPAREN> )?
+opt_type_modifiers: (  ~ <C_LPAREN> ~  expr_list  ~ <C_RPAREN> ~  )?
 
 # SQL92 numeric data types
 Numeric   :
@@ -4029,7 +4029,7 @@ Numeric_11: BOOLEAN
 
 # Check FLOAT() precision limits assuming IEEE floating
 # types - thomas 1997-09-18
-opt_float: ( <LPAREN> Iconst <RPAREN> )?
+opt_float: (  ~ <C_LPAREN> ~  Iconst  ~ <C_RPAREN> ~  )?
 
 # SQL92 bit-field data types
 # The following implements BIT() and BIT VARYING().
@@ -4050,7 +4050,7 @@ ConstBit  :
 ConstBit_1: BitWithLength
 ConstBit_2: BitWithoutLength
 
-BitWithLength: BIT opt_varying <LPAREN> expr_list <RPAREN>
+BitWithLength: BIT opt_varying  ~ <C_LPAREN> ~  expr_list  ~ <C_RPAREN> ~ 
 
 BitWithoutLength: BIT opt_varying
 
@@ -4070,7 +4070,7 @@ ConstCharacter  :
 ConstCharacter_1: CharacterWithLength
 ConstCharacter_2: CharacterWithoutLength
 
-CharacterWithLength: character <LPAREN> Iconst <RPAREN> opt_charset
+CharacterWithLength: character  ~ <C_LPAREN> ~  Iconst  ~ <C_RPAREN> ~  opt_charset
 
 CharacterWithoutLength: character opt_charset
 
@@ -4100,9 +4100,9 @@ ConstDatetime  :
    | ConstDatetime_3
    | ConstDatetime_4
 ;
-ConstDatetime_1: TIMESTAMP <LPAREN> Iconst <RPAREN> opt_timezone
+ConstDatetime_1: TIMESTAMP  ~ <C_LPAREN> ~  Iconst  ~ <C_RPAREN> ~  opt_timezone
 ConstDatetime_2: TIMESTAMP opt_timezone
-ConstDatetime_3: TIME <LPAREN> Iconst <RPAREN> opt_timezone
+ConstDatetime_3: TIME  ~ <C_LPAREN> ~  Iconst  ~ <C_RPAREN> ~  opt_timezone
 ConstDatetime_4: TIME opt_timezone
 
 ConstInterval: INTERVAL
@@ -4148,7 +4148,7 @@ interval_second  :
    | interval_second_2
 ;
 interval_second_1: SECOND
-interval_second_2: SECOND <LPAREN> Iconst <RPAREN>
+interval_second_2: SECOND  ~ <C_LPAREN> ~  Iconst  ~ <C_RPAREN> ~ 
 
 #############################################################################
 #
@@ -4237,17 +4237,17 @@ a_expr_1 : c_expr
 a_expr_2 : a_expr TYPECAST Typename
 a_expr_3 : a_expr COLLATE any_name
 a_expr_4 : a_expr AT TIME ZONE a_expr
-a_expr_5 : <PLUS> a_expr
-a_expr_6 : <DASH> a_expr
-a_expr_7 : a_expr <PLUS> a_expr
-a_expr_8 : a_expr <DASH> a_expr
-a_expr_9 : a_expr <STAR> a_expr
-a_expr_10: a_expr <SLASH> a_expr
-a_expr_11: a_expr <PERCENT> a_expr
-a_expr_12: a_expr <CARET> a_expr
-a_expr_13: a_expr <LANGLE> a_expr
-a_expr_14: a_expr <RANGLE> a_expr
-a_expr_15: a_expr <EQUAL> a_expr
+a_expr_5 :  ~ <C_PLUS> ~  a_expr
+a_expr_6 :  ~ <C_DASH> ~  a_expr
+a_expr_7 : a_expr  ~ <C_PLUS> ~  a_expr
+a_expr_8 : a_expr  ~ <C_DASH> ~  a_expr
+a_expr_9 : a_expr  ~ <C_STAR> ~  a_expr
+a_expr_10: a_expr  ~ <C_SLASH> ~  a_expr
+a_expr_11: a_expr  ~ <C_PERCENT> ~  a_expr
+a_expr_12: a_expr  ~ <C_CARET> ~  a_expr
+a_expr_13: a_expr  ~ <C_LANGLE> ~  a_expr
+a_expr_14: a_expr  ~ <C_RANGLE> ~  a_expr
+a_expr_15: a_expr  ~ <C_EQUAL> ~  a_expr
 a_expr_16: a_expr qual_Op a_expr
 a_expr_17: qual_Op a_expr
 a_expr_18: a_expr qual_Op
@@ -4279,8 +4279,8 @@ a_expr_43: a_expr IS UNKNOWN
 a_expr_44: a_expr IS NOT UNKNOWN
 a_expr_45: a_expr IS DISTINCT FROM a_expr
 a_expr_46: a_expr IS NOT DISTINCT FROM a_expr
-a_expr_47: a_expr IS OF <LPAREN> type_list <RPAREN>
-a_expr_48: a_expr IS NOT OF <LPAREN> type_list <RPAREN>
+a_expr_47: a_expr IS OF  ~ <C_LPAREN> ~  type_list  ~ <C_RPAREN> ~ 
+a_expr_48: a_expr IS NOT OF  ~ <C_LPAREN> ~  type_list  ~ <C_RPAREN> ~ 
 a_expr_49: a_expr BETWEEN opt_asymmetric b_expr AND b_expr
 a_expr_50: a_expr NOT BETWEEN opt_asymmetric b_expr AND b_expr
 a_expr_51: a_expr BETWEEN SYMMETRIC b_expr AND b_expr
@@ -4288,7 +4288,7 @@ a_expr_52: a_expr NOT BETWEEN SYMMETRIC b_expr AND b_expr
 a_expr_53: a_expr IN in_expr
 a_expr_54: a_expr NOT IN in_expr
 a_expr_55: a_expr subquery_Op sub_type select_with_parens
-a_expr_56: a_expr subquery_Op sub_type <LPAREN> a_expr <RPAREN>
+a_expr_56: a_expr subquery_Op sub_type  ~ <C_LPAREN> ~  a_expr  ~ <C_RPAREN> ~ 
 a_expr_57: UNIQUE select_with_parens
 a_expr_58: a_expr IS DOCUMENT
 a_expr_59: a_expr IS NOT DOCUMENT
@@ -4328,24 +4328,24 @@ b_expr   :
 ;
 b_expr_1 : c_expr
 b_expr_2 : b_expr TYPECAST Typename
-b_expr_3 : <PLUS> b_expr
-b_expr_4 : <DASH> b_expr
-b_expr_5 : b_expr <PLUS> b_expr
-b_expr_6 : b_expr <DASH> b_expr
-b_expr_7 : b_expr <STAR> b_expr
-b_expr_8 : b_expr <SLASH> b_expr
-b_expr_9 : b_expr <PERCENT> b_expr
-b_expr_10: b_expr <CARET> b_expr
-b_expr_11: b_expr <LANGLE> b_expr
-b_expr_12: b_expr <RANGLE> b_expr
-b_expr_13: b_expr <EQUAL> b_expr
+b_expr_3 :  ~ <C_PLUS> ~  b_expr
+b_expr_4 :  ~ <C_DASH> ~  b_expr
+b_expr_5 : b_expr  ~ <C_PLUS> ~  b_expr
+b_expr_6 : b_expr  ~ <C_DASH> ~  b_expr
+b_expr_7 : b_expr  ~ <C_STAR> ~  b_expr
+b_expr_8 : b_expr  ~ <C_SLASH> ~  b_expr
+b_expr_9 : b_expr  ~ <C_PERCENT> ~  b_expr
+b_expr_10: b_expr  ~ <C_CARET> ~  b_expr
+b_expr_11: b_expr  ~ <C_LANGLE> ~  b_expr
+b_expr_12: b_expr  ~ <C_RANGLE> ~  b_expr
+b_expr_13: b_expr  ~ <C_EQUAL> ~  b_expr
 b_expr_14: b_expr qual_Op b_expr
 b_expr_15: qual_Op b_expr
 b_expr_16: b_expr qual_Op
 b_expr_17: b_expr IS DISTINCT FROM b_expr
 b_expr_18: b_expr IS NOT DISTINCT FROM b_expr
-b_expr_19: b_expr IS OF <LPAREN> type_list <RPAREN>
-b_expr_20: b_expr IS NOT OF <LPAREN> type_list <RPAREN>
+b_expr_19: b_expr IS OF  ~ <C_LPAREN> ~  type_list  ~ <C_RPAREN> ~ 
+b_expr_20: b_expr IS NOT OF  ~ <C_LPAREN> ~  type_list  ~ <C_RPAREN> ~ 
 b_expr_21: b_expr IS DOCUMENT
 b_expr_22: b_expr IS NOT DOCUMENT
 
@@ -4371,7 +4371,7 @@ c_expr   :
 c_expr_1 : columnref
 c_expr_2 : AexprConst
 c_expr_3 : PARAM opt_indirection
-c_expr_4 : <LPAREN> a_expr <RPAREN> opt_indirection
+c_expr_4 :  ~ <C_LPAREN> ~  a_expr  ~ <C_RPAREN> ~  opt_indirection
 c_expr_5 : case_expr
 c_expr_6 : func_expr
 c_expr_7 : select_with_parens
@@ -4438,56 +4438,56 @@ func_expr   :
    | func_expr_49
    | func_expr_50
 ;
-func_expr_1 : func_name <LPAREN> <RPAREN> over_clause
-func_expr_2 : func_name <LPAREN> func_arg_list <RPAREN> over_clause
-func_expr_3 : func_name <LPAREN> VARIADIC func_arg_expr <RPAREN> over_clause
-func_expr_4 : func_name <LPAREN> func_arg_list <COMMA> VARIADIC func_arg_expr <RPAREN> over_clause
-func_expr_5 : func_name <LPAREN> func_arg_list sort_clause <RPAREN> over_clause
-func_expr_6 : func_name <LPAREN> ALL func_arg_list opt_sort_clause <RPAREN> over_clause
-func_expr_7 : func_name <LPAREN> DISTINCT func_arg_list opt_sort_clause <RPAREN> over_clause
-func_expr_8 : func_name <LPAREN> <STAR> <RPAREN> over_clause
-func_expr_9 : COLLATION FOR <LPAREN> a_expr <RPAREN>
+func_expr_1 : func_name  ~ <C_LPAREN> ~   ~ <C_RPAREN> ~  over_clause
+func_expr_2 : func_name  ~ <C_LPAREN> ~  func_arg_list  ~ <C_RPAREN> ~  over_clause
+func_expr_3 : func_name  ~ <C_LPAREN> ~  VARIADIC func_arg_expr  ~ <C_RPAREN> ~  over_clause
+func_expr_4 : func_name  ~ <C_LPAREN> ~  func_arg_list  ~ <C_COMMA> ~  VARIADIC func_arg_expr  ~ <C_RPAREN> ~  over_clause
+func_expr_5 : func_name  ~ <C_LPAREN> ~  func_arg_list sort_clause  ~ <C_RPAREN> ~  over_clause
+func_expr_6 : func_name  ~ <C_LPAREN> ~  ALL func_arg_list opt_sort_clause  ~ <C_RPAREN> ~  over_clause
+func_expr_7 : func_name  ~ <C_LPAREN> ~  DISTINCT func_arg_list opt_sort_clause  ~ <C_RPAREN> ~  over_clause
+func_expr_8 : func_name  ~ <C_LPAREN> ~   ~ <C_STAR> ~   ~ <C_RPAREN> ~  over_clause
+func_expr_9 : COLLATION FOR  ~ <C_LPAREN> ~  a_expr  ~ <C_RPAREN> ~ 
 func_expr_10: CURRENT_DATE
 func_expr_11: CURRENT_TIME
-func_expr_12: CURRENT_TIME <LPAREN> Iconst <RPAREN>
+func_expr_12: CURRENT_TIME  ~ <C_LPAREN> ~  Iconst  ~ <C_RPAREN> ~ 
 func_expr_13: CURRENT_TIMESTAMP
-func_expr_14: CURRENT_TIMESTAMP <LPAREN> Iconst <RPAREN>
+func_expr_14: CURRENT_TIMESTAMP  ~ <C_LPAREN> ~  Iconst  ~ <C_RPAREN> ~ 
 func_expr_15: LOCALTIME
-func_expr_16: LOCALTIME <LPAREN> Iconst <RPAREN>
+func_expr_16: LOCALTIME  ~ <C_LPAREN> ~  Iconst  ~ <C_RPAREN> ~ 
 func_expr_17: LOCALTIMESTAMP
-func_expr_18: LOCALTIMESTAMP <LPAREN> Iconst <RPAREN>
+func_expr_18: LOCALTIMESTAMP  ~ <C_LPAREN> ~  Iconst  ~ <C_RPAREN> ~ 
 func_expr_19: CURRENT_ROLE
 func_expr_20: CURRENT_USER
 func_expr_21: SESSION_USER
 func_expr_22: USER
 func_expr_23: CURRENT_CATALOG
 func_expr_24: CURRENT_SCHEMA
-func_expr_25: CAST <LPAREN> a_expr AS Typename <RPAREN>
-func_expr_26: EXTRACT <LPAREN> extract_list <RPAREN>
-func_expr_27: OVERLAY <LPAREN> overlay_list <RPAREN>
-func_expr_28: POSITION <LPAREN> position_list <RPAREN>
-func_expr_29: SUBSTRING <LPAREN> substr_list <RPAREN>
-func_expr_30: TREAT <LPAREN> a_expr AS Typename <RPAREN>
-func_expr_31: TRIM <LPAREN> BOTH trim_list <RPAREN>
-func_expr_32: TRIM <LPAREN> LEADING trim_list <RPAREN>
-func_expr_33: TRIM <LPAREN> TRAILING trim_list <RPAREN>
-func_expr_34: TRIM <LPAREN> trim_list <RPAREN>
-func_expr_35: NULLIF <LPAREN> a_expr <COMMA> a_expr <RPAREN>
-func_expr_36: COALESCE <LPAREN> expr_list <RPAREN>
-func_expr_37: GREATEST <LPAREN> expr_list <RPAREN>
-func_expr_38: LEAST <LPAREN> expr_list <RPAREN>
-func_expr_39: XMLCONCAT <LPAREN> expr_list <RPAREN>
-func_expr_40: XMLELEMENT <LPAREN> NAME ColLabel <RPAREN>
-func_expr_41: XMLELEMENT <LPAREN> NAME ColLabel <COMMA> xml_attributes <RPAREN>
-func_expr_42: XMLELEMENT <LPAREN> NAME ColLabel <COMMA> expr_list <RPAREN>
-func_expr_43: XMLELEMENT <LPAREN> NAME ColLabel <COMMA> xml_attributes <COMMA> expr_list <RPAREN>
-func_expr_44: XMLEXISTS <LPAREN> c_expr xmlexists_argument <RPAREN>
-func_expr_45: XMLFOREST <LPAREN> xml_attribute_list <RPAREN>
-func_expr_46: XMLPARSE <LPAREN> document_or_content a_expr xml_whitespace_option <RPAREN>
-func_expr_47: XMLPI <LPAREN> NAME ColLabel <RPAREN>
-func_expr_48: XMLPI <LPAREN> NAME ColLabel <COMMA> a_expr <RPAREN>
-func_expr_49: XMLROOT <LPAREN> a_expr <COMMA> xml_root_version opt_xml_root_standalone <RPAREN>
-func_expr_50: XMLSERIALIZE <LPAREN> document_or_content a_expr AS SimpleTypename <RPAREN>
+func_expr_25: CAST  ~ <C_LPAREN> ~  a_expr AS Typename  ~ <C_RPAREN> ~ 
+func_expr_26: EXTRACT  ~ <C_LPAREN> ~  extract_list  ~ <C_RPAREN> ~ 
+func_expr_27: OVERLAY  ~ <C_LPAREN> ~  overlay_list  ~ <C_RPAREN> ~ 
+func_expr_28: POSITION  ~ <C_LPAREN> ~  position_list  ~ <C_RPAREN> ~ 
+func_expr_29: SUBSTRING  ~ <C_LPAREN> ~  substr_list  ~ <C_RPAREN> ~ 
+func_expr_30: TREAT  ~ <C_LPAREN> ~  a_expr AS Typename  ~ <C_RPAREN> ~ 
+func_expr_31: TRIM  ~ <C_LPAREN> ~  BOTH trim_list  ~ <C_RPAREN> ~ 
+func_expr_32: TRIM  ~ <C_LPAREN> ~  LEADING trim_list  ~ <C_RPAREN> ~ 
+func_expr_33: TRIM  ~ <C_LPAREN> ~  TRAILING trim_list  ~ <C_RPAREN> ~ 
+func_expr_34: TRIM  ~ <C_LPAREN> ~  trim_list  ~ <C_RPAREN> ~ 
+func_expr_35: NULLIF  ~ <C_LPAREN> ~  a_expr  ~ <C_COMMA> ~  a_expr  ~ <C_RPAREN> ~ 
+func_expr_36: COALESCE  ~ <C_LPAREN> ~  expr_list  ~ <C_RPAREN> ~ 
+func_expr_37: GREATEST  ~ <C_LPAREN> ~  expr_list  ~ <C_RPAREN> ~ 
+func_expr_38: LEAST  ~ <C_LPAREN> ~  expr_list  ~ <C_RPAREN> ~ 
+func_expr_39: XMLCONCAT  ~ <C_LPAREN> ~  expr_list  ~ <C_RPAREN> ~ 
+func_expr_40: XMLELEMENT  ~ <C_LPAREN> ~  NAME ColLabel  ~ <C_RPAREN> ~ 
+func_expr_41: XMLELEMENT  ~ <C_LPAREN> ~  NAME ColLabel  ~ <C_COMMA> ~  xml_attributes  ~ <C_RPAREN> ~ 
+func_expr_42: XMLELEMENT  ~ <C_LPAREN> ~  NAME ColLabel  ~ <C_COMMA> ~  expr_list  ~ <C_RPAREN> ~ 
+func_expr_43: XMLELEMENT  ~ <C_LPAREN> ~  NAME ColLabel  ~ <C_COMMA> ~  xml_attributes  ~ <C_COMMA> ~  expr_list  ~ <C_RPAREN> ~ 
+func_expr_44: XMLEXISTS  ~ <C_LPAREN> ~  c_expr xmlexists_argument  ~ <C_RPAREN> ~ 
+func_expr_45: XMLFOREST  ~ <C_LPAREN> ~  xml_attribute_list  ~ <C_RPAREN> ~ 
+func_expr_46: XMLPARSE  ~ <C_LPAREN> ~  document_or_content a_expr xml_whitespace_option  ~ <C_RPAREN> ~ 
+func_expr_47: XMLPI  ~ <C_LPAREN> ~  NAME ColLabel  ~ <C_RPAREN> ~ 
+func_expr_48: XMLPI  ~ <C_LPAREN> ~  NAME ColLabel  ~ <C_COMMA> ~  a_expr  ~ <C_RPAREN> ~ 
+func_expr_49: XMLROOT  ~ <C_LPAREN> ~  a_expr  ~ <C_COMMA> ~  xml_root_version opt_xml_root_standalone  ~ <C_RPAREN> ~ 
+func_expr_50: XMLSERIALIZE  ~ <C_LPAREN> ~  document_or_content a_expr AS SimpleTypename  ~ <C_RPAREN> ~ 
 
 # SQL/XML support
 xml_root_version  :
@@ -4502,13 +4502,13 @@ opt_xml_root_standalone  : (
    | opt_xml_root_standalone_2
    | opt_xml_root_standalone_3
 )?
-opt_xml_root_standalone_1: <COMMA> STANDALONE YES
-opt_xml_root_standalone_2: <COMMA> STANDALONE NO
-opt_xml_root_standalone_3: <COMMA> STANDALONE NO VALUE
+opt_xml_root_standalone_1:  ~ <C_COMMA> ~  STANDALONE YES
+opt_xml_root_standalone_2:  ~ <C_COMMA> ~  STANDALONE NO
+opt_xml_root_standalone_3:  ~ <C_COMMA> ~  STANDALONE NO VALUE
 
-xml_attributes: XMLATTRIBUTES <LPAREN> xml_attribute_list <RPAREN>
+xml_attributes: XMLATTRIBUTES  ~ <C_LPAREN> ~  xml_attribute_list  ~ <C_RPAREN> ~ 
 
-xml_attribute_list: xml_attribute_el+ % / ~ <COMMA> ~ /
+xml_attribute_list: xml_attribute_el+ % / ~  ~ <C_COMMA> ~  ~ /
 
 xml_attribute_el  :
      xml_attribute_el_1
@@ -4546,7 +4546,7 @@ xmlexists_argument_4: PASSING BY REF c_expr BY REF
 # Window Definitions
 window_clause: ( WINDOW window_definition_list )?
 
-window_definition_list: window_definition+ % / ~ <COMMA> ~ /
+window_definition_list: window_definition+ % / ~  ~ <C_COMMA> ~  ~ /
 
 window_definition: ColId AS window_specification
 
@@ -4557,7 +4557,7 @@ over_clause  : (
 over_clause_1: OVER window_specification
 over_clause_2: OVER ColId
 
-window_specification: <LPAREN> opt_existing_window_name opt_partition_clause opt_sort_clause opt_frame_clause <RPAREN>
+window_specification:  ~ <C_LPAREN> ~  opt_existing_window_name opt_partition_clause opt_sort_clause opt_frame_clause  ~ <C_RPAREN> ~ 
 
 # If we see PARTITION, RANGE, or ROWS as the first token after the '('
 # of a window_specification, we want the assumption to be that there is
@@ -4618,9 +4618,9 @@ row  :
    | row_2
    | row_3
 ;
-row_1: ROW <LPAREN> expr_list <RPAREN>
-row_2: ROW <LPAREN> <RPAREN>
-row_3: <LPAREN> expr_list <COMMA> a_expr <RPAREN>
+row_1: ROW  ~ <C_LPAREN> ~  expr_list  ~ <C_RPAREN> ~ 
+row_2: ROW  ~ <C_LPAREN> ~   ~ <C_RPAREN> ~ 
+row_3:  ~ <C_LPAREN> ~  expr_list  ~ <C_COMMA> ~  a_expr  ~ <C_RPAREN> ~ 
 
 sub_type  :
      sub_type_1
@@ -4649,29 +4649,29 @@ MathOp  :
    | MathOp_8
    | MathOp_9
 ;
-MathOp_1: <PLUS>
-MathOp_2: <DASH>
-MathOp_3: <STAR>
-MathOp_4: <SLASH>
-MathOp_5: <PERCENT>
-MathOp_6: <CARET>
-MathOp_7: <LANGLE>
-MathOp_8: <RANGLE>
-MathOp_9: <EQUAL>
+MathOp_1:  ~ <C_PLUS> ~ 
+MathOp_2:  ~ <C_DASH> ~ 
+MathOp_3:  ~ <C_STAR> ~ 
+MathOp_4:  ~ <C_SLASH> ~ 
+MathOp_5:  ~ <C_PERCENT> ~ 
+MathOp_6:  ~ <C_CARET> ~ 
+MathOp_7:  ~ <C_LANGLE> ~ 
+MathOp_8:  ~ <C_RANGLE> ~ 
+MathOp_9:  ~ <C_EQUAL> ~ 
 
 qual_Op  :
      qual_Op_1
    | qual_Op_2
 ;
 qual_Op_1: Op
-qual_Op_2: OPERATOR <LPAREN> any_operator <RPAREN>
+qual_Op_2: OPERATOR  ~ <C_LPAREN> ~  any_operator  ~ <C_RPAREN> ~ 
 
 qual_all_Op  :
      qual_all_Op_1
    | qual_all_Op_2
 ;
 qual_all_Op_1: all_Op
-qual_all_Op_2: OPERATOR <LPAREN> any_operator <RPAREN>
+qual_all_Op_2: OPERATOR  ~ <C_LPAREN> ~  any_operator  ~ <C_RPAREN> ~ 
 
 subquery_Op  :
      subquery_Op_1
@@ -4682,16 +4682,16 @@ subquery_Op  :
    | subquery_Op_6
 ;
 subquery_Op_1: all_Op
-subquery_Op_2: OPERATOR <LPAREN> any_operator <RPAREN>
+subquery_Op_2: OPERATOR  ~ <C_LPAREN> ~  any_operator  ~ <C_RPAREN> ~ 
 subquery_Op_3: LIKE
 subquery_Op_4: NOT LIKE
 subquery_Op_5: ILIKE
 subquery_Op_6: NOT ILIKE
 
-expr_list: a_expr+ % / ~ <COMMA> ~ /
+expr_list: a_expr+ % / ~  ~ <C_COMMA> ~  ~ /
 
 # function arguments can have names
-func_arg_list: func_arg_expr+ % / ~ <COMMA> ~ /
+func_arg_list: func_arg_expr+ % / ~  ~ <C_COMMA> ~  ~ /
 
 func_arg_expr  :
      func_arg_expr_1
@@ -4700,18 +4700,18 @@ func_arg_expr  :
 func_arg_expr_1: a_expr
 func_arg_expr_2: param_name COLON_EQUALS a_expr
 
-type_list: Typename+ % / ~ <COMMA> ~ /
+type_list: Typename+ % / ~  ~ <C_COMMA> ~  ~ /
 
 array_expr  :
      array_expr_1
    | array_expr_2
    | array_expr_3
 ;
-array_expr_1: <LSQUARE> expr_list <RSQUARE>
-array_expr_2: <LSQUARE> array_expr_list <RSQUARE>
-array_expr_3: <LSQUARE> <RSQUARE>
+array_expr_1:  ~ <C_LSQUARE> ~  expr_list  ~ <C_RSQUARE> ~ 
+array_expr_2:  ~ <C_LSQUARE> ~  array_expr_list  ~ <C_RSQUARE> ~ 
+array_expr_3:  ~ <C_LSQUARE> ~   ~ <C_RSQUARE> ~ 
 
-array_expr_list: array_expr+ % / ~ <COMMA> ~ /
+array_expr_list: array_expr+ % / ~  ~ <C_COMMA> ~  ~ /
 
 extract_list: ( extract_arg FROM a_expr )?
 
@@ -4795,7 +4795,7 @@ in_expr  :
    | in_expr_2
 ;
 in_expr_1: select_with_parens
-in_expr_2: <LPAREN> expr_list <RPAREN>
+in_expr_2:  ~ <C_LPAREN> ~  expr_list  ~ <C_RPAREN> ~ 
 
 # Define SQL92-style case clause.
 # - Full specification
@@ -4825,10 +4825,10 @@ indirection_el  :
    | indirection_el_3
    | indirection_el_4
 ;
-indirection_el_1: <DOT> attr_name
-indirection_el_2: <DOT> <STAR>
-indirection_el_3: <LSQUARE> a_expr <RSQUARE>
-indirection_el_4: <LSQUARE> a_expr <COLON> a_expr <RSQUARE>
+indirection_el_1:  ~ <C_DOT> ~  attr_name
+indirection_el_2:  ~ <C_DOT> ~   ~ <C_STAR> ~ 
+indirection_el_3:  ~ <C_LSQUARE> ~  a_expr  ~ <C_RSQUARE> ~ 
+indirection_el_4:  ~ <C_LSQUARE> ~  a_expr  ~ <C_COLON> ~  a_expr  ~ <C_RSQUARE> ~ 
 
 indirection: indirection_el+ % ~
 
@@ -4847,19 +4847,19 @@ ctext_expr  :
 ctext_expr_1: a_expr
 ctext_expr_2: DEFAULT
 
-ctext_expr_list: ctext_expr+ % / ~ <COMMA> ~ /
+ctext_expr_list: ctext_expr+ % / ~  ~ <C_COMMA> ~  ~ /
 
 # We should allow ROW '(' ctext_expr_list ')' too, but that seems to require
 # making VALUES a fully reserved word, which will probably break more apps
 # than allowing the noise-word is worth.
-ctext_row: <LPAREN> ctext_expr_list <RPAREN>
+ctext_row:  ~ <C_LPAREN> ~  ctext_expr_list  ~ <C_RPAREN> ~ 
 
 #############################################################################
 #
 #   target list for SELECT
 #
 #############################################################################
-target_list: target_el+ % / ~ <COMMA> ~ /
+target_list: target_el+ % / ~  ~ <C_COMMA> ~  ~ /
 
 target_el  :
      target_el_1
@@ -4870,14 +4870,14 @@ target_el  :
 target_el_1: a_expr AS ColLabel
 target_el_2: a_expr IDENT
 target_el_3: a_expr
-target_el_4: <STAR>
+target_el_4:  ~ <C_STAR> ~ 
 
 #############################################################################
 #
 #   Names and constants
 #
 #############################################################################
-qualified_name_list: qualified_name+ % / ~ <COMMA> ~ /
+qualified_name_list: qualified_name+ % / ~  ~ <C_COMMA> ~  ~ /
 
 # The production for a qualified relation name has to exactly match the
 # production for a qualified func_name, because in a FROM clause we cannot
@@ -4891,7 +4891,7 @@ qualified_name  :
 qualified_name_1: ColId
 qualified_name_2: ColId indirection
 
-name_list: name+ % / ~ <COMMA> ~ /
+name_list: name+ % / ~  ~ <C_COMMA> ~  ~ /
 
 name: ColId
 
@@ -4940,10 +4940,10 @@ AexprConst_3 : Sconst
 AexprConst_4 : BCONST
 AexprConst_5 : XCONST
 AexprConst_6 : func_name Sconst
-AexprConst_7 : func_name <LPAREN> func_arg_list <RPAREN> Sconst
+AexprConst_7 : func_name  ~ <C_LPAREN> ~  func_arg_list  ~ <C_RPAREN> ~  Sconst
 AexprConst_8 : ConstTypename Sconst
 AexprConst_9 : ConstInterval Sconst opt_interval
-AexprConst_10: ConstInterval <LPAREN> Iconst <RPAREN> Sconst opt_interval
+AexprConst_10: ConstInterval  ~ <C_LPAREN> ~  Iconst  ~ <C_RPAREN> ~  Sconst opt_interval
 AexprConst_11: TRUE
 AexprConst_12: FALSE
 AexprConst_13: NULL
@@ -4960,8 +4960,8 @@ SignedIconst  :
    | SignedIconst_3
 ;
 SignedIconst_1: Iconst
-SignedIconst_2: <PLUS> Iconst
-SignedIconst_3: <DASH> Iconst
+SignedIconst_2:  ~ <C_PLUS> ~  Iconst
+SignedIconst_3:  ~ <C_DASH> ~  Iconst
 
 # Name classification hierarchy.
 #

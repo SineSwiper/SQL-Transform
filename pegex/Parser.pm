@@ -1,6 +1,7 @@
-package SQL::Convertor::Parser::Pg::Pegex::Parser;
+package SQL::Transform::Parser::Pg::Pegex::Parser;
 
-use base 'Pegex::Parser';
+use Pegex::Base;
+extends 'Pegex::Parser';
 
 use sanity qw(sanity -warnings/all/FATAL warnings/all);  # keep the syntax checking for now
 
@@ -9,6 +10,8 @@ my $identifier_max_size = 64;
 sub match_rule_Op {
    my $self  = $_[0];
    my $re_op = $self->grammar->tree->{L_Op}->{'.rgx'};
+   use Data::Dump;
+   dd $self->grammar->tree;
   
    $self->{buffer} =~ /$re_op/g or return 0;
    my $text = $1;

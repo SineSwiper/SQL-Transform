@@ -1,4 +1,4 @@
-package SQL::Convertor::Parser::Pg::AST;
+package SQL::Transform::Parser::Pg::AST;
 ### FIXME: Split into AST::Lexer and AST::Parser
 
 use base 'Pegex::Receiver';
@@ -7,6 +7,8 @@ use sanity qw(sanity -warnings/all/FATAL warnings/all);  # keep the syntax check
 use Config;
 use Math::BigInt;
 use Math::BigFloat;
+
+use Data::Dump;
 
 # configure some basic big number stuff
 Math::BigInt  ->config({
@@ -50,7 +52,7 @@ sub got_FCONST { $_[0]->process_number_literal($_[1], 1) }
 sub got_IDENT {
    # Unlike PostgreSQL, we can do a proper Unicode lowercase,
    # so downcase_truncate_identifier turns into a 'lc' + truncation.
-   lc substr($_[1], 0, $identifier_max_size);
+   lc substr($_[1]->[0], 0, $identifier_max_size);
 }
 
 #* static char *

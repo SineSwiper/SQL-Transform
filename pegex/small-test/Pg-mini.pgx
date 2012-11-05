@@ -1,0 +1,1210 @@
+%grammar SQL::Transform::Parser::Pg
+
+# The target production for the whole parse.
+stmtblock: stmt+ %% P_SEMI
+
+# BU parsers (like Bison) seem to do well with massive amounts of rule choices.  A
+# TD parser (like Pegex) doesn't.  So, we use some lookaheads on the first keyword
+# to break this rule up into smaller groups.
+
+stmt:  
+   # We also "sort" this by typical usage.
+     SelectStmt
+   | InsertStmt
+   | DeleteStmt
+   | UpdateStmt
+   | =CREATE (
+        CreateAsStmt
+      | CreateAssertStmt
+      | CreateCastStmt
+      | CreateConversionStmt
+      | CreateDomainStmt
+      | CreateExtensionStmt
+      | CreateFdwStmt
+      | CreateForeignTableStmt
+      | CreateFunctionStmt
+      | CreateGroupStmt
+      | CreateOpClassStmt
+      | CreateOpFamilyStmt
+      | CreatePLangStmt
+      | CreateSchemaStmt
+      | CreateSeqStmt
+      | CreateStmt
+      | CreateTableSpaceStmt
+      | CreateTrigStmt
+      | CreateEventTrigStmt
+      | CreateRoleStmt
+      | CreateUserStmt
+      | CreateUserMappingStmt
+      | CreatedbStmt
+      | DefineStmt
+      | IndexStmt
+      | ViewStmt
+      # purposely putting this on the end
+      | CreateForeignServerStmt
+   )
+   | =ALTER (
+        AlterEventTrigStmt
+      | AlterDatabaseStmt
+      | AlterDatabaseSetStmt
+      | AlterDefaultPrivilegesStmt
+      | AlterDomainStmt
+      | AlterEnumStmt
+      | AlterExtensionStmt
+      | AlterExtensionContentsStmt
+      | AlterFdwStmt
+      | AlterForeignServerStmt
+      | AlterForeignTableStmt
+      | AlterFunctionStmt
+      | AlterGroupStmt
+      | AlterObjectSchemaStmt
+      | AlterOwnerStmt
+      | AlterSeqStmt
+      | AlterTableStmt
+      | AlterCompositeTypeStmt
+      | AlterRoleSetStmt
+      | AlterRoleStmt
+      | AlterTSConfigurationStmt
+      | AlterTSDictionaryStmt
+      | AlterUserMappingStmt
+      | AlterUserSetStmt
+      | AlterUserStmt
+      | AlterOpFamilyStmt
+      | RenameStmt
+   )
+   | ( =DROP (
+        DropAssertStmt
+      | DropCastStmt
+      | DropFdwStmt
+      | DropForeignServerStmt
+      | DropGroupStmt
+      | DropOpClassStmt
+      | DropOpFamilyStmt
+      | DropOwnedStmt
+      | DropPLangStmt
+      | DropRuleStmt
+      | DropStmt
+      | DropTableSpaceStmt
+      | DropTrigStmt
+      | DropRoleStmt
+      | DropUserStmt
+      | DropUserMappingStmt
+      | DropdbStmt
+      | RemoveAggrStmt
+      | RemoveFuncStmt
+      | RemoveOperStmt
+   ) )
+   
+   | TruncateStmt
+   | ExecuteStmt  # EXECUTE or CREATE; keep it on the outside of =CREATE
+   | ExplainStmt
+
+   | AnalyzeStmt
+   | CheckPointStmt
+   | ClosePortalStmt
+   | ClusterStmt
+   | CommentStmt
+   | ConstraintsSetStmt
+   | CopyStmt
+   | DeallocateStmt
+   | DeclareCursorStmt
+   | DiscardStmt
+   | DoStmt
+   | FetchStmt
+   | GrantStmt
+   | GrantRoleStmt
+   | ListenStmt
+   | LoadStmt
+   | LockStmt
+   | NotifyStmt
+   | PrepareStmt
+   | ReassignOwnedStmt
+   | ReindexStmt
+   | RevokeStmt
+   | RevokeRoleStmt
+   | RuleStmt
+   | SecLabelStmt
+   | TransactionStmt
+   | UnlistenStmt
+   | VacuumStmt
+   | VariableResetStmt
+   | VariableSetStmt
+   | VariableShowStmt
+;
+
+#### These are small case versions of the *Stmt rules to simulate
+#### the time it takes to finally find CreateForeignServerStmt
+opt_if_exists:     IF EXISTS
+opt_if_not_exists: IF NOT EXISTS
+opt_trusted:       TRUSTED
+opt_default:       DEFAULT
+opt_grant_option:  GRANT OPTION FOR
+opt_admin_option_for: ADMIN OPTION FOR
+opt_unique:        UNIQUE
+opt_concurrently:  CONCURRENTLY
+opt_or_replace:    OR REPLACE
+OptTemp  :
+     OptTemp_temp
+   | OptTemp_unlog
+;
+OptTemp_temp : ( LOCAL | GLOBAL )? ( TEMP | TEMPORARY )
+OptTemp_unlog: UNLOGGED
+
+CreateRoleStmt: CREATE ROLE RoleId WITH? #OptRoleList
+CreateUserStmt: CREATE USER RoleId WITH? #OptRoleList
+AlterRoleStmt: ALTER ROLE RoleId WITH? #AlterOptRoleList
+AlterRoleSetStmt: ALTER ROLE RoleId opt_in_database? #SetResetClause
+opt_in_database: IN DATABASE database_name
+AlterUserStmt: ALTER USER RoleId WITH? #AlterOptRoleList
+AlterUserSetStmt: ALTER USER RoleId #SetResetClause
+DropRoleStmt: DROP ROLE opt_if_exists? #name_list
+DropUserStmt: DROP USER opt_if_exists? #name_list
+CreateGroupStmt: CREATE GROUP RoleId WITH? #OptRoleList
+AlterGroupStmt: ALTER GROUP RoleId #add_drop USER name_list
+DropGroupStmt: DROP GROUP opt_if_exists? #name_list
+CreateSchemaStmt  : CREATE SCHEMA #(
+VariableSetStmt: SET (LOCAL | SESSION)? #set_rest
+VariableResetStmt: RESET #variable_cmd
+VariableShowStmt:   SHOW #variable_cmd
+ConstraintsSetStmt: SET CONSTRAINTS #constraints_set_list constraints_set_mode
+CheckPointStmt: CHECKPOINT
+DiscardStmt: DISCARD (TEMP | TEMPORARY | PLANS)
+AlterTableStmt  : ALTER #(
+AlterCompositeTypeStmt: ALTER TYPE #any_name alter_type_cmds
+ClosePortalStmt  : CLOSE name
+CopyStmt    : COPY
+CreateStmt  : CREATE OptTemp? TABLE opt_if_not_exists? #qualified_name (
+CreateAsStmt: CREATE OptTemp? TABLE #create_as_target AS SelectStmt opt_with_data?
+CreateSeqStmt: CREATE OptTemp? SEQUENCE #qualified_name OptSeqOptList
+AlterSeqStmt: ALTER SEQUENCE opt_if_exists? #qualified_name SeqOptList
+CreatePLangStmt: CREATE opt_or_replace? opt_trusted? PROCEDURAL? LANGUAGE #ColId_or_Sconst ( HANDLER handler_name opt_inline_handler validator_clause? )?
+DropPLangStmt  : DROP PROCEDURAL? LANGUAGE opt_if_exists? #ColId_or_Sconst opt_drop_behavior?
+CreateTableSpaceStmt: CREATE TABLESPACE name ( OWNER name )? LOCATION Sconst
+DropTableSpaceStmt  : DROP TABLESPACE opt_if_exists? name
+CreateExtensionStmt  : CREATE EXTENSION opt_if_not_exists? name WITH? #create_extension_opt_list
+AlterExtensionStmt: ALTER EXTENSION name UPDATE #alter_extension_opt_list
+AlterExtensionContentsStmt   : ALTER EXTENSION name #add_drop (
+CreateFdwStmt: CREATE FOREIGN DATA WRAPPER name #fdw_options? create_generic_options
+DropFdwStmt  : DROP FOREIGN DATA WRAPPER opt_if_exists? name #opt_drop_behavior?
+AlterFdwStmt  : ALTER FOREIGN DATA WRAPPER name #(
+DropForeignServerStmt: DROP SERVER opt_if_exists? name #opt_drop_behavior?
+AlterForeignServerStmt: ALTER SERVER name #( foreign_server_version alter_generic_options? | alter_generic_options )
+CreateForeignTableStmt: CREATE FOREIGN TABLE opt_if_not_exists? #qualified_name OptForeignTableElementList SERVER name create_generic_options
+AlterForeignTableStmt  : ALTER FOREIGN TABLE opt_if_exists? #relation_expr alter_table_cmds
+CreateUserMappingStmt: CREATE USER MAPPING FOR #auth_ident SERVER name create_generic_options
+DropUserMappingStmt  : DROP USER MAPPING opt_if_exists? #FOR auth_ident SERVER name
+AlterUserMappingStmt: ALTER USER MAPPING FOR #auth_ident SERVER name alter_generic_options
+CreateTrigStmt  : CREATE (
+     CreateTrigStmt_1
+   | CreateTrigStmt_2
+)
+CreateTrigStmt_1: TRIGGER name #TriggerActionTime TriggerEvents ON qualified_name TriggerForSpec TriggerWhen EXECUTE PROCEDURE func_name P_LPAREN TriggerFuncArgs P_RPAREN
+CreateTrigStmt_2: CONSTRAINT TRIGGER name AFTER #TriggerEvents ON qualified_name OptConstrFromTable ConstraintAttributeSpec FOR EACH ROW TriggerWhen EXECUTE PROCEDURE func_name P_LPAREN TriggerFuncArgs P_RPAREN
+DropTrigStmt  : DROP TRIGGER opt_if_exists? name ON #qualified_name opt_drop_behavior?
+CreateEventTrigStmt  : CREATE EVENT TRIGGER name ON #ColLabel (
+CreateAssertStmt: CREATE ASSERTION name CHECK #a_expr_with_parens ConstraintAttributeSpec
+DropAssertStmt: DROP ASSERTION name #opt_drop_behavior?
+DefineStmt   : CREATE (
+     DefineStmt_1
+   | DefineStmt_2
+   | DefineStmt_3
+   | DefineStmt_4
+   | DefineStmt_5
+   | DefineStmt_6
+   | DefineStmt_7
+   | DefineStmt_8
+   | DefineStmt_9
+   | DefineStmt_10
+   | DefineStmt_11
+   | DefineStmt_12
+   | DefineStmt_13
+   | DefineStmt_14
+)
+DefineStmt_1 : AGGREGATE #func_name aggr_args definition
+DefineStmt_2 : AGGREGATE #func_name old_aggr_definition
+DefineStmt_3 : OPERATOR #any_operator definition
+DefineStmt_4 : TYPE #any_name definition
+DefineStmt_5 : TYPE #any_name
+DefineStmt_6 : TYPE #any_name AS ~ <LPAREN> ~ TableFuncElementList? ~ <RPAREN> ~
+DefineStmt_7 : TYPE #any_name AS ENUM ~ <LPAREN> ~ opt_enum_val_list ~ <RPAREN> ~
+DefineStmt_8 : TYPE #any_name AS RANGE definition
+DefineStmt_9 : TEXT SEARCH PARSER        #any_name definition
+DefineStmt_10: TEXT SEARCH DICTIONARY    #any_name definition
+DefineStmt_11: TEXT SEARCH TEMPLATE      #any_name definition
+DefineStmt_12: TEXT SEARCH CONFIGURATION #any_name definition
+DefineStmt_13: COLLATION #any_name definition
+DefineStmt_14: COLLATION #any_name FROM any_name
+AlterEnumStmt  : ALTER TYPE #(
+CreateOpClassStmt: CREATE OPERATOR CLASS #any_name opt_default? FOR TYPE Typename USING access_method opt_opfamily? AS opclass_item_list
+CreateOpFamilyStmt: CREATE OPERATOR FAMILY #any_name USING access_method
+AlterOpFamilyStmt  : ALTER OPERATOR FAMILY #any_name USING access_method (
+DropOpClassStmt  : DROP OPERATOR CLASS opt_if_exists? #any_name USING access_method opt_drop_behavior?
+DropOpFamilyStmt  : DROP OPERATOR FAMILY opt_if_exists? #any_name USING access_method opt_drop_behavior?
+DropOwnedStmt: DROP OWNED BY #name_list opt_drop_behavior?
+ReassignOwnedStmt: REASSIGN OWNED BY #name_list TO name
+DropStmt  : DROP #(
+TruncateStmt: TRUNCATE TABLE? #relation_expr_list opt_restart_seqs opt_drop_behavior?
+CommentStmt   : COMMENT ON #(
+SecLabelStmt  : SECURITY LABEL #opt_provider? ON (
+FetchStmt  :
+     FetchStmt_1
+   | FetchStmt_2
+;
+FetchStmt_1: FETCH #fetch_args
+FetchStmt_2: MOVE #fetch_args
+GrantStmt: GRANT #privileges ON privilege_target TO grantee_list opt_grant_grant_option?
+RevokeStmt: REVOKE opt_grant_option? #privileges ON privilege_target FROM grantee_list opt_drop_behavior?
+GrantRoleStmt: GRANT #privilege_list TO name_list opt_grant_admin_option? opt_granted_by?
+RevokeRoleStmt  : REVOKE opt_admin_option_for? #privilege_list FROM name_list opt_granted_by? opt_drop_behavior?
+AlterDefaultPrivilegesStmt: ALTER DEFAULT PRIVILEGES #DefACLOptionList DefACLAction
+IndexStmt: CREATE opt_unique? INDEX opt_concurrently? #opt_index_name ON qualified_name access_method_clause P_LPAREN index_params P_RPAREN opt_reloptions? OptTableSpace? where_clause?
+CreateFunctionStmt: CREATE opt_or_replace? FUNCTION #func_name func_args_with_defaults (
+AlterFunctionStmt: ALTER FUNCTION #function_with_argtypes alterfunc_opt_list RESTRICT?  # RESTRICT? = Ignored, merely for SQL compliance
+RemoveFuncStmt: DROP FUNCTION opt_if_exists? #func_name func_args opt_drop_behavior?
+RemoveAggrStmt: DROP AGGREGATE opt_if_exists? #func_name aggr_args opt_drop_behavior?
+RemoveOperStmt: DROP OPERATOR opt_if_exists? #any_operator oper_argtypes opt_drop_behavior?
+DoStmt: DO #dostmt_opt_list
+CreateCastStmt  : CREATE CAST P_LPAREN #Typename AS Typename (
+DropCastStmt: DROP CAST opt_if_exists? P_LPAREN #Typename AS Typename P_RPAREN opt_drop_behavior?
+ReindexStmt  : REINDEX #(
+RenameStmt   : ALTER #(
+AlterObjectSchemaStmt   : ALTER #(
+AlterOwnerStmt   : ALTER #(
+RuleStmt: CREATE opt_or_replace? RULE name AS ON #event TO qualified_name where_clause? DO opt_instead RuleActionList
+DropRuleStmt  : DROP RULE opt_if_exists? name ON #qualified_name opt_drop_behavior?
+NotifyStmt: NOTIFY ColId ( P_COMMA Sconst )?
+ListenStmt: LISTEN ColId
+UnlistenStmt  : UNLISTEN ( ColId | P_STAR )
+TransactionStmt   :
+     TransactionStmt_1
+   | TransactionStmt_2
+   | TransactionStmt_3
+   | TransactionStmt_4
+   | TransactionStmt_5
+   | TransactionStmt_6
+   | TransactionStmt_7
+   | TransactionStmt_8
+   | TransactionStmt_9
+   | TransactionStmt_10
+   | TransactionStmt_11
+   | TransactionStmt_12
+   | TransactionStmt_13
+   | TransactionStmt_14
+;
+TransactionStmt_1 : ABORT (WORK|TRANSACTION)?
+TransactionStmt_2 : BEGIN (WORK|TRANSACTION)? #transaction_mode_list?
+TransactionStmt_3 : START TRANSACTION #transaction_mode_list?
+TransactionStmt_4 : COMMIT (WORK|TRANSACTION)?
+TransactionStmt_5 : END (WORK|TRANSACTION)?
+TransactionStmt_6 : ROLLBACK (WORK|TRANSACTION)?
+TransactionStmt_7 : SAVEPOINT ColId
+TransactionStmt_8 : RELEASE SAVEPOINT ColId
+TransactionStmt_9 : RELEASE ColId
+TransactionStmt_10: ROLLBACK (WORK|TRANSACTION)? TO SAVEPOINT ColId
+TransactionStmt_11: ROLLBACK (WORK|TRANSACTION)? TO ColId
+TransactionStmt_12: PREPARE TRANSACTION Sconst
+TransactionStmt_13: COMMIT PREPARED Sconst
+TransactionStmt_14: ROLLBACK PREPARED Sconst
+ViewStmt: CREATE opt_or_replace? OptTemp? VIEW #qualified_name opt_column_list? opt_reloptions? AS SelectStmt opt_check_option
+LoadStmt: LOAD #file_name
+CreatedbStmt: CREATE DATABASE #database_name WITH? createdb_opt_list
+AlterDatabaseStmt  : ALTER DATABASE #database_name (
+AlterDatabaseSetStmt: ALTER DATABASE #database_name SetResetClause
+DropdbStmt  : DROP DATABASE opt_if_exists? #database_name
+CreateDomainStmt: CREATE DOMAIN #any_name AS? Typename ColQualList
+AlterDomainStmt  : ALTER DOMAIN #any_name (
+AlterTSDictionaryStmt: ALTER TEXT SEARCH DICTIONARY #any_name definition
+AlterTSConfigurationStmt  : ALTER TEXT SEARCH CONFIGURATION #any_name (
+CreateConversionStmt: CREATE opt_default? CONVERSION #any_name FOR Sconst TO Sconst FROM any_name
+ClusterStmt  : CLUSTER #opt_verbose? (
+VacuumStmt  : VACUUM #(
+AnalyzeStmt: ANALYZE #opt_verbose? ( qualified_name opt_name_list )?
+ExplainStmt  : EXPLAIN #(
+PrepareStmt: PREPARE name #prep_type_clause AS PreparableStmt
+ExecuteStmt  :
+     ExecuteStmt_1
+   | ExecuteStmt_2
+;
+ExecuteStmt_1: EXECUTE name #( P_LPAREN expr_list P_RPAREN )?
+ExecuteStmt_2: CREATE OptTemp? TABLE #create_as_target AS EXECUTE name execute_param_clause? opt_with_data?
+DeallocateStmt  : DEALLOCATE PREPARE? #(
+InsertStmt: with_clause? INSERT INTO #qualified_name insert_rest returning_clause?
+with_clause  : WITH RECURSIVE? #cte_list
+DeleteStmt: with_clause? DELETE FROM #relation_expr_opt_alias using_clause? where_or_current_clause? returning_clause?
+LockStmt: LOCK TABLE? #relation_expr_list opt_lock? opt_nowait?
+UpdateStmt: with_clause? UPDATE #relation_expr_opt_alias SET set_clause_list from_clause? where_or_current_clause? returning_clause?
+DeclareCursorStmt: DECLARE #cursor_name cursor_options CURSOR opt_hold? FOR SelectStmt
+
+SelectStmt: select_no_parens | select_with_parens
+select_with_parens: P_LPAREN ( select_no_parens | select_with_parens ) P_RPAREN
+select_no_parens: simple_select | with_clause? select_clause ( sort_clause | sort_clause? for_locking_or_select_limit )
+select_clause: simple_select | select_with_parens
+for_locking_or_select_limit: for_locking_clause select_limit? | select_limit for_locking_clause?
+simple_select  :
+     simple_select_1
+   | simple_select_2
+   | simple_select_3
+   #| simple_select_4
+   #| simple_select_5
+   #| simple_select_6
+;
+simple_select_1: SELECT opt_distinct? #target_list into_clause? from_clause? where_clause? group_clause? having_clause? window_clause?
+simple_select_2: values_clause
+simple_select_3: TABLE #relation_expr
+#simple_select_4: select_clause UNION     #opt_all? select_clause
+#simple_select_5: select_clause INTERSECT #opt_all? select_clause
+#simple_select_6: select_clause EXCEPT    #opt_all? select_clause
+
+values_clause  :
+     values_clause_1
+   | values_clause_2
+;
+values_clause_1: VALUES ctext_row
+values_clause_2: <ctext_row>2+ % / ~ <COMMA> ~ /
+
+# (expr_lists dive into a_expr, which is farther than I'm willing to go for this small scale test...)
+ctext_row: P_LPAREN #ctext_expr_list P_RPAREN
+
+
+
+
+#############################################################################
+#
+#       QUERY:
+#             CREATE SERVER name [TYPE] [VERSION] [OPTIONS]
+#
+#############################################################################
+CreateForeignServerStmt: CREATE SERVER name opt_type? foreign_server_version? FOREIGN DATA WRAPPER name create_generic_options?
+
+opt_type: TYPE Sconst
+
+foreign_server_version  : VERSION ( Sconst | NULL )
+
+# Options definition for CREATE FDW, SERVER and USER MAPPING
+create_generic_options: OPTIONS P_LPAREN generic_option_list P_RPAREN
+
+generic_option_list: generic_option_elem+ % P_COMMA
+
+generic_option_elem: generic_option_name generic_option_arg
+
+generic_option_name: ColLabel
+
+# We could use def_arg here, but the spec only requires string literals
+generic_option_arg: Sconst
+
+#############################################################################
+#
+#   Names and constants
+#
+#############################################################################
+
+name: ColId
+
+Sconst: SCONST
+
+# Name classification hierarchy.
+#
+# IDENT is the lexeme returned by the lexer for identifiers that match
+# no known keyword.  In most cases, we can accept certain keywords as
+# names, not only IDENTs.   We prefer to accept as many such keywords
+# as possible to minimize the impact of "reserved words" on programmers.
+# So, we divide names into several possible classes.  The classification
+# is chosen in part to make keywords acceptable as names wherever possible.
+
+# Column identifier --- names that can be column, table, etc names.
+ColId: IDENT | unreserved_keyword | col_name_keyword
+
+# Type/function identifier --- names that can be type or function names.
+type_function_name: IDENT | unreserved_keyword | type_func_name_keyword
+
+# Column label --- allowed labels in "AS" clauses.
+# This presently includes *all* Postgres keywords.
+ColLabel: /( <L_IDENTIFIER> ) ~ /
+
+# Keyword category lists.  Generally, every keyword present in
+# the Postgres grammar should appear in exactly one of these lists.
+#
+# Put a new keyword into the first list that it can go into without causing
+# shift or reduce conflicts.  The earlier lists define "less reserved"
+# categories of keywords.
+
+# "Unreserved" keywords --- available for use as any kind of name.
+unreserved_keyword: / ((i: 
+   ABORT|ABSOLUTE|ACCESS|ACTION|ADD|ADMIN|AFTER|AGGREGATE|ALSO|ALTER|ALWAYS|ASSERTION|ASSIGNMENT|AT|ATTRIBUTE|
+   BACKWARD|BEFORE|BEGIN|BY|
+   CACHE|CALLED|CASCADE|CASCADED|CATALOG|CHAIN|CHARACTERISTICS|CHECKPOINT|CLASS|CLOSE|CLUSTER|COMMENT|COMMENTS|COMMIT|COMMITTED|CONFIGURATION|CONNECTION|CONSTRAINTS|CONTENT|CONTINUE|CONVERSION|COPY|COST|CSV|CURRENT|CURSOR|CYCLE|
+   DATA|DATABASE|DAY|DEALLOCATE|DECLARE|DEFAULTS|DEFERRED|DEFINER|DELETE|DELIMITER|DELIMITERS|DICTIONARY|DISABLE|DISCARD|DOCUMENT|DOMAIN|DOUBLE|DROP|
+   EACH|ENABLE|ENCODING|ENCRYPTED|ENUM|ESCAPE|EXCLUDE|EXCLUDING|EXCLUSIVE|EXECUTE|EXPLAIN|EXTENSION|EXTERNAL|
+   FAMILY|FIRST|FOLLOWING|FORCE|FORWARD|FUNCTION|FUNCTIONS|
+   GLOBAL|GRANTED|
+   HANDLER|HEADER|HOLD|HOUR|
+   IDENTITY|IF|IMMEDIATE|IMMUTABLE|IMPLICIT|INCLUDING|INCREMENT|INDEX|INDEXES|INHERIT|INHERITS|INLINE|INPUT|INSENSITIVE|INSERT|INSTEAD|INVOKER|ISOLATION|
+   KEY|
+   LABEL|LANGUAGE|LARGE|LAST|LC_COLLATE|LC_CTYPE|LEAKPROOF|LEVEL|LISTEN|LOAD|LOCAL|LOCATION|LOCK|
+   MAPPING|MATCH|MAXVALUE|MINUTE|MINVALUE|MODE|MONTH|MOVE|
+   NAME|NAMES|NEXT|NO|NOTHING|NOTIFY|NOWAIT|NULLS|
+   OBJECT|OF|OFF|OIDS|OPERATOR|OPTION|OPTIONS|OWNED|OWNER|
+   PARSER|PARTIAL|PARTITION|PASSING|PASSWORD|PLANS|PRECEDING|PREPARE|PREPARED|PRESERVE|PRIOR|PRIVILEGES|PROCEDURAL|PROCEDURE|
+   QUOTE|
+   RANGE|READ|REASSIGN|RECHECK|RECURSIVE|REF|REINDEX|RELATIVE|RELEASE|RENAME|REPEATABLE|REPLACE|REPLICA|RESET|RESTART|RESTRICT|RETURNS|REVOKE|ROLE|ROLLBACK|ROWS|RULE|
+   SAVEPOINT|SCHEMA|SCROLL|SEARCH|SECOND|SECURITY|SEQUENCE|SEQUENCES|SERIALIZABLE|SERVER|SESSION|SET|SHARE|SHOW|SIMPLE|SNAPSHOT|STABLE|STANDALONE|START|STATEMENT|STATISTICS|STDIN|STDOUT|STORAGE|STRICT|STRIP|SYSID|SYSTEM|
+   TABLES|TABLESPACE|TEMP|TEMPLATE|TEMPORARY|TEXT|TRANSACTION|TRIGGER|TRUNCATE|TRUSTED|TYPE|TYPES|
+   UNBOUNDED|UNCOMMITTED|UNENCRYPTED|UNKNOWN|UNLISTEN|UNLOGGED|UNTIL|UPDATE|
+   VACUUM|VALID|VALIDATE|VALIDATOR|VALUE|VARYING|VERSION|VIEW|VOLATILE|
+   WHITESPACE|WITHOUT|WORK|WRAPPER|WRITE|
+   XML|
+   YEAR|YES|
+   ZONE
+) (! <L_IDENT_REST>) ) ~ /
+
+# Column identifier --- keywords that can be column, table, etc names.
+#
+# Many of these keywords will in fact be recognized as type or function
+# names too; but they have special productions for the purpose, and so
+# can't be treated as "generic" type or function names.
+#
+# The type names appearing here are not usable as function names
+# because they can be followed by '(' in typename productions, which
+# looks too much like a function call for an LR(1) parser.
+col_name_keyword: / ((i: 
+   BETWEEN|BIGINT|BIT|BOOLEAN|
+   CHAR|CHARACTER|COALESCE|
+   DEC|DECIMAL|
+   EXISTS|EXTRACT|
+   FLOAT|
+   GREATEST|
+   INOUT|INT|INTEGER|INTERVAL|
+   LEAST|
+   NATIONAL|NCHAR|NONE|NULLIF|NUMERIC|
+   OUT|OVERLAY|
+   POSITION|PRECISION|
+   REAL|ROW|
+   SETOF|SMALLINT|SUBSTRING|
+   TIME|TIMESTAMP|TREAT|TRIM|
+   VALUES|VARCHAR|
+   XMLATTRIBUTES|XMLCONCAT|XMLELEMENT|XMLEXISTS|XMLFOREST|XMLPARSE|XMLPI|XMLROOT|XMLSERIALIZE
+) (! <L_IDENT_REST>) ) ~ /
+
+# Type/function identifier --- keywords that can be type or function names.
+#
+# Most of these are keywords that are used as operators in expressions;
+# in general such keywords can't be column names because they would be
+# ambiguous with variables, but they are unambiguous as function identifiers.
+#
+# Do not include POSITION, SUBSTRING, etc here since they have explicit
+# productions in a_expr to support the goofy SQL9x argument syntax.
+# - thomas 2000-11-28
+type_func_name_keyword: / ( (i: 
+   AUTHORIZATION|
+   BINARY|
+   COLLATION|CONCURRENTLY|CROSS|CURRENT_SCHEMA|
+   FREEZE|FULL|
+   ILIKE|INNER|IS|ISNULL|
+   JOIN|
+   LEFT|LIKE|
+   NATURAL|NOTNULL|
+   OUTER|OVER|OVERLAPS|
+   RIGHT|
+   SIMILAR|
+   VERBOSE
+) (! <L_IDENT_REST>) ) ~ /
+
+# Reserved keyword --- these keywords are usable only as a ColLabel.
+#
+# Keywords appear here if they could not be distinguished from variable,
+# type, or function names in some contexts.  Don't put things here unless
+# forced to.
+reserved_keyword: / ( (i: 
+   ALL|ANALYSE|ANALYZE|AND|ANY|ARRAY|AS|ASC|ASYMMETRIC|
+   BOTH|
+   CASE|CAST|CHECK|COLLATE|COLUMN|CONSTRAINT|CREATE|CURRENT_CATALOG|CURRENT_DATE|CURRENT_ROLE|CURRENT_TIME|CURRENT_TIMESTAMP|CURRENT_USER|
+   DEFAULT|DEFERRABLE|DESC|DISTINCT|DO|
+   ELSE|END|EXCEPT|
+   FALSE|FETCH|FOR|FOREIGN|FROM|
+   GRANT|GROUP|
+   HAVING|
+   IN|INITIALLY|INTERSECT|INTO|
+   LATERAL|LEADING|LIMIT|LOCALTIME|LOCALTIMESTAMP|
+   NOT|NULL|
+   OFFSET|ON|ONLY|OR|ORDER|
+   PLACING|PRIMARY|
+   REFERENCES|RETURNING|
+   SELECT|SESSION_USER|SOME|SYMMETRIC|
+   TABLE|THEN|TO|TRAILING|TRUE|
+   UNION|UNIQUE|USER|USING|
+   VARIADIC|
+   WHEN|WHERE|WINDOW|WITH
+) (! <L_IDENT_REST>) ) ~ /
+
+### Based and converted from PostgreSQL's src/backend/parser/scan.l and ###
+### src/interfaces/ecpg/preproc/parser.c                                ###
+
+### Some comments retained from those sources, marked as #*.            ###
+
+L_SPACE       : /[\x20\t\n\r\f]/
+L_HORIZ_SPACE : /[\x20\t\f]/
+L_NEWLINE     : /[\n\r]/
+L_NON_NEWLINE : /[^\n\r]/
+
+L_COMMENT     : / -- <L_NON_NEWLINE>* /
+L_EXT_COMMENT : /(
+   <SLASH> <STAR>
+   (:
+      (?> [^ <SLASH> <STAR> ]+ ) |  # Most stuff (no backtracking...)
+      <SLASH> [^ <STAR> ]+       |  # Slash without a star
+      <STAR> [^ <SLASH> ]+       |  # Star without a slash
+      (?1)                          # Nesting comments
+   )*
+   <STAR> <SLASH> 
+)/
+ws          : / (: <L_SPACE>+ | <L_COMMENT> | <L_EXT_COMMENT> | <EOS> ) /
+
+### NOTE ###
+### SQL and Unicode have a bit of a shakey co-existence.  SQL was designed
+### with English phrases in mind, along with English digits and identifiers.
+### Thus, Unicode isn't allowed everywhere, so that proper detection between
+### ASCII and Unicode can be achieved.
+
+### However, Perl can already properly detect Unicode naturally.  So, instead
+### of allowing strictest ANSI/ISO SQL in this case, we'll allow identifiers
+### to be in UTF-8 without the need for the U& notation.
+
+L_IDENT_FIRST : / [ \p{Alphabetic} \x80-\xFF <UNDER> ] /
+L_IDENT_REST  : / [ \p{Alnum}      \x80-\xFF <UNDER> <DOLLAR> ] /
+L_IDENTIFIER  : / <L_IDENT_FIRST> <L_IDENT_REST>* /
+
+#* We use exclusive states for quoted strings, extended comments,
+#* and to eliminate parsing troubles for numeric strings.
+#* Exclusive states:
+#*  <xb> bit string literal
+#*  <xc> extended C-style comments
+#*  <xd> delimited identifiers (double-quoted identifiers)
+#*  <xh> hexadecimal numeric string
+#*  <xq> standard quoted strings
+#*  <xe> extended quoted strings (support backslash escape sequences)
+#*  <xdolq> $foo$ quoted strings
+#*  <xui> quoted identifier with Unicode escapes
+#*  <xus> quoted string with Unicode escapes
+#*  <xeu> Unicode surrogate pair in extended quoted string
+
+### Okay, screw all of this flex hackery.
+### This... is... PERL!  *kicks flex down the well*
+
+### Here's how it's going to work: I declare a RE that grabs everything,
+### and it f'ing works!  Fin.
+
+### FIXME: Include various <EOS> checks to produce errors on unterminated strings.
+
+#* SQL requires at least one newline in the whitespace separating
+#* string literals that are to be concatenated.  Silly, but who are we
+#* to argue?  Note that {whitespace_with_newline} should not have * after
+#* it, whereas {whitespace} should generally have a * after it...
+
+L_WHITESPACE_WITH_NEWLINE : / <L_HORIZ_WHITESPACE>* <L_NEWLINE> <L_SPECIAL_WHITESPACE>* /
+L_HORIZ_WHITESPACE        : / (: <L_HORIZ_SPACE> | <L_COMMENT> ) /
+L_SPECIAL_WHITESPACE      : / (: <L_SPACE>+ | <L_COMMENT> <L_NEWLINE> ) /
+
+L_QUOTECONTINUE : / <SINGLE> <L_WHITESPACE_WITH_NEWLINE> <SINGLE> /
+
+L_XBFULL : / [bB] <SINGLE> ( [01]* )        <SINGLE> /
+L_XHFULL : / [xX] <SINGLE> ( <XDIGIT>* )    <SINGLE> /
+L_XNFULL : / [nN] / =L_XQFULL  # treat like a NCHAR keyword and not a full string
+L_XQFULL : /
+   <SINGLE> 
+   ( (:
+      (?> [^ <SINGLE> ]+ ) |  # Most stuff (no backtracking...)
+      <SINGLE><SINGLE>     |  # Double single-quotes
+      <L_QUOTECONTINUE>       # SQL-style concat (see above)
+   )* )
+   <SINGLE>
+/
+L_XEFULL : /
+   [eE] <SINGLE> 
+   ( (:
+      (?> [^ <BACK> <SINGLE> ]+ ) |  # Most stuff (no backtracking...)
+      <BACK>   <SINGLE>           |  # Escaped quotes (which are technically "insecure", but we'll take them anyway)
+      <SINGLE> <SINGLE>           |  # Double single-quotes
+      <BACK> [^ <SINGLE> ]+       |  # Any other escaped character
+      <L_QUOTECONTINUE>              # SQL-style concat (see above)
+   )* )
+   <SINGLE>
+/
+### Ha!  Perl REs can even process this one all in one bite, thanks to backreferences...
+L_XDOLQFULL : /
+   <DOLLAR> ( <L_IDENTIFIER>? ) <DOLLAR>
+   ( [^ <DOLLAR> ]* )
+   <DOLLAR> \g1 <DOLLAR>
+/
+L_XDFULL : /
+   <DOUBLE> ( [^ <DOUBLE> ]+ ) <DOUBLE>
+/
+
+### Unicode escapes ###
+L_UESCAPE : / (?i: UESCAPE ~ <SINGLE> ( [^<SINGLE>] ) <SINGLE> ) /
+L_XUIFULL : / [uU] <AMP> <L_XDFULL> ~ <L_UESCAPE> /
+L_XUSFULL : / [uU] <AMP> <L_XQFULL> ~ <L_UESCAPE> /
+
+#* "self" is the set of chars that should be returned as single-character
+#* tokens.  "op_chars" is the set of chars that can make up "Op" tokens,
+#* which can be one or more characters long (but if a single-char token
+#* appears in the "self" set, it is not to be returned as an Op).  Note
+#* that the sets overlap, but each has some chars that are not in the other.
+#*
+#* If you change either set, adjust the character lists appearing in the
+#* rule for "operator"!
+
+L_OP_CHARS     : / [
+   <TILDE>  <BANG>   <AT>
+   <HASH>   <CARET>  <AMP>
+   <PIPE>   <GRAVE>  <QMARK>
+   <PLUS>   <DASH>   <STAR>
+   <LANGLE> <RANGLE> <EQUAL>
+   <SLASH>  <PERCENT>
+] /
+L_TYPECAST     : / <COLON> <COLON> /
+L_DOT_DOT      : / <DOT>   <DOT>   /
+L_COLON_EQUALS : / <COLON> <EQUAL> /
+
+L_SELF : / [
+   <COMMA> <SEMI>  <COLON> <DOT> 
+   <PLUS>  <DASH>  <SLASH> <STAR>
+   <CARET> <EQUAL> <PERCENT>
+   <LPAREN>  <RPAREN>
+   <LSQUARE> <RSQUARE>
+   <LANGLE>  <RANGLE>
+] /
+L_NON_MATH : / [
+   <TILDE>  <BANG>   <AT>
+   <HASH>   <CARET>  <AMP>
+   <PIPE>   <GRAVE>  <QMARK>
+] /
+
+#* we no longer allow unary minus in numbers.
+#* instead we pass it separately to parser. there it gets
+#* coerced via doNegate() -- Leon aug 20 1999
+
+### We aren't allowing non-English here, else all coder's brains would spontaneously explode
+### at the prospect of making a Tibetian digit work with functions like int()...
+#L_DIGIT  # Atom already defined
+L_INTEGER : / <DIGIT>+ /
+L_DECIMAL : / (: <DIGIT>* <DOT> <DIGIT>+ | <DIGIT>+ <DOT> <DIGIT>* (! <DOT> ) ) /  
+L_REAL    : / (: <L_INTEGER> | <L_DECIMAL> ) [Ee] [-+]? <DIGIT>+ /
+L_PARAM   : / ( <DOLLAR> <L_INTEGER> ) /
+
+#* %%
+
+###########################
+### Lexer token returns ###
+###########################
+
+# At this point in the lexer, we have the tokens that the parser would process.
+# Obviously, a parser would expect its separation to processed like whitespace.
+# However, unlike a standard lexer/parser pair, a Pegex rule like "CREATE TABLE"
+# implies no whitespace in-between the keywords.  Thus, we add ~ checks to
+# each of the "parser tokens".
+
+### Constants ###
+
+BCONST : L_XBFULL ~
+XCONST : L_XHFULL ~
+SCONST : ( L_XQFULL | L_XEFULL | L_XUSFULL | L_XDOLQFULL ) ~
+ICONST : / (<L_INTEGER>) / ~
+FCONST : / (<L_REAL>|<L_DECIMAL>) / ~
+PARAM  : L_PARAM ~
+
+### Operators ###
+
+#* Check for embedded slash-star or dash-dash; those
+#* are comment starts, so operator must stop there.
+#* Note that slash-star or dash-dash at the first
+#* character will match a prior rule, not this one.
+L_Op : / (
+   <L_OP_CHARS>+? (?= <DASH><DASH> | <SLASH><STAR> ) |
+   <L_OP_CHARS>{2,} |
+   <L_NON_MATH>
+) /
+
+#Op: ---code rule---
+### FIXME: For some reason, if this is not here, L_Op doesn't get created, but then
+### I can't use the match_rule_Op method...
+Op: L_Op
+
+TYPECAST     : L_TYPECAST ~
+DOT_DOT      : L_DOT_DOT ~
+COLON_EQUALS : L_COLON_EQUALS ~
+
+### Self (single-character) tokens ###
+
+# These are normally defined as 'X' in a traditional parser, but no such syntax
+# exists in Pegex.  We can't just use atoms or /X/ syntax, because we have to 
+# include token separation.  Thus, all of the tokens are defined here as P_*
+# tokens, and use a naming scheme that matches the Pegex atoms.
+
+# NOTE: We have to double-check that it doesn't end up as an Op before the
+# assignment.  Self does take priority, but the Op rule will already invalidate
+# itself if it realizes that it's going to be a single-character L_SELF.
+
+P_COMMA   : !Op COMMA   ~;  P_SEMI    : !Op SEMI    ~;  P_COLON   : !Op COLON   ~;  P_DOT  : !Op DOT  ~;
+P_PLUS    : !Op PLUS    ~;  P_MINUS   : !Op DASH    ~;  P_SLASH   : !Op SLASH   ~;  P_STAR : !Op STAR ~;
+P_CARET   : !Op CARET   ~;  P_EQUAL   : !Op EQUAL   ~;  P_PERCENT : !Op PERCENT ~;  
+P_LPAREN  : !Op LPAREN  ~;  P_RPAREN  : !Op RPAREN  ~;
+P_LSQUARE : !Op LSQUARE ~;  P_RSQUARE : !Op RSQUARE ~;
+P_LANGLE  : !Op LANGLE  ~;  P_RANGLE  : !Op RANGLE  ~;
+
+### Keywords ###
+
+IDENT : ( L_XDFULL | L_XUIFULL | ( !L_KEYWORD /( <L_IDENTIFIER> )/ ) ) ~
+
+L_KEYWORD : / (?i: 
+   ABORT|ABSOLUTE|ACCESS|ACTION|ADD|ADMIN|AFTER|AGGREGATE|ALL|ALSO|ALTER|ALWAYS|ANALYSE|ANALYZE|AND|ANY|ARRAY|AS|ASC|ASSERTION|ASSIGNMENT|ASYMMETRIC|AT|ATTRIBUTE|AUTHORIZATION|
+   BACKWARD|BEFORE|BEGIN|BETWEEN|BIGINT|BINARY|BIT|BOOLEAN|BOTH|BY|
+   CACHE|CALLED|CASCADE|CASCADED|CASE|CAST|CATALOG|CHAIN|CHAR|CHARACTER|CHARACTERISTICS|CHECK|CHECKPOINT|CLASS|CLOSE|CLUSTER|COALESCE|COLLATE|COLLATION|COLUMN|COMMENT|COMMENTS|COMMIT|COMMITTED|CONCURRENTLY|CONFIGURATION|CONNECTION|CONSTRAINT|CONSTRAINTS|CONTENT|CONTINUE|CONVERSION|COPY|COST|CREATE|CROSS|CSV|CURRENT|CURRENT_CATALOG|CURRENT_DATE|CURRENT_ROLE|CURRENT_SCHEMA|CURRENT_TIME|CURRENT_TIMESTAMP|CURRENT_USER|CURSOR|CYCLE|
+   DATA|DATABASE|DAY|DEALLOCATE|DEC|DECIMAL|DECLARE|DEFAULT|DEFAULTS|DEFERRABLE|DEFERRED|DEFINER|DELETE|DELIMITER|DELIMITERS|DESC|DICTIONARY|DISABLE|DISCARD|DISTINCT|DO|DOCUMENT|DOMAIN|DOUBLE|DROP|
+   EACH|ELSE|ENABLE|ENCODING|ENCRYPTED|END|ENUM|ESCAPE|EVENT|EXCEPT|EXCLUDE|EXCLUDING|EXCLUSIVE|EXECUTE|EXISTS|EXPLAIN|EXTENSION|EXTERNAL|EXTRACT|
+   FALSE|FAMILY|FETCH|FIRST|FLOAT|FOLLOWING|FOR|FORCE|FOREIGN|FORWARD|FREEZE|FROM|FULL|FUNCTION|FUNCTIONS|
+   GLOBAL|GRANT|GRANTED|GREATEST|GROUP|
+   HANDLER|HAVING|HEADER|HOLD|HOUR|
+   IDENTITY|IF|ILIKE|IMMEDIATE|IMMUTABLE|IMPLICIT|IN|INCLUDING|INCREMENT|INDEX|INDEXES|INHERIT|INHERITS|INITIALLY|INLINE|INNER|INOUT|INPUT|INSENSITIVE|INSERT|INSTEAD|INT|INTEGER|INTERSECT|INTERVAL|INTO|INVOKER|IS|ISNULL|ISOLATION|
+   JOIN|
+   KEY|
+   LABEL|LANGUAGE|LARGE|LAST|LATERAL|LC_COLLATE|LC_CTYPE|LEADING|LEAKPROOF|LEAST|LEFT|LEVEL|LIKE|LIMIT|LISTEN|LOAD|LOCAL|LOCALTIME|LOCALTIMESTAMP|LOCATION|LOCK|
+   MAPPING|MATCH|MAXVALUE|MINUTE|MINVALUE|MODE|MONTH|MOVE|
+   NAME|NAMES|NATIONAL|NATURAL|NCHAR|NEXT|NO|NONE|NOT|NOTHING|NOTIFY|NOTNULL|NOWAIT|NULL|NULLIF|NULLS|NUMERIC|
+   OBJECT|OF|OFF|OFFSET|OIDS|ON|ONLY|OPERATOR|OPTION|OPTIONS|OR|ORDER|OUT|OUTER|OVER|OVERLAPS|OVERLAY|OWNED|OWNER|
+   PARSER|PARTIAL|PARTITION|PASSING|PASSWORD|PLACING|PLANS|POSITION|PRECEDING|PRECISION|PREPARE|PREPARED|PRESERVE|PRIMARY|PRIOR|PRIVILEGES|PROCEDURAL|PROCEDURE|
+   QUOTE|
+   RANGE|READ|REAL|REASSIGN|RECHECK|RECURSIVE|REF|REFERENCES|REINDEX|RELATIVE|RELEASE|RENAME|REPEATABLE|REPLACE|REPLICA|RESET|RESTART|RESTRICT|RETURNING|RETURNS|REVOKE|RIGHT|ROLE|ROLLBACK|ROW|ROWS|RULE|
+   SAVEPOINT|SCHEMA|SCROLL|SEARCH|SECOND|SECURITY|SELECT|SEQUENCE|SEQUENCES|SERIALIZABLE|SERVER|SESSION|SESSION_USER|SET|SETOF|SHARE|SHOW|SIMILAR|SIMPLE|SMALLINT|SNAPSHOT|SOME|STABLE|STANDALONE|START|STATEMENT|STATISTICS|STDIN|STDOUT|STORAGE|STRICT|STRIP|SUBSTRING|SYMMETRIC|SYSID|SYSTEM|
+   TABLE|TABLES|TABLESPACE|TEMP|TEMPLATE|TEMPORARY|TEXT|THEN|TIME|TIMESTAMP|TO|TRAILING|TRANSACTION|TREAT|TRIGGER|TRIM|TRUE|TRUNCATE|TRUSTED|TYPE|TYPES|
+   UNBOUNDED|UNCOMMITTED|UNENCRYPTED|UNION|UNIQUE|UNKNOWN|UNLISTEN|UNLOGGED|UNTIL|UPDATE|USER|USING|
+   VACUUM|VALID|VALIDATE|VALIDATOR|VALUE|VALUES|VARCHAR|VARIADIC|VARYING|VERBOSE|VERSION|VIEW|VOLATILE|
+   WHEN|WHERE|WHITESPACE|WINDOW|WITH|WITHOUT|WORK|WRAPPER|WRITE|
+   XML|XMLATTRIBUTES|XMLCONCAT|XMLELEMENT|XMLEXISTS|XMLFOREST|XMLPARSE|XMLPI|XMLROOT|XMLSERIALIZE|
+   YEAR|YES|
+   ZONE
+) (! <L_IDENT_REST>) /
+
+### FIXME: some of these conflict with Atoms ###
+
+ABORT             : / (?i: ABORT             ) (! <L_IDENT_REST>) ~ /
+ABSOLUTE          : / (?i: ABSOLUTE          ) (! <L_IDENT_REST>) ~ /
+ACCESS            : / (?i: ACCESS            ) (! <L_IDENT_REST>) ~ /
+ACTION            : / (?i: ACTION            ) (! <L_IDENT_REST>) ~ /
+ADD               : / (?i: ADD               ) (! <L_IDENT_REST>) ~ /
+ADMIN             : / (?i: ADMIN             ) (! <L_IDENT_REST>) ~ /
+AFTER             : / (?i: AFTER             ) (! <L_IDENT_REST>) ~ /
+AGGREGATE         : / (?i: AGGREGATE         ) (! <L_IDENT_REST>) ~ /
+#ALL               : / (?i: ALL               ) (! <L_IDENT_REST>) ~ /
+ALSO              : / (?i: ALSO              ) (! <L_IDENT_REST>) ~ /
+ALTER             : / (?i: ALTER             ) (! <L_IDENT_REST>) ~ /
+#ALWAYS            : / (?i: ALWAYS            ) (! <L_IDENT_REST>) ~ /
+ANALYZE           : / (?i: ANALYZE|ANALYSE   ) (! <L_IDENT_REST>) ~ /  # just combine these for the "tokens"
+AND               : / (?i: AND               ) (! <L_IDENT_REST>) ~ /
+ANY               : / (?i: ANY               ) (! <L_IDENT_REST>) ~ /
+ARRAY             : / (?i: ARRAY             ) (! <L_IDENT_REST>) ~ /
+AS                : / (?i: AS                ) (! <L_IDENT_REST>) ~ /
+ASC               : / (?i: ASC               ) (! <L_IDENT_REST>) ~ /
+ASSERTION         : / (?i: ASSERTION         ) (! <L_IDENT_REST>) ~ /
+ASSIGNMENT        : / (?i: ASSIGNMENT        ) (! <L_IDENT_REST>) ~ /
+ASYMMETRIC        : / (?i: ASYMMETRIC        ) (! <L_IDENT_REST>) ~ /
+#AT                : / (?i: AT                ) (! <L_IDENT_REST>) ~ /
+ATTRIBUTE         : / (?i: ATTRIBUTE         ) (! <L_IDENT_REST>) ~ /
+AUTHORIZATION     : / (?i: AUTHORIZATION     ) (! <L_IDENT_REST>) ~ /
+
+BACKWARD          : / (?i: BACKWARD          ) (! <L_IDENT_REST>) ~ /
+BEFORE            : / (?i: BEFORE            ) (! <L_IDENT_REST>) ~ /
+BEGIN             : / (?i: BEGIN             ) (! <L_IDENT_REST>) ~ /
+BETWEEN           : / (?i: BETWEEN           ) (! <L_IDENT_REST>) ~ /
+BIGINT            : / (?i: BIGINT            ) (! <L_IDENT_REST>) ~ /
+BINARY            : / (?i: BINARY            ) (! <L_IDENT_REST>) ~ /
+BIT               : / (?i: BIT               ) (! <L_IDENT_REST>) ~ /
+BOOLEAN           : / (?i: BOOLEAN           ) (! <L_IDENT_REST>) ~ /
+BOTH              : / (?i: BOTH              ) (! <L_IDENT_REST>) ~ /
+BY                : / (?i: BY                ) (! <L_IDENT_REST>) ~ /
+
+CACHE             : / (?i: CACHE             ) (! <L_IDENT_REST>) ~ /
+CALLED            : / (?i: CALLED            ) (! <L_IDENT_REST>) ~ /
+CASCADE           : / (?i: CASCADE           ) (! <L_IDENT_REST>) ~ /
+CASCADED          : / (?i: CASCADED          ) (! <L_IDENT_REST>) ~ /
+CASE              : / (?i: CASE              ) (! <L_IDENT_REST>) ~ /
+CAST              : / (?i: CAST              ) (! <L_IDENT_REST>) ~ /
+CATALOG           : / (?i: CATALOG           ) (! <L_IDENT_REST>) ~ /
+CHAIN             : / (?i: CHAIN             ) (! <L_IDENT_REST>) ~ /
+CHAR              : / (?i: CHAR              ) (! <L_IDENT_REST>) ~ /
+CHARACTER         : / (?i: CHARACTER         ) (! <L_IDENT_REST>) ~ /
+CHARACTERISTICS   : / (?i: CHARACTERISTICS   ) (! <L_IDENT_REST>) ~ /
+CHECK             : / (?i: CHECK             ) (! <L_IDENT_REST>) ~ /
+CHECKPOINT        : / (?i: CHECKPOINT        ) (! <L_IDENT_REST>) ~ /
+CLASS             : / (?i: CLASS             ) (! <L_IDENT_REST>) ~ /
+CLOSE             : / (?i: CLOSE             ) (! <L_IDENT_REST>) ~ /
+CLUSTER           : / (?i: CLUSTER           ) (! <L_IDENT_REST>) ~ /
+COALESCE          : / (?i: COALESCE          ) (! <L_IDENT_REST>) ~ /
+COLLATE           : / (?i: COLLATE           ) (! <L_IDENT_REST>) ~ /
+COLLATION         : / (?i: COLLATION         ) (! <L_IDENT_REST>) ~ /
+COLUMN            : / (?i: COLUMN            ) (! <L_IDENT_REST>) ~ /
+COMMENT           : / (?i: COMMENT           ) (! <L_IDENT_REST>) ~ /
+COMMENTS          : / (?i: COMMENTS          ) (! <L_IDENT_REST>) ~ /
+COMMIT            : / (?i: COMMIT            ) (! <L_IDENT_REST>) ~ /
+COMMITTED         : / (?i: COMMITTED         ) (! <L_IDENT_REST>) ~ /
+CONCURRENTLY      : / (?i: CONCURRENTLY      ) (! <L_IDENT_REST>) ~ /
+CONFIGURATION     : / (?i: CONFIGURATION     ) (! <L_IDENT_REST>) ~ /
+CONNECTION        : / (?i: CONNECTION        ) (! <L_IDENT_REST>) ~ /
+CONSTRAINT        : / (?i: CONSTRAINT        ) (! <L_IDENT_REST>) ~ /
+CONSTRAINTS       : / (?i: CONSTRAINTS       ) (! <L_IDENT_REST>) ~ /
+CONTENT           : / (?i: CONTENT           ) (! <L_IDENT_REST>) ~ /
+CONTINUE          : / (?i: CONTINUE          ) (! <L_IDENT_REST>) ~ /
+CONVERSION        : / (?i: CONVERSION        ) (! <L_IDENT_REST>) ~ /
+COPY              : / (?i: COPY              ) (! <L_IDENT_REST>) ~ /
+COST              : / (?i: COST              ) (! <L_IDENT_REST>) ~ /
+CREATE            : / (?i: CREATE            ) (! <L_IDENT_REST>) ~ /
+CROSS             : / (?i: CROSS             ) (! <L_IDENT_REST>) ~ /
+CSV               : / (?i: CSV               ) (! <L_IDENT_REST>) ~ /
+CURRENT           : / (?i: CURRENT           ) (! <L_IDENT_REST>) ~ /
+CURRENT_CATALOG   : / (?i: CURRENT_CATALOG   ) (! <L_IDENT_REST>) ~ /
+CURRENT_DATE      : / (?i: CURRENT_DATE      ) (! <L_IDENT_REST>) ~ /
+CURRENT_ROLE      : / (?i: CURRENT_ROLE      ) (! <L_IDENT_REST>) ~ /
+CURRENT_SCHEMA    : / (?i: CURRENT_SCHEMA    ) (! <L_IDENT_REST>) ~ /
+CURRENT_TIME      : / (?i: CURRENT_TIME      ) (! <L_IDENT_REST>) ~ /
+CURRENT_TIMESTAMP : / (?i: CURRENT_TIMESTAMP ) (! <L_IDENT_REST>) ~ /
+CURRENT_USER      : / (?i: CURRENT_USER      ) (! <L_IDENT_REST>) ~ /
+CURSOR            : / (?i: CURSOR            ) (! <L_IDENT_REST>) ~ /
+CYCLE             : / (?i: CYCLE             ) (! <L_IDENT_REST>) ~ /
+
+DATA              : / (?i: DATA              ) (! <L_IDENT_REST>) ~ /
+DATABASE          : / (?i: DATABASE          ) (! <L_IDENT_REST>) ~ /
+DAY               : / (?i: DAY               ) (! <L_IDENT_REST>) ~ /
+DEALLOCATE        : / (?i: DEALLOCATE        ) (! <L_IDENT_REST>) ~ /
+DEC               : / (?i: DEC               ) (! <L_IDENT_REST>) ~ /
+DECIMAL           : / (?i: DECIMAL           ) (! <L_IDENT_REST>) ~ /
+DECLARE           : / (?i: DECLARE           ) (! <L_IDENT_REST>) ~ /
+DEFAULT           : / (?i: DEFAULT           ) (! <L_IDENT_REST>) ~ /
+DEFAULTS          : / (?i: DEFAULTS          ) (! <L_IDENT_REST>) ~ /
+DEFERRABLE        : / (?i: DEFERRABLE        ) (! <L_IDENT_REST>) ~ /
+DEFERRED          : / (?i: DEFERRED          ) (! <L_IDENT_REST>) ~ /
+DEFINER           : / (?i: DEFINER           ) (! <L_IDENT_REST>) ~ /
+DELETE            : / (?i: DELETE            ) (! <L_IDENT_REST>) ~ /
+DELIMITER         : / (?i: DELIMITER         ) (! <L_IDENT_REST>) ~ /
+DELIMITERS        : / (?i: DELIMITERS        ) (! <L_IDENT_REST>) ~ /
+DESC              : / (?i: DESC              ) (! <L_IDENT_REST>) ~ /
+DICTIONARY        : / (?i: DICTIONARY        ) (! <L_IDENT_REST>) ~ /
+DISABLE           : / (?i: DISABLE           ) (! <L_IDENT_REST>) ~ /
+DISCARD           : / (?i: DISCARD           ) (! <L_IDENT_REST>) ~ /
+DISTINCT          : / (?i: DISTINCT          ) (! <L_IDENT_REST>) ~ /
+DO                : / (?i: DO                ) (! <L_IDENT_REST>) ~ /
+DOCUMENT          : / (?i: DOCUMENT          ) (! <L_IDENT_REST>) ~ /
+DOMAIN            : / (?i: DOMAIN            ) (! <L_IDENT_REST>) ~ /
+#DOUBLE            : / (?i: DOUBLE            ) (! <L_IDENT_REST>) ~ /
+DROP              : / (?i: DROP              ) (! <L_IDENT_REST>) ~ /
+
+EACH              : / (?i: EACH              ) (! <L_IDENT_REST>) ~ /
+ELSE              : / (?i: ELSE              ) (! <L_IDENT_REST>) ~ /
+ENABLE            : / (?i: ENABLE            ) (! <L_IDENT_REST>) ~ /
+ENCODING          : / (?i: ENCODING          ) (! <L_IDENT_REST>) ~ /
+ENCRYPTED         : / (?i: ENCRYPTED         ) (! <L_IDENT_REST>) ~ /
+END               : / (?i: END               ) (! <L_IDENT_REST>) ~ /
+ENUM              : / (?i: ENUM              ) (! <L_IDENT_REST>) ~ /
+ESCAPE            : / (?i: ESCAPE            ) (! <L_IDENT_REST>) ~ /
+EVENT             : / (?i: EVENT             ) (! <L_IDENT_REST>) ~ /
+EXCEPT            : / (?i: EXCEPT            ) (! <L_IDENT_REST>) ~ /
+EXCLUDE           : / (?i: EXCLUDE           ) (! <L_IDENT_REST>) ~ /
+EXCLUDING         : / (?i: EXCLUDING         ) (! <L_IDENT_REST>) ~ /
+EXCLUSIVE         : / (?i: EXCLUSIVE         ) (! <L_IDENT_REST>) ~ /
+EXECUTE           : / (?i: EXECUTE           ) (! <L_IDENT_REST>) ~ /
+EXISTS            : / (?i: EXISTS            ) (! <L_IDENT_REST>) ~ /
+EXPLAIN           : / (?i: EXPLAIN           ) (! <L_IDENT_REST>) ~ /
+EXTENSION         : / (?i: EXTENSION         ) (! <L_IDENT_REST>) ~ /
+EXTERNAL          : / (?i: EXTERNAL          ) (! <L_IDENT_REST>) ~ /
+EXTRACT           : / (?i: EXTRACT           ) (! <L_IDENT_REST>) ~ /
+
+FALSE             : / (?i: FALSE             ) (! <L_IDENT_REST>) ~ /
+FAMILY            : / (?i: FAMILY            ) (! <L_IDENT_REST>) ~ /
+FETCH             : / (?i: FETCH             ) (! <L_IDENT_REST>) ~ /
+FIRST             : / (?i: FIRST             ) (! <L_IDENT_REST>) ~ /
+FLOAT             : / (?i: FLOAT             ) (! <L_IDENT_REST>) ~ /
+FOLLOWING         : / (?i: FOLLOWING         ) (! <L_IDENT_REST>) ~ /
+FOR               : / (?i: FOR               ) (! <L_IDENT_REST>) ~ /
+FORCE             : / (?i: FORCE             ) (! <L_IDENT_REST>) ~ /
+FOREIGN           : / (?i: FOREIGN           ) (! <L_IDENT_REST>) ~ /
+FORWARD           : / (?i: FORWARD           ) (! <L_IDENT_REST>) ~ /
+FREEZE            : / (?i: FREEZE            ) (! <L_IDENT_REST>) ~ /
+FROM              : / (?i: FROM              ) (! <L_IDENT_REST>) ~ /
+FULL              : / (?i: FULL              ) (! <L_IDENT_REST>) ~ /
+FUNCTION          : / (?i: FUNCTION          ) (! <L_IDENT_REST>) ~ /
+FUNCTIONS         : / (?i: FUNCTIONS         ) (! <L_IDENT_REST>) ~ /
+
+GLOBAL            : / (?i: GLOBAL            ) (! <L_IDENT_REST>) ~ /
+GRANT             : / (?i: GRANT             ) (! <L_IDENT_REST>) ~ /
+GRANTED           : / (?i: GRANTED           ) (! <L_IDENT_REST>) ~ /
+GREATEST          : / (?i: GREATEST          ) (! <L_IDENT_REST>) ~ /
+GROUP             : / (?i: GROUP             ) (! <L_IDENT_REST>) ~ /
+
+HANDLER           : / (?i: HANDLER           ) (! <L_IDENT_REST>) ~ /
+HAVING            : / (?i: HAVING            ) (! <L_IDENT_REST>) ~ /
+HEADER            : / (?i: HEADER            ) (! <L_IDENT_REST>) ~ /
+HOLD              : / (?i: HOLD              ) (! <L_IDENT_REST>) ~ /
+HOUR              : / (?i: HOUR              ) (! <L_IDENT_REST>) ~ /
+
+IDENTITY          : / (?i: IDENTITY          ) (! <L_IDENT_REST>) ~ /
+IF                : / (?i: IF                ) (! <L_IDENT_REST>) ~ /
+ILIKE             : / (?i: ILIKE             ) (! <L_IDENT_REST>) ~ /
+IMMEDIATE         : / (?i: IMMEDIATE         ) (! <L_IDENT_REST>) ~ /
+IMMUTABLE         : / (?i: IMMUTABLE         ) (! <L_IDENT_REST>) ~ /
+IMPLICIT          : / (?i: IMPLICIT          ) (! <L_IDENT_REST>) ~ /
+IN                : / (?i: IN                ) (! <L_IDENT_REST>) ~ /
+INCLUDING         : / (?i: INCLUDING         ) (! <L_IDENT_REST>) ~ /
+INCREMENT         : / (?i: INCREMENT         ) (! <L_IDENT_REST>) ~ /
+INDEX             : / (?i: INDEX             ) (! <L_IDENT_REST>) ~ /
+INDEXES           : / (?i: INDEXES           ) (! <L_IDENT_REST>) ~ /
+INHERIT           : / (?i: INHERIT           ) (! <L_IDENT_REST>) ~ /
+INHERITS          : / (?i: INHERITS          ) (! <L_IDENT_REST>) ~ /
+INITIALLY         : / (?i: INITIALLY         ) (! <L_IDENT_REST>) ~ /
+INLINE            : / (?i: INLINE            ) (! <L_IDENT_REST>) ~ /
+INNER             : / (?i: INNER             ) (! <L_IDENT_REST>) ~ /
+INOUT             : / (?i: INOUT             ) (! <L_IDENT_REST>) ~ /
+INPUT             : / (?i: INPUT             ) (! <L_IDENT_REST>) ~ /
+INSENSITIVE       : / (?i: INSENSITIVE       ) (! <L_IDENT_REST>) ~ /
+INSERT            : / (?i: INSERT            ) (! <L_IDENT_REST>) ~ /
+INSTEAD           : / (?i: INSTEAD           ) (! <L_IDENT_REST>) ~ /
+INT               : / (?i: INT               ) (! <L_IDENT_REST>) ~ /
+INTEGER           : / (?i: INTEGER           ) (! <L_IDENT_REST>) ~ /
+INTERSECT         : / (?i: INTERSECT         ) (! <L_IDENT_REST>) ~ /
+INTERVAL          : / (?i: INTERVAL          ) (! <L_IDENT_REST>) ~ /
+INTO              : / (?i: INTO              ) (! <L_IDENT_REST>) ~ /
+INVOKER           : / (?i: INVOKER           ) (! <L_IDENT_REST>) ~ /
+IS                : / (?i: IS                ) (! <L_IDENT_REST>) ~ /
+ISNULL            : / (?i: ISNULL            ) (! <L_IDENT_REST>) ~ /
+ISOLATION         : / (?i: ISOLATION         ) (! <L_IDENT_REST>) ~ /
+
+JOIN              : / (?i: JOIN              ) (! <L_IDENT_REST>) ~ /
+
+KEY               : / (?i: KEY               ) (! <L_IDENT_REST>) ~ /
+
+LABEL             : / (?i: LABEL             ) (! <L_IDENT_REST>) ~ /
+LANGUAGE          : / (?i: LANGUAGE          ) (! <L_IDENT_REST>) ~ /
+LARGE             : / (?i: LARGE             ) (! <L_IDENT_REST>) ~ /
+LAST              : / (?i: LAST              ) (! <L_IDENT_REST>) ~ /
+LATERAL           : / (?i: LATERAL           ) (! <L_IDENT_REST>) ~ /
+LC_COLLATE        : / (?i: LC_COLLATE        ) (! <L_IDENT_REST>) ~ /
+LC_CTYPE          : / (?i: LC_CTYPE          ) (! <L_IDENT_REST>) ~ /
+LEADING           : / (?i: LEADING           ) (! <L_IDENT_REST>) ~ /
+LEAKPROOF         : / (?i: LEAKPROOF         ) (! <L_IDENT_REST>) ~ /
+LEAST             : / (?i: LEAST             ) (! <L_IDENT_REST>) ~ /
+LEFT              : / (?i: LEFT              ) (! <L_IDENT_REST>) ~ /
+LEVEL             : / (?i: LEVEL             ) (! <L_IDENT_REST>) ~ /
+LIKE              : / (?i: LIKE              ) (! <L_IDENT_REST>) ~ /
+LIMIT             : / (?i: LIMIT             ) (! <L_IDENT_REST>) ~ /
+LISTEN            : / (?i: LISTEN            ) (! <L_IDENT_REST>) ~ /
+LOAD              : / (?i: LOAD              ) (! <L_IDENT_REST>) ~ /
+LOCAL             : / (?i: LOCAL             ) (! <L_IDENT_REST>) ~ /
+LOCALTIME         : / (?i: LOCALTIME         ) (! <L_IDENT_REST>) ~ /
+LOCALTIMESTAMP    : / (?i: LOCALTIMESTAMP    ) (! <L_IDENT_REST>) ~ /
+LOCATION          : / (?i: LOCATION          ) (! <L_IDENT_REST>) ~ /
+LOCK              : / (?i: LOCK              ) (! <L_IDENT_REST>) ~ /
+
+MAPPING           : / (?i: MAPPING           ) (! <L_IDENT_REST>) ~ /
+MATCH             : / (?i: MATCH             ) (! <L_IDENT_REST>) ~ /
+MAXVALUE          : / (?i: MAXVALUE          ) (! <L_IDENT_REST>) ~ /
+MINUTE            : / (?i: MINUTE            ) (! <L_IDENT_REST>) ~ /
+MINVALUE          : / (?i: MINVALUE          ) (! <L_IDENT_REST>) ~ /
+MODE              : / (?i: MODE              ) (! <L_IDENT_REST>) ~ /
+MONTH             : / (?i: MONTH             ) (! <L_IDENT_REST>) ~ /
+MOVE              : / (?i: MOVE              ) (! <L_IDENT_REST>) ~ /
+
+NAME              : / (?i: NAME              ) (! <L_IDENT_REST>) ~ /
+NAMES             : / (?i: NAMES             ) (! <L_IDENT_REST>) ~ /
+NATIONAL          : / (?i: NATIONAL          ) (! <L_IDENT_REST>) ~ /
+NATURAL           : / (?i: NATURAL           ) (! <L_IDENT_REST>) ~ /
+NCHAR             : / <L_XNFULL> | (i: NCHAR) (! <L_IDENT_REST>) ~ /
+NEXT              : / (?i: NEXT              ) (! <L_IDENT_REST>) ~ /
+NO                : / (?i: NO                ) (! <L_IDENT_REST>) ~ /
+NONE              : / (?i: NONE              ) (! <L_IDENT_REST>) ~ /
+NOT               : / (?i: NOT               ) (! <L_IDENT_REST>) ~ /
+NOTHING           : / (?i: NOTHING           ) (! <L_IDENT_REST>) ~ /
+NOTIFY            : / (?i: NOTIFY            ) (! <L_IDENT_REST>) ~ /
+NOTNULL           : / (?i: NOTNULL           ) (! <L_IDENT_REST>) ~ /
+NOWAIT            : / (?i: NOWAIT            ) (! <L_IDENT_REST>) ~ /
+NULL              : / (?i: NULL              ) (! <L_IDENT_REST>) ~ /
+NULLIF            : / (?i: NULLIF            ) (! <L_IDENT_REST>) ~ /
+NULLS             : / (?i: NULLS             ) (! <L_IDENT_REST>) ~ /
+NUMERIC           : / (?i: NUMERIC           ) (! <L_IDENT_REST>) ~ /
+
+OBJECT            : / (?i: OBJECT            ) (! <L_IDENT_REST>) ~ /
+OF                : / (?i: OF                ) (! <L_IDENT_REST>) ~ /
+OFF               : / (?i: OFF               ) (! <L_IDENT_REST>) ~ /
+OFFSET            : / (?i: OFFSET            ) (! <L_IDENT_REST>) ~ /
+OIDS              : / (?i: OIDS              ) (! <L_IDENT_REST>) ~ /
+ON                : / (?i: ON                ) (! <L_IDENT_REST>) ~ /
+ONLY              : / (?i: ONLY              ) (! <L_IDENT_REST>) ~ /
+OPERATOR          : / (?i: OPERATOR          ) (! <L_IDENT_REST>) ~ /
+OPTION            : / (?i: OPTION            ) (! <L_IDENT_REST>) ~ /
+OPTIONS           : / (?i: OPTIONS           ) (! <L_IDENT_REST>) ~ /
+OR                : / (?i: OR                ) (! <L_IDENT_REST>) ~ /
+ORDER             : / (?i: ORDER             ) (! <L_IDENT_REST>) ~ /
+OUT               : / (?i: OUT               ) (! <L_IDENT_REST>) ~ /
+OUTER             : / (?i: OUTER             ) (! <L_IDENT_REST>) ~ /
+OVER              : / (?i: OVER              ) (! <L_IDENT_REST>) ~ /
+OVERLAPS          : / (?i: OVERLAPS          ) (! <L_IDENT_REST>) ~ /
+OVERLAY           : / (?i: OVERLAY           ) (! <L_IDENT_REST>) ~ /
+OWNED             : / (?i: OWNED             ) (! <L_IDENT_REST>) ~ /
+OWNER             : / (?i: OWNER             ) (! <L_IDENT_REST>) ~ /
+
+PARSER            : / (?i: PARSER            ) (! <L_IDENT_REST>) ~ /
+PARTIAL           : / (?i: PARTIAL           ) (! <L_IDENT_REST>) ~ /
+PARTITION         : / (?i: PARTITION         ) (! <L_IDENT_REST>) ~ /
+PASSING           : / (?i: PASSING           ) (! <L_IDENT_REST>) ~ /
+PASSWORD          : / (?i: PASSWORD          ) (! <L_IDENT_REST>) ~ /
+PLACING           : / (?i: PLACING           ) (! <L_IDENT_REST>) ~ /
+PLANS             : / (?i: PLANS             ) (! <L_IDENT_REST>) ~ /
+POSITION          : / (?i: POSITION          ) (! <L_IDENT_REST>) ~ /
+PRECEDING         : / (?i: PRECEDING         ) (! <L_IDENT_REST>) ~ /
+PRECISION         : / (?i: PRECISION         ) (! <L_IDENT_REST>) ~ /
+PREPARE           : / (?i: PREPARE           ) (! <L_IDENT_REST>) ~ /
+PREPARED          : / (?i: PREPARED          ) (! <L_IDENT_REST>) ~ /
+PRESERVE          : / (?i: PRESERVE          ) (! <L_IDENT_REST>) ~ /
+PRIMARY           : / (?i: PRIMARY           ) (! <L_IDENT_REST>) ~ /
+PRIOR             : / (?i: PRIOR             ) (! <L_IDENT_REST>) ~ /
+PRIVILEGES        : / (?i: PRIVILEGES        ) (! <L_IDENT_REST>) ~ /
+PROCEDURAL        : / (?i: PROCEDURAL        ) (! <L_IDENT_REST>) ~ /
+PROCEDURE         : / (?i: PROCEDURE         ) (! <L_IDENT_REST>) ~ /
+
+QUOTE             : / (?i: QUOTE             ) (! <L_IDENT_REST>) ~ /
+
+RANGE             : / (?i: RANGE             ) (! <L_IDENT_REST>) ~ /
+READ              : / (?i: READ              ) (! <L_IDENT_REST>) ~ /
+REAL              : / (?i: REAL              ) (! <L_IDENT_REST>) ~ /
+REASSIGN          : / (?i: REASSIGN          ) (! <L_IDENT_REST>) ~ /
+RECHECK           : / (?i: RECHECK           ) (! <L_IDENT_REST>) ~ /
+RECURSIVE         : / (?i: RECURSIVE         ) (! <L_IDENT_REST>) ~ /
+REF               : / (?i: REF               ) (! <L_IDENT_REST>) ~ /
+REFERENCES        : / (?i: REFERENCES        ) (! <L_IDENT_REST>) ~ /
+REINDEX           : / (?i: REINDEX           ) (! <L_IDENT_REST>) ~ /
+RELATIVE          : / (?i: RELATIVE          ) (! <L_IDENT_REST>) ~ /
+RELEASE           : / (?i: RELEASE           ) (! <L_IDENT_REST>) ~ /
+RENAME            : / (?i: RENAME            ) (! <L_IDENT_REST>) ~ /
+REPEATABLE        : / (?i: REPEATABLE        ) (! <L_IDENT_REST>) ~ /
+REPLACE           : / (?i: REPLACE           ) (! <L_IDENT_REST>) ~ /
+REPLICA           : / (?i: REPLICA           ) (! <L_IDENT_REST>) ~ /
+RESET             : / (?i: RESET             ) (! <L_IDENT_REST>) ~ /
+RESTART           : / (?i: RESTART           ) (! <L_IDENT_REST>) ~ /
+RESTRICT          : / (?i: RESTRICT          ) (! <L_IDENT_REST>) ~ /
+RETURNING         : / (?i: RETURNING         ) (! <L_IDENT_REST>) ~ /
+RETURNS           : / (?i: RETURNS           ) (! <L_IDENT_REST>) ~ /
+REVOKE            : / (?i: REVOKE            ) (! <L_IDENT_REST>) ~ /
+RIGHT             : / (?i: RIGHT             ) (! <L_IDENT_REST>) ~ /
+ROLE              : / (?i: ROLE              ) (! <L_IDENT_REST>) ~ /
+ROLLBACK          : / (?i: ROLLBACK          ) (! <L_IDENT_REST>) ~ /
+ROW               : / (?i: ROW               ) (! <L_IDENT_REST>) ~ /
+ROWS              : / (?i: ROWS              ) (! <L_IDENT_REST>) ~ /
+RULE              : / (?i: RULE              ) (! <L_IDENT_REST>) ~ /
+
+SAVEPOINT         : / (?i: SAVEPOINT         ) (! <L_IDENT_REST>) ~ /
+SCHEMA            : / (?i: SCHEMA            ) (! <L_IDENT_REST>) ~ /
+SCROLL            : / (?i: SCROLL            ) (! <L_IDENT_REST>) ~ /
+SEARCH            : / (?i: SEARCH            ) (! <L_IDENT_REST>) ~ /
+SECOND            : / (?i: SECOND            ) (! <L_IDENT_REST>) ~ /
+SECURITY          : / (?i: SECURITY          ) (! <L_IDENT_REST>) ~ /
+SELECT            : / (?i: SELECT            ) (! <L_IDENT_REST>) ~ /
+SEQUENCE          : / (?i: SEQUENCE          ) (! <L_IDENT_REST>) ~ /
+SEQUENCES         : / (?i: SEQUENCES         ) (! <L_IDENT_REST>) ~ /
+SERIALIZABLE      : / (?i: SERIALIZABLE      ) (! <L_IDENT_REST>) ~ /
+SERVER            : / (?i: SERVER            ) (! <L_IDENT_REST>) ~ /
+SESSION           : / (?i: SESSION           ) (! <L_IDENT_REST>) ~ /
+SESSION_USER      : / (?i: SESSION_USER      ) (! <L_IDENT_REST>) ~ /
+SET               : / (?i: SET               ) (! <L_IDENT_REST>) ~ /
+SETOF             : / (?i: SETOF             ) (! <L_IDENT_REST>) ~ /
+SHARE             : / (?i: SHARE             ) (! <L_IDENT_REST>) ~ /
+SHOW              : / (?i: SHOW              ) (! <L_IDENT_REST>) ~ /
+SIMILAR           : / (?i: SIMILAR           ) (! <L_IDENT_REST>) ~ /
+SIMPLE            : / (?i: SIMPLE            ) (! <L_IDENT_REST>) ~ /
+SMALLINT          : / (?i: SMALLINT          ) (! <L_IDENT_REST>) ~ /
+SNAPSHOT          : / (?i: SNAPSHOT          ) (! <L_IDENT_REST>) ~ /
+SOME              : / (?i: SOME              ) (! <L_IDENT_REST>) ~ /
+STABLE            : / (?i: STABLE            ) (! <L_IDENT_REST>) ~ /
+STANDALONE        : / (?i: STANDALONE        ) (! <L_IDENT_REST>) ~ /
+START             : / (?i: START             ) (! <L_IDENT_REST>) ~ /
+STATEMENT         : / (?i: STATEMENT         ) (! <L_IDENT_REST>) ~ /
+STATISTICS        : / (?i: STATISTICS        ) (! <L_IDENT_REST>) ~ /
+STDIN             : / (?i: STDIN             ) (! <L_IDENT_REST>) ~ /
+STDOUT            : / (?i: STDOUT            ) (! <L_IDENT_REST>) ~ /
+STORAGE           : / (?i: STORAGE           ) (! <L_IDENT_REST>) ~ /
+STRICT            : / (?i: STRICT            ) (! <L_IDENT_REST>) ~ /
+STRIP             : / (?i: STRIP             ) (! <L_IDENT_REST>) ~ /
+SUBSTRING         : / (?i: SUBSTRING         ) (! <L_IDENT_REST>) ~ /
+SYMMETRIC         : / (?i: SYMMETRIC         ) (! <L_IDENT_REST>) ~ /
+SYSID             : / (?i: SYSID             ) (! <L_IDENT_REST>) ~ /
+SYSTEM            : / (?i: SYSTEM            ) (! <L_IDENT_REST>) ~ /
+
+TABLE             : / (?i: TABLE             ) (! <L_IDENT_REST>) ~ /
+TABLES            : / (?i: TABLES            ) (! <L_IDENT_REST>) ~ /
+TABLESPACE        : / (?i: TABLESPACE        ) (! <L_IDENT_REST>) ~ /
+TEMP              : / (?i: TEMP              ) (! <L_IDENT_REST>) ~ /
+TEMPLATE          : / (?i: TEMPLATE          ) (! <L_IDENT_REST>) ~ /
+TEMPORARY         : / (?i: TEMPORARY         ) (! <L_IDENT_REST>) ~ /
+TEXT              : / (?i: TEXT              ) (! <L_IDENT_REST>) ~ /
+THEN              : / (?i: THEN              ) (! <L_IDENT_REST>) ~ /
+TIME              : / (?i: TIME              ) (! <L_IDENT_REST>) ~ /
+TIMESTAMP         : / (?i: TIMESTAMP         ) (! <L_IDENT_REST>) ~ /
+TO                : / (?i: TO                ) (! <L_IDENT_REST>) ~ /
+TRAILING          : / (?i: TRAILING          ) (! <L_IDENT_REST>) ~ /
+TRANSACTION       : / (?i: TRANSACTION       ) (! <L_IDENT_REST>) ~ /
+TREAT             : / (?i: TREAT             ) (! <L_IDENT_REST>) ~ /
+TRIGGER           : / (?i: TRIGGER           ) (! <L_IDENT_REST>) ~ /
+TRIM              : / (?i: TRIM              ) (! <L_IDENT_REST>) ~ /
+TRUE              : / (?i: TRUE              ) (! <L_IDENT_REST>) ~ /
+TRUNCATE          : / (?i: TRUNCATE          ) (! <L_IDENT_REST>) ~ /
+TRUSTED           : / (?i: TRUSTED           ) (! <L_IDENT_REST>) ~ /
+TYPE              : / (?i: TYPE              ) (! <L_IDENT_REST>) ~ /
+TYPES             : / (?i: TYPES             ) (! <L_IDENT_REST>) ~ /
+
+UNBOUNDED         : / (?i: UNBOUNDED         ) (! <L_IDENT_REST>) ~ /
+UNCOMMITTED       : / (?i: UNCOMMITTED       ) (! <L_IDENT_REST>) ~ /
+UNENCRYPTED       : / (?i: UNENCRYPTED       ) (! <L_IDENT_REST>) ~ /
+UNION             : / (?i: UNION             ) (! <L_IDENT_REST>) ~ /
+UNIQUE            : / (?i: UNIQUE            ) (! <L_IDENT_REST>) ~ /
+UNKNOWN           : / (?i: UNKNOWN           ) (! <L_IDENT_REST>) ~ /
+UNLISTEN          : / (?i: UNLISTEN          ) (! <L_IDENT_REST>) ~ /
+UNLOGGED          : / (?i: UNLOGGED          ) (! <L_IDENT_REST>) ~ /
+UNTIL             : / (?i: UNTIL             ) (! <L_IDENT_REST>) ~ /
+UPDATE            : / (?i: UPDATE            ) (! <L_IDENT_REST>) ~ /
+USER              : / (?i: USER              ) (! <L_IDENT_REST>) ~ /
+USING             : / (?i: USING             ) (! <L_IDENT_REST>) ~ /
+
+VACUUM            : / (?i: VACUUM            ) (! <L_IDENT_REST>) ~ /
+VALID             : / (?i: VALID             ) (! <L_IDENT_REST>) ~ /
+VALIDATE          : / (?i: VALIDATE          ) (! <L_IDENT_REST>) ~ /
+VALIDATOR         : / (?i: VALIDATOR         ) (! <L_IDENT_REST>) ~ /
+VALUE             : / (?i: VALUE             ) (! <L_IDENT_REST>) ~ /
+VALUES            : / (?i: VALUES            ) (! <L_IDENT_REST>) ~ /
+VARCHAR           : / (?i: VARCHAR           ) (! <L_IDENT_REST>) ~ /
+VARIADIC          : / (?i: VARIADIC          ) (! <L_IDENT_REST>) ~ /
+VARYING           : / (?i: VARYING           ) (! <L_IDENT_REST>) ~ /
+VERBOSE           : / (?i: VERBOSE           ) (! <L_IDENT_REST>) ~ /
+VERSION           : / (?i: VERSION           ) (! <L_IDENT_REST>) ~ /
+VIEW              : / (?i: VIEW              ) (! <L_IDENT_REST>) ~ /
+VOLATILE          : / (?i: VOLATILE          ) (! <L_IDENT_REST>) ~ /
+
+WHEN              : / (?i: WHEN              ) (! <L_IDENT_REST>) ~ /
+WHERE             : / (?i: WHERE             ) (! <L_IDENT_REST>) ~ /
+WHITESPACE        : / (?i: WHITESPACE        ) (! <L_IDENT_REST>) ~ /
+WINDOW            : / (?i: WINDOW            ) (! <L_IDENT_REST>) ~ /
+WITH              : / (?i: WITH              ) (! <L_IDENT_REST>) ~ /
+WITHOUT           : / (?i: WITHOUT           ) (! <L_IDENT_REST>) ~ /
+WORK              : / (?i: WORK              ) (! <L_IDENT_REST>) ~ /
+WRAPPER           : / (?i: WRAPPER           ) (! <L_IDENT_REST>) ~ /
+WRITE             : / (?i: WRITE             ) (! <L_IDENT_REST>) ~ /
+
+XML               : / (?i: XML               ) (! <L_IDENT_REST>) ~ /
+XMLATTRIBUTES     : / (?i: XMLATTRIBUTES     ) (! <L_IDENT_REST>) ~ /
+XMLCONCAT         : / (?i: XMLCONCAT         ) (! <L_IDENT_REST>) ~ /
+XMLELEMENT        : / (?i: XMLELEMENT        ) (! <L_IDENT_REST>) ~ /
+XMLEXISTS         : / (?i: XMLEXISTS         ) (! <L_IDENT_REST>) ~ /
+XMLFOREST         : / (?i: XMLFOREST         ) (! <L_IDENT_REST>) ~ /
+XMLPARSE          : / (?i: XMLPARSE          ) (! <L_IDENT_REST>) ~ /
+XMLPI             : / (?i: XMLPI             ) (! <L_IDENT_REST>) ~ /
+XMLROOT           : / (?i: XMLROOT           ) (! <L_IDENT_REST>) ~ /
+XMLSERIALIZE      : / (?i: XMLSERIALIZE      ) (! <L_IDENT_REST>) ~ /
+
+YEAR              : / (?i: YEAR              ) (! <L_IDENT_REST>) ~ /
+YES               : / (?i: YES               ) (! <L_IDENT_REST>) ~ /
+
+ZONE              : / (?i: ZONE              ) (! <L_IDENT_REST>) ~ /
