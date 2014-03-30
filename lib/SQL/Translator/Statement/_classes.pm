@@ -5,7 +5,7 @@ package SQL::Converter::SPIF::_classes;
 # Most comments retained from those sources, marked as #*.
 
   ###########################################################################
-### Instead of C++'s typedef structs, we will use packages with Moo support 
+### Instead of C++'s typedef structs, we will use packages with Moo support
 ### to fill in the properties.  Here are the rules:
 ###
 ### * Until we get a better idea of what we are dealing with, no 'required'
@@ -14,13 +14,14 @@ package SQL::Converter::SPIF::_classes;
 ###   'location' is 'rwp', since there's really no reason to change that one.
 ### * Remove the first Nodetag->type property, since that's redundant with
 ###   the class name.
-### 
+###
   ###########################################################################
 
 # Okay, this looks really weird, but it makes translating these typedefs
 # to Moo classes a LOT easier...
 
 use Moo;
+### FIXME: Convert this to use Types::Tiny
 use MooX::Types::MooseLike::Base  qw(Any Str Bool ArrayRef HashRef Object Value Maybe);
 use MooX::Types::CLike            qw(:c :stdint);
 use Sub::Quote 'quote_sub';
@@ -28,7 +29,7 @@ use Scalar::Util 'blessed';
 use Import::Into;
 use Devel::SimpleTrace;
 
-BEGIN { require parent; }
+BEGIN { require parent; }  ### FIXME: Shouldn't this be base?  Why is this here?
 
 sub typedef_struct ($$) {
    my ($subpackage, $type_hash) = @_;
@@ -45,18 +46,18 @@ sub typedef_struct ($$) {
       message    => sub { "Object is not a $full_package class!" },
    }], __PACKAGE__)
       unless (eval '$'.__PACKAGE__.'::{$class_type}');
-   
+
    # package scoping
    Moo->import::into($full_package);
-   
+
    # special subclassing for Expr
    eval "package $full_package; extends 'SQL::Converter::PIL::Expr';" if (delete $type_hash->{xpr});
-   
+
    # small sub to remove any undef values from new()
    quote_sub $full_package.'::BUILDARGS' => q{
       my $class = shift;
       my $args  = $class->next::method(@_);  # let Moo's default BUILDARGS handle hashification
-      
+
       foreach my $k (keys %$args) {
          delete $args->{$k} unless defined $args->{$k};
          delete $args->{$k} if (ref $args->{$k} eq 'ARRAY' and !@{ $args->{$k} });
@@ -67,26 +68,26 @@ sub typedef_struct ($$) {
       dd { $class_type, $args };
       return $args;
    };
-   
+
    foreach my $name (sort keys %$type_hash) {
       my ($isa, $default, $required, $weak) = @{$type_hash->{$name}};
       my @has_params;
-      
+
       push @has_params, is => ($name eq 'location') ? 'rwp' : 'rw';
-      
+
       # Because we're passing types hashrefs instead of named subs, we
       # can get away with not using/exporting the MooX::Types stuff.
       push @has_params, isa      => Maybe[$isa] if $isa;
       push @has_params, default  => $default if $default;
       push @has_params, required => 1        if $required;
       push @has_params, weak_ref => 1        if $weak;
-      
+
       eval "package $full_package;".' has $name => @has_params;';
    };
    #use Data::Dump; eval 'dd \%'.$full_package.'::;';
 }
 
-### In order to add some level of readability into the result trees, we 
+### In order to add some level of readability into the result trees, we
 ### try to use real strings as much as possible for enums, ie: the parser
 ### isn't using them for bitwise math.
 
@@ -102,7 +103,7 @@ BEGIN {
       NIL   => undef,
       TRUE  => 1,
       FALSE => 0,
-      
+
       InvalidOid         => 0,
       DEFAULT_INDEX_TYPE => 'btree',
    };
@@ -125,10 +126,10 @@ BEGIN {
       # real strings
       unless ($is_bitmask) {
          my @names = map { (split /\s+/, $_, 2)[0] } @$enum_array;
-         
+
          # find LCP
          my $prefix = longest_common_prefix(@names);
-         
+
          foreach my $n (@names) {
             my $val = $n;
             $val =~ s/^\Q$prefix\E//;
@@ -160,7 +161,7 @@ BEGIN {
 
 #############################################################################
 
-### Each thing is a BEGIN block so that definitions are executed as 
+### Each thing is a BEGIN block so that definitions are executed as
 ### they are parsed.  This makes it possible to refer to the struct types after
 ### they are built.
 
@@ -171,21 +172,21 @@ BEGIN {
    ### This is somewhat defined in datetime.h, but we define it differently.
    typedef_enum '', [
       'INTERVAL_MASK_SECOND=1',
-      'INTERVAL_MASK_MINUTE',    
-      'INTERVAL_MASK_HOUR',      
+      'INTERVAL_MASK_MINUTE',
+      'INTERVAL_MASK_HOUR',
       'INTERVAL_MASK_DAY',
       'INTERVAL_MASK_MONTH',
       'INTERVAL_MASK_YEAR',
       'INTERVAL_FULL_RANGE=0x7FFF',
    ], 1;
-   
+
    ### Defined in pg_class.h ###
    typedef_enum '', [
       'RELPERSISTENCE_PERMANENT = "p"',     #* regular table
       'RELPERSISTENCE_UNLOGGED  = "u"',     #* unlogged permanent table
       'RELPERSISTENCE_TEMP      = "t"',     #* temporary table
    ], 1;
-   
+
    ### This is directly in gram.y for some reason... ###
    #* ConstraintAttributeSpec yields an integer bitmask of these flags:
    typedef_enum '', [
@@ -215,14 +216,14 @@ BEGIN {
    #* This is needed in both parsenodes.h and plannodes.h, so put it here...
    typedef_enum 'CmdType', [
       'CMD_UNKNOWN',
-      'CMD_SELECT',      #* select stmt 
-      'CMD_UPDATE',      #* update stmt 
-      'CMD_INSERT',      #* insert stmt 
+      'CMD_SELECT',      #* select stmt
+      'CMD_UPDATE',      #* update stmt
+      'CMD_INSERT',      #* insert stmt
       'CMD_DELETE',
       'CMD_UTILITY',     #* cmds like create, destroy, copy, vacuum,
-                         #* etc. 
+                         #* etc.
       'CMD_NOTHING'      #* dummy command for instead nothing rules
-                         #* with qual 
+                         #* with qual
    ], 0;
 
 
@@ -235,10 +236,10 @@ BEGIN {
    typedef_enum 'JoinType', [
       #* The canonical kinds of joins according to the SQL JOIN syntax. Only
       #* these codes can appear in parser output (e.g., JoinExpr nodes).
-      'JOIN_INNER',               #* matching tuple pairs only 
-      'JOIN_LEFT',                #* pairs + unmatched LHS tuples 
-      'JOIN_FULL',                #* pairs + unmatched LHS + unmatched RHS 
-      'JOIN_RIGHT',               #* pairs + unmatched RHS tuples 
+      'JOIN_INNER',               #* matching tuple pairs only
+      'JOIN_LEFT',                #* pairs + unmatched LHS tuples
+      'JOIN_FULL',                #* pairs + unmatched LHS + unmatched RHS
+      'JOIN_RIGHT',               #* pairs + unmatched RHS tuples
 
       #* Semijoins and anti-semijoins (as defined in relational theory) do not
       #* appear in the SQL JOIN syntax, but there are standard idioms for
@@ -247,13 +248,13 @@ BEGIN {
       #* support these codes.  NOTE: in JOIN_SEMI output, it is unspecified
       #* which matching RHS row is joined to.  In JOIN_ANTI output, the row is
       #* guaranteed to be null-extended.
-      'JOIN_SEMI',                #* 1 copy of each LHS row that has match(es) 
-      'JOIN_ANTI',                #* 1 copy of each LHS row that has no match 
+      'JOIN_SEMI',                #* 1 copy of each LHS row that has match(es)
+      'JOIN_ANTI',                #* 1 copy of each LHS row that has no match
 
       #* These codes are used internally in the planner, but are not supported
       #* by the executor (nor, indeed, by most of the planner).
-      'JOIN_UNIQUE_OUTER',        #* LHS path must be made unique 
-      'JOIN_UNIQUE_INNER'         #* RHS path must be made unique 
+      'JOIN_UNIQUE_OUTER',        #* LHS path must be made unique
+      'JOIN_UNIQUE_INNER'         #* RHS path must be made unique
 
       #* We might need additional join types someday.
    ], 0;
@@ -280,22 +281,22 @@ BEGIN {
    #* associated with RTEs, there may be entries corresponding to dropped
    #* columns; these are normally empty strings ("").  See parsenodes.h for info.
    typedef_struct 'Alias', {
-      aliasname            => [ Str             ],  #* aliased rel name (never qualified) 
-      colnames             => [ ArrayRef        ],  #* optional list of column aliases 
+      aliasname            => [ Str             ],  #* aliased rel name (never qualified)
+      colnames             => [ ArrayRef        ],  #* optional list of column aliases
    };
 
    typedef_enum 'InhOption', [
-      'INH_NO',                     #* Do NOT scan child tables 
-      'INH_YES',                    #* DO scan child tables 
-      'INH_DEFAULT'                 #* Use current SQL_inheritance option 
+      'INH_NO',                     #* Do NOT scan child tables
+      'INH_YES',                    #* DO scan child tables
+      'INH_DEFAULT'                 #* Use current SQL_inheritance option
    ], 0;
 
-   #* What to do at commit time for temporary relations 
+   #* What to do at commit time for temporary relations
    typedef_enum 'OnCommitAction', [
-      'ONCOMMIT_NOOP',              #* No ON COMMIT clause (do nothing) 
-      'ONCOMMIT_PRESERVE_ROWS',     #* ON COMMIT PRESERVE ROWS (do nothing) 
-      'ONCOMMIT_DELETE_ROWS',       #* ON COMMIT DELETE ROWS 
-      'ONCOMMIT_DROP'               #* ON COMMIT DROP 
+      'ONCOMMIT_NOOP',              #* No ON COMMIT clause (do nothing)
+      'ONCOMMIT_PRESERVE_ROWS',     #* ON COMMIT PRESERVE ROWS (do nothing)
+      'ONCOMMIT_DELETE_ROWS',       #* ON COMMIT DELETE ROWS
+      'ONCOMMIT_DROP'               #* ON COMMIT DROP
    ], 0;
 }
 BEGIN {
@@ -305,25 +306,25 @@ BEGIN {
    #* recursively to child tables.  In some contexts it is also useful to carry
    #* a TEMP table indication here.
    typedef_struct 'RangeVar', {
-      catalogname          => [ Str             ],  #* the catalog (database) name, or NULL 
-      schemaname           => [ Str             ],  #* the schema name, or NULL 
-      relname              => [ Str             ],  #* the relation/sequence name 
+      catalogname          => [ Str             ],  #* the catalog (database) name, or NULL
+      schemaname           => [ Str             ],  #* the schema name, or NULL
+      relname              => [ Str             ],  #* the relation/sequence name
       inhOpt               => [ InhOption       ],  #* expand rel by inheritance? recursively act
-                                                    #* on children? 
-      relpersistence       => [ Str             ],  #* see RELPERSISTENCE_* in pg_class.h 
-      alias                => [ Alias           ],  #* table alias & optional column aliases 
-      location             => [ HashRef         ],  #* token location, or -1 if unknown 
+                                                    #* on children?
+      relpersistence       => [ Str             ],  #* see RELPERSISTENCE_* in pg_class.h
+      alias                => [ Alias           ],  #* table alias & optional column aliases
+      location             => [ HashRef         ],  #* token location, or -1 if unknown
    };
 }
 BEGIN {
    #* IntoClause - target information for SELECT INTO and CREATE TABLE AS
    typedef_struct 'IntoClause', {
-      rel                  => [ RangeVar        ],  #* target relation name 
-      colNames             => [ ArrayRef        ],  #* column names to assign, or NIL 
-      options              => [ ArrayRef        ],  #* options from WITH clause 
-      onCommit             => [ OnCommitAction  ],  #* what do we do at COMMIT? 
-      tableSpaceName       => [ Str             ],  #* table space to use, or NULL 
-      skipData             => [ Bool            ],  #* true for WITH NO DATA 
+      rel                  => [ RangeVar        ],  #* target relation name
+      colNames             => [ ArrayRef        ],  #* column names to assign, or NIL
+      options              => [ ArrayRef        ],  #* options from WITH clause
+      onCommit             => [ OnCommitAction  ],  #* what do we do at COMMIT?
+      tableSpaceName       => [ Str             ],  #* table space to use, or NULL
+      skipData             => [ Bool            ],  #* true for WITH NO DATA
    };
 
    #* ----------------------------------------------------------------
@@ -356,17 +357,17 @@ BEGIN {
    #* NB: ordering of the alternatives is significant; later (larger) values
    #* allow more casts than earlier ones.
    typedef_enum 'CoercionContext', [
-      'COERCION_IMPLICIT',          #* coercion in context of expression 
-      'COERCION_ASSIGNMENT',        #* coercion in context of assignment 
-      'COERCION_EXPLICIT'           #* explicit cast operation 
+      'COERCION_IMPLICIT',          #* coercion in context of expression
+      'COERCION_ASSIGNMENT',        #* coercion in context of assignment
+      'COERCION_EXPLICIT'           #* explicit cast operation
    ], 0;
 
    #* CoercionForm - information showing how to display a function-call node
    typedef_enum 'CoercionForm', [
-      'COERCE_EXPLICIT_CALL',       #* display as a function call 
-      'COERCE_EXPLICIT_CAST',       #* display as an explicit cast 
-      'COERCE_IMPLICIT_CAST',       #* implicit cast, so hide it 
-      'COERCE_DONTCARE'             #* special case for planner 
+      'COERCE_EXPLICIT_CALL',       #* display as a function call
+      'COERCE_EXPLICIT_CAST',       #* display as an explicit cast
+      'COERCE_IMPLICIT_CAST',       #* implicit cast, so hide it
+      'COERCE_DONTCARE'             #* special case for planner
    ], 0;
 }
 BEGIN {
@@ -381,10 +382,10 @@ BEGIN {
    #* during expression preprocessing, so execution never sees a NamedArgExpr.
    typedef_struct 'NamedArgExpr', {
       xpr                  => [ Expr            ],
-      arg                  => [ Expr            ],  #* the argument expression 
-      name                 => [ Str             ],  #* the name 
-      argnumber            => [ Int             ],  #* argument's number in positional notation 
-      location             => [ HashRef         ],  #* argument name location, or -1 if unknown 
+      arg                  => [ Expr            ],  #* the argument expression
+      name                 => [ Str             ],  #* the name
+      argnumber            => [ Int             ],  #* argument's number in positional notation
+      location             => [ HashRef         ],  #* argument name location, or -1 if unknown
    };
 
    #* SubLink
@@ -430,17 +431,17 @@ BEGIN {
       'ROWCOMPARE_SUBLINK',
       'EXPR_SUBLINK',
       'ARRAY_SUBLINK',
-      'CTE_SUBLINK'                 #* for SubPlans only 
+      'CTE_SUBLINK'                 #* for SubPlans only
    ], 0;
 }
 BEGIN {
    typedef_struct 'SubLink', {
       xpr                  => [ Expr            ],
-      subLinkType          => [ SubLinkType     ],  #* see above 
-      testexpr             => [ Any             ],  #* outer-query test for ALL/ANY/ROWCOMPARE 
-      operName             => [ ArrayRef        ],  #* originally specified operator name 
-      subselect            => [ Any             ],  #* subselect as Query* or parsetree 
-      location             => [ HashRef         ],  #* token location, or -1 if unknown 
+      subLinkType          => [ SubLinkType     ],  #* see above
+      testexpr             => [ Any             ],  #* outer-query test for ALL/ANY/ROWCOMPARE
+      operName             => [ ArrayRef        ],  #* originally specified operator name
+      subselect            => [ Any             ],  #* subselect as Query* or parsetree
+      location             => [ HashRef         ],  #* token location, or -1 if unknown
    };
 
    ### RIP: SubPlan ###
@@ -473,20 +474,20 @@ BEGIN {
    #*----------
    typedef_struct 'CaseExpr', {
       xpr                  => [ Expr            ],
-      casetype             => [ UInt            ],  #* type of expression result 
-      casecollid           => [ UInt            ],  #* OID of collation, or InvalidOid if none 
-      arg                  => [ Expr            ],  #* implicit equality comparison argument 
-      args                 => [ ArrayRef        ],  #* the arguments (list of WHEN clauses) 
-      defresult            => [ Expr            ],  #* the default result (ELSE clause) 
-      location             => [ HashRef         ],  #* token location, or -1 if unknown 
+      casetype             => [ UInt            ],  #* type of expression result
+      casecollid           => [ UInt            ],  #* OID of collation, or InvalidOid if none
+      arg                  => [ Expr            ],  #* implicit equality comparison argument
+      args                 => [ ArrayRef        ],  #* the arguments (list of WHEN clauses)
+      defresult            => [ Expr            ],  #* the default result (ELSE clause)
+      location             => [ HashRef         ],  #* token location, or -1 if unknown
    };
 
    #* CaseWhen - one arm of a CASE expression
    typedef_struct 'CaseWhen', {
       xpr                  => [ Expr            ],
-      expr                 => [ Expr            ],  #* condition expression 
-      result               => [ Expr            ],  #* substitution result 
-      location             => [ HashRef         ],  #* token location, or -1 if unknown 
+      expr                 => [ Expr            ],  #* condition expression
+      result               => [ Expr            ],  #* substitution result
+      location             => [ HashRef         ],  #* token location, or -1 if unknown
    };
 
    ### RIP: CaseTestExpr ###
@@ -513,8 +514,8 @@ BEGIN {
    #* args list, colnames is one-for-one with physical fields of the rowtype.
    typedef_struct 'RowExpr', {
       xpr                  => [ Expr            ],
-      args                 => [ ArrayRef        ],  #* the fields 
-      row_typeid           => [ UInt            ],  #* RECORDOID or a composite type's ID 
+      args                 => [ ArrayRef        ],  #* the fields
+      row_typeid           => [ UInt            ],  #* RECORDOID or a composite type's ID
 
       #* Note: we deliberately do NOT store a typmod.  Although a typmod will be
       #* associated with specific RECORD types at runtime, it will differ for
@@ -522,20 +523,20 @@ BEGIN {
       #* parsetrees.  We must assume typmod -1 for a RowExpr node.
       #* We don't need to store a collation either.  The result type is
       #* necessarily composite, and composite types never have a collation.
-      row_format           => [ CoercionForm    ],  #* how to display this node 
-      colnames             => [ ArrayRef        ],  #* list of String, or NIL 
-      location             => [ HashRef         ],  #* token location, or -1 if unknown 
+      row_format           => [ CoercionForm    ],  #* how to display this node
+      colnames             => [ ArrayRef        ],  #* list of String, or NIL
+      location             => [ HashRef         ],  #* token location, or -1 if unknown
    };
 
    ### RIP: RowCompareExpr ###
-   
+
    #* CoalesceExpr - a COALESCE expression
    typedef_struct 'CoalesceExpr', {
       xpr                  => [ Expr            ],
-      coalescetype         => [ UInt            ],  #* type of expression result 
-      coalescecollid       => [ UInt            ],  #* OID of collation, or InvalidOid if none 
-      args                 => [ ArrayRef        ],  #* the arguments 
-      location             => [ HashRef         ],  #* token location, or -1 if unknown 
+      coalescetype         => [ UInt            ],  #* type of expression result
+      coalescecollid       => [ UInt            ],  #* OID of collation, or InvalidOid if none
+      args                 => [ ArrayRef        ],  #* the arguments
+      location             => [ HashRef         ],  #* token location, or -1 if unknown
    };
 
    #* MinMaxExpr - a GREATEST or LEAST function
@@ -547,12 +548,12 @@ BEGIN {
 BEGIN {
    typedef_struct 'MinMaxExpr', {
       xpr                  => [ Expr            ],
-      minmaxtype           => [ UInt            ],  #* common type of arguments and result 
-      minmaxcollid         => [ UInt            ],  #* OID of collation of result 
-      inputcollid          => [ UInt            ],  #* OID of collation that function should use 
-      op                   => [ MinMaxOp        ],  #* function to execute 
-      args                 => [ ArrayRef        ],  #* the arguments 
-      location             => [ HashRef         ],  #* token location, or -1 if unknown 
+      minmaxtype           => [ UInt            ],  #* common type of arguments and result
+      minmaxcollid         => [ UInt            ],  #* OID of collation of result
+      inputcollid          => [ UInt            ],  #* OID of collation that function should use
+      op                   => [ MinMaxOp        ],  #* function to execute
+      args                 => [ ArrayRef        ],  #* the arguments
+      location             => [ HashRef         ],  #* token location, or -1 if unknown
    };
 
    #* XmlExpr - various SQL/XML functions requiring special grammar productions
@@ -563,14 +564,14 @@ BEGIN {
    #* from the XmlExprOp.  The type/typmod fields are just used for display
    #* purposes, and are NOT the true result type of the node.
    typedef_enum 'XmlExprOp', [
-      'IS_XMLCONCAT',               #* XMLCONCAT(args) 
-      'IS_XMLELEMENT',              #* XMLELEMENT(name, xml_attributes, args) 
-      'IS_XMLFOREST',               #* XMLFOREST(xml_attributes) 
-      'IS_XMLPARSE',                #* XMLPARSE(text, is_doc, preserve_ws) 
-      'IS_XMLPI',                   #* XMLPI(name [, args]) 
-      'IS_XMLROOT',                 #* XMLROOT(xml, version, standalone) 
-      'IS_XMLSERIALIZE',            #* XMLSERIALIZE(is_document, xmlval) 
-      'IS_DOCUMENT'                 #* xmlval IS DOCUMENT 
+      'IS_XMLCONCAT',               #* XMLCONCAT(args)
+      'IS_XMLELEMENT',              #* XMLELEMENT(name, xml_attributes, args)
+      'IS_XMLFOREST',               #* XMLFOREST(xml_attributes)
+      'IS_XMLPARSE',                #* XMLPARSE(text, is_doc, preserve_ws)
+      'IS_XMLPI',                   #* XMLPI(name [, args])
+      'IS_XMLROOT',                 #* XMLROOT(xml, version, standalone)
+      'IS_XMLSERIALIZE',            #* XMLSERIALIZE(is_document, xmlval)
+      'IS_DOCUMENT'                 #* xmlval IS DOCUMENT
    ], 0;
 
    typedef_enum 'XmlOptionType', [
@@ -581,15 +582,15 @@ BEGIN {
 BEGIN {
    typedef_struct 'XMLExpr', {
       xpr                  => [ Expr            ],
-      op                   => [ XmlExprOp       ],  #* xml function ID 
-      name                 => [ Str             ],  #* name in xml(NAME foo ...) syntaxes 
-      named_args           => [ ArrayRef        ],  #* non-XML expressions for xml_attributes 
-      arg_names            => [ ArrayRef        ],  #* parallel list of Value strings 
-      args                 => [ ArrayRef        ],  #* list of expressions 
-      xmloption            => [ XmlOptionType   ],  #* DOCUMENT or CONTENT 
-      type                 => [ UInt            ],  #* target type/typmod for XMLSERIALIZE 
+      op                   => [ XmlExprOp       ],  #* xml function ID
+      name                 => [ Str             ],  #* name in xml(NAME foo ...) syntaxes
+      named_args           => [ ArrayRef        ],  #* non-XML expressions for xml_attributes
+      arg_names            => [ ArrayRef        ],  #* parallel list of Value strings
+      args                 => [ ArrayRef        ],  #* list of expressions
+      xmloption            => [ XmlOptionType   ],  #* DOCUMENT or CONTENT
+      type                 => [ UInt            ],  #* target type/typmod for XMLSERIALIZE
       typmod               => [ Int32           ],
-      location             => [ HashRef         ],  #* token location, or -1 if unknown 
+      location             => [ HashRef         ],  #* token location, or -1 if unknown
    };
 
    #* ----------------
@@ -608,9 +609,9 @@ BEGIN {
 BEGIN {
    typedef_struct 'NullTest', {
       xpr                  => [ Expr            ],
-      arg                  => [ Expr            ],  #* input expression 
-      nulltesttype         => [ NullTestType    ],  #* IS NULL, IS NOT NULL 
-      argisrow             => [ Bool            ],  #* T if input is of a composite type 
+      arg                  => [ Expr            ],  #* input expression
+      nulltesttype         => [ NullTestType    ],  #* IS NULL, IS NOT NULL
+      argisrow             => [ Bool            ],  #* T if input is of a composite type
    };
 
    #* BooleanTest
@@ -626,8 +627,8 @@ BEGIN {
 BEGIN {
    typedef_struct 'BooleanTest', {
       xpr                  => [ Expr            ],
-      arg                  => [ Expr            ],  #* input expression 
-      booltesttype         => [ BoolTestType    ],  #* test type 
+      arg                  => [ Expr            ],  #* input expression
+      booltesttype         => [ BoolTestType    ],  #* test type
    };
 
    ### RIP: CoerceToDomain ###
@@ -639,10 +640,10 @@ BEGIN {
    #* treat it as an expression node during parsing and rewriting.
    typedef_struct 'SetToDefault', {
       xpr                  => [ Expr            ],
-      typeId               => [ UInt            ],  #* type for substituted value 
-      typeMod              => [ Int32           ],  #* typemod for substituted value 
-      collation            => [ UInt            ],  #* collation for the substituted value 
-      location             => [ HashRef         ],  #* token location, or -1 if unknown 
+      typeId               => [ UInt            ],  #* type for substituted value
+      typeMod              => [ Int32           ],  #* typemod for substituted value
+      collation            => [ UInt            ],  #* collation for the substituted value
+      location             => [ HashRef         ],  #* token location, or -1 if unknown
    };
 
    #* Node representing [WHERE] CURRENT OF cursor_name
@@ -655,9 +656,9 @@ BEGIN {
    #* case is for the convenience of plpgsql.
    typedef_struct 'CurrentOfExpr', {
       xpr                  => [ Expr            ],
-      cvarno               => [ Int16           ],  #* RT index of target relation 
-      cursor_name          => [ Str             ],  #* name of referenced cursor, or NULL 
-      cursor_param         => [ Int             ],  #* refcursor parameter number, or 0 
+      cvarno               => [ Int16           ],  #* RT index of target relation
+      cursor_name          => [ Str             ],  #* name of referenced cursor, or NULL
+      cursor_param         => [ Int             ],  #* refcursor parameter number, or 0
    };
 
    ### RIP: TargetEntry ###
@@ -683,14 +684,14 @@ BEGIN {
    #* no join alias variables referencing such joins.
    #*----------
    typedef_struct 'JoinExpr', {
-      jointype             => [ JoinType        ],  #* type of join 
-      isNatural            => [ Bool            ],  #* Natural join? Will need to shape table 
-      larg                 => [ Any             ],  #* left subtree 
-      rarg                 => [ Any             ],  #* right subtree 
-      usingClause          => [ ArrayRef        ],  #* USING clause, if any (list of String) 
-      quals                => [ Any             ],  #* qualifiers on join, if any 
-      alias                => [ Alias           ],  #* user-written alias clause, if any 
-      rtindex              => [ Int             ],  #* RT index assigned for join, or 0 
+      jointype             => [ JoinType        ],  #* type of join
+      isNatural            => [ Bool            ],  #* Natural join? Will need to shape table
+      larg                 => [ Any             ],  #* left subtree
+      rarg                 => [ Any             ],  #* right subtree
+      usingClause          => [ ArrayRef        ],  #* USING clause, if any (list of String)
+      quals                => [ Any             ],  #* qualifiers on join, if any
+      alias                => [ Alias           ],  #* user-written alias clause, if any
+      rtindex              => [ Int             ],  #* RT index assigned for join, or 0
    };
 
    #*----------
@@ -701,12 +702,12 @@ BEGIN {
    #* of the outputs of the children.
    #*----------
    typedef_struct 'FromExpr', {
-      fromlist             => [ ArrayRef        ],  #* List of join subtrees 
-      quals                => [ Any             ],  #* qualifiers on join, if any 
+      fromlist             => [ ArrayRef        ],  #* List of join subtrees
+      quals                => [ Any             ],  #* qualifiers on join, if any
    };
 }
 
-#endif   #* PRIMNODES_H 
+#endif   #* PRIMNODES_H
 
 #*-------------------------------------------------------------------------
 #*
@@ -729,12 +730,12 @@ BEGIN {
 
 BEGIN {
 
-   #* Sort ordering options for ORDER BY and CREATE INDEX 
+   #* Sort ordering options for ORDER BY and CREATE INDEX
    typedef_enum 'SortByDir', [
       'SORTBY_DEFAULT',
       'SORTBY_ASC',
       'SORTBY_DESC',
-      'SORTBY_USING'                #* not allowed in CREATE INDEX ... 
+      'SORTBY_USING'                #* not allowed in CREATE INDEX ...
    ], 0;
 
    typedef_enum 'SortByNulls', [
@@ -761,14 +762,14 @@ BEGIN {
    #* the type of that field.  Otherwise (the normal case), names is a type
    #* name possibly qualified with schema and database name.
    typedef_struct 'TypeName', {
-      names                => [ ArrayRef        ],  #* qualified name (list of Value strings) 
-      typeOid              => [ UInt            ],  #* type identified by OID 
-      setof                => [ Bool            ],  #* is a set? 
-      pct_type             => [ Bool            ],  #* %TYPE specified? 
-      typmods              => [ ArrayRef        ],  #* type modifier expression(s) 
-      typemod              => [ Int32           ],  #* prespecified type modifier 
-      arrayBounds          => [ ArrayRef        ],  #* array bounds 
-      location             => [ HashRef         ],  #* token location, or -1 if unknown 
+      names                => [ ArrayRef        ],  #* qualified name (list of Value strings)
+      typeOid              => [ UInt            ],  #* type identified by OID
+      setof                => [ Bool            ],  #* is a set?
+      pct_type             => [ Bool            ],  #* %TYPE specified?
+      typmods              => [ ArrayRef        ],  #* type modifier expression(s)
+      typemod              => [ Int32           ],  #* prespecified type modifier
+      arrayBounds          => [ ArrayRef        ],  #* array bounds
+      location             => [ HashRef         ],  #* token location, or -1 if unknown
    };
 
    #* ColumnRef - specifies a reference to a column, or possibly a whole tuple
@@ -781,14 +782,14 @@ BEGIN {
    #* for simplicity in the normal case, initial field selection from a table
    #* name is represented within ColumnRef and not by adding A_Indirection.
    typedef_struct 'Column::Reference', {
-      fields               => [ ArrayRef        ],  #* field names (Value strings) or A_Star 
-      location             => [ HashRef         ],  #* token location, or -1 if unknown 
+      fields               => [ ArrayRef        ],  #* field names (Value strings) or A_Star
+      location             => [ HashRef         ],  #* token location, or -1 if unknown
    };
 
    #* ParamRef - specifies a $n parameter reference
    typedef_struct 'ParamRef', {
-      number               => [ Int             ],  #* the number of the parameter 
-      location             => [ HashRef         ],  #* token location, or -1 if unknown 
+      number               => [ Int             ],  #* the number of the parameter
+      location             => [ HashRef         ],  #* token location, or -1 if unknown
    };
 
    #* WindowDef - raw representation of WINDOW and OVER clauses
@@ -797,71 +798,71 @@ BEGIN {
    #* for the "OVER (window)" syntax, which is subtly different --- the latter
    #* implies overriding the window frame clause.
    typedef_struct 'WindowDef', {
-      name                 => [ Str             ],  #* window's own name 
-      refname              => [ Str             ],  #* referenced window name, if any 
-      partitionClause      => [ ArrayRef        ],  #* PARTITION BY expression list 
-      orderClause          => [ ArrayRef        ],  #* ORDER BY (list of SortBy) 
-      frameOptions         => [ Int             ],  #* frame_clause options, see below 
-      startOffset          => [ Any             ],  #* expression for starting bound, if any 
-      endOffset            => [ Any             ],  #* expression for ending bound, if any 
-      location             => [ HashRef         ],  #* parse location, or -1 if none/unknown 
+      name                 => [ Str             ],  #* window's own name
+      refname              => [ Str             ],  #* referenced window name, if any
+      partitionClause      => [ ArrayRef        ],  #* PARTITION BY expression list
+      orderClause          => [ ArrayRef        ],  #* ORDER BY (list of SortBy)
+      frameOptions         => [ Int             ],  #* frame_clause options, see below
+      startOffset          => [ Any             ],  #* expression for starting bound, if any
+      endOffset            => [ Any             ],  #* expression for ending bound, if any
+      location             => [ HashRef         ],  #* parse location, or -1 if none/unknown
    };
-   
+
    #* A_Expr - infix, prefix, and postfix expressions
    typedef_enum 'A_Expr_Kind', [
-      'AEXPR_OP',                   #* normal operator 
-      'AEXPR_AND',                  #* booleans - name field is unused 
+      'AEXPR_OP',                   #* normal operator
+      'AEXPR_AND',                  #* booleans - name field is unused
       'AEXPR_OR',
       'AEXPR_NOT',
-      'AEXPR_OP_ANY',               #* scalar op ANY (array) 
-      'AEXPR_OP_ALL',               #* scalar op ALL (array) 
-      'AEXPR_DISTINCT',             #* IS DISTINCT FROM - name must be "=" 
-      'AEXPR_NULLIF',               #* NULLIF - name must be "=" 
-      'AEXPR_OF',                   #* IS [NOT] OF - name must be "=" or "<>" 
-      'AEXPR_IN'                    #* [NOT] IN - name must be "=" or "<>" 
+      'AEXPR_OP_ANY',               #* scalar op ANY (array)
+      'AEXPR_OP_ALL',               #* scalar op ALL (array)
+      'AEXPR_DISTINCT',             #* IS DISTINCT FROM - name must be "="
+      'AEXPR_NULLIF',               #* NULLIF - name must be "="
+      'AEXPR_OF',                   #* IS [NOT] OF - name must be "=" or "<>"
+      'AEXPR_IN'                    #* [NOT] IN - name must be "=" or "<>"
    ], 0;
 }
 BEGIN {
    typedef_struct 'A_Expr', {
       xpr                  => [ Expr            ],
-      kind                 => [ A_Expr_Kind     ],  #* see above 
-      name                 => [ ArrayRef        ],  #* possibly-qualified name of operator 
-      lexpr                => [ Any             ],  #* left argument, or NULL if none 
-      rexpr                => [ Any             ],  #* right argument, or NULL if none 
-      location             => [ HashRef         ],  #* token location, or -1 if unknown 
+      kind                 => [ A_Expr_Kind     ],  #* see above
+      name                 => [ ArrayRef        ],  #* possibly-qualified name of operator
+      lexpr                => [ Any             ],  #* left argument, or NULL if none
+      rexpr                => [ Any             ],  #* right argument, or NULL if none
+      location             => [ HashRef         ],  #* token location, or -1 if unknown
    };
 
    #* A_Const - a literal constant
-   
+
    ### Normally, val would equal a 'Value'.  In Pg, a 'Value' is an object that functions much
    ### like a Perl SCALAR, in that it can store something of one type and be able to convert
    ### at will.  Perl already does this naturally, but knowing the original type of a constant
    ### is still useful information.  Thus, we add in a 'type' attr here, instead of enforcing
    ### types on every single SCALAR-type found from the parser.
-   
-   ### Oh, and MooX::Types::MooseLike just so happens to have a nice 'Value' type that fits 
+
+   ### Oh, and MooX::Types::MooseLike just so happens to have a nice 'Value' type that fits
    ### perfectly here...
    typedef_struct 'A_Const', {
       xpr                  => [ Expr            ],
       type                 => [ Str             ],  ### (see above...)
-      val                  => [ Value           ],  #* value (includes type info, see value.h) 
-      location             => [ HashRef         ],  #* token location, or -1 if unknown 
+      val                  => [ Value           ],  #* value (includes type info, see value.h)
+      location             => [ HashRef         ],  #* token location, or -1 if unknown
    };
 
    #* TypeCast - a CAST expression
    typedef_struct 'TypeCast', {
       xpr                  => [ Expr            ],
-      arg                  => [ Any             ],  #* the expression being casted 
-      typeName             => [ TypeName        ],  #* the target type 
-      location             => [ HashRef         ],  #* token location, or -1 if unknown 
+      arg                  => [ Any             ],  #* the expression being casted
+      typeName             => [ TypeName        ],  #* the target type
+      location             => [ HashRef         ],  #* token location, or -1 if unknown
    };
 
    #* CollateClause - a COLLATE expression
    typedef_struct 'CollateClause', {
       xpr                  => [ Expr            ],
-      arg                  => [ Any             ],  #* input expression 
-      collname             => [ ArrayRef        ],  #* possibly-qualified collation name 
-      location             => [ HashRef         ],  #* token location, or -1 if unknown 
+      arg                  => [ Any             ],  #* input expression
+      collname             => [ ArrayRef        ],  #* possibly-qualified collation name
+      location             => [ HashRef         ],  #* token location, or -1 if unknown
    };
 
    #* FuncCall - a function or aggregate invocation
@@ -872,14 +873,14 @@ BEGIN {
    #* aggregate or some other kind of function.  However, if OVER is present
    #* it had better be an aggregate or window function.
    typedef_struct 'Function::Call', {
-      funcname             => [ ArrayRef        ],  #* qualified name of function 
-      args                 => [ ArrayRef        ],  #* the arguments (list of exprs) 
-      agg_order            => [ ArrayRef        ],  #* ORDER BY (list of SortBy) 
-      agg_star             => [ Bool            ],  #* argument was really '*' 
-      agg_distinct         => [ Bool            ],  #* arguments were labeled DISTINCT 
-      func_variadic        => [ Bool            ],  #* last argument was labeled VARIADIC 
-      over                 => [ WindowDef       ],  #* OVER clause, if any 
-      location             => [ HashRef         ],  #* token location, or -1 if unknown 
+      funcname             => [ ArrayRef        ],  #* qualified name of function
+      args                 => [ ArrayRef        ],  #* the arguments (list of exprs)
+      agg_order            => [ ArrayRef        ],  #* ORDER BY (list of SortBy)
+      agg_star             => [ Bool            ],  #* argument was really '*'
+      agg_distinct         => [ Bool            ],  #* arguments were labeled DISTINCT
+      func_variadic        => [ Bool            ],  #* last argument was labeled VARIADIC
+      over                 => [ WindowDef       ],  #* OVER clause, if any
+      location             => [ HashRef         ],  #* token location, or -1 if unknown
    };
 
    #* A_Star - '*' representing all columns of a table or compound field
@@ -890,7 +891,7 @@ BEGIN {
 
    #* A_Indices - array subscript or slice bounds ([lidx:uidx] or [uidx])
    typedef_struct 'A_Indices', {
-      lidx                 => [ Any             ],  #* NULL if it's a single subscript 
+      lidx                 => [ Any             ],  #* NULL if it's a single subscript
       uidx                 => [ Any             ],
    };
 
@@ -906,15 +907,15 @@ BEGIN {
    #* Currently, A_Star must appear only as the last list element --- the grammar
    #* is responsible for enforcing this!
    typedef_struct 'A_Indirection', {
-      arg                  => [ Any             ],  #* the thing being selected from 
-      indirection          => [ ArrayRef        ],  #* subscripts and/or field names and/or * 
+      arg                  => [ Any             ],  #* the thing being selected from
+      indirection          => [ ArrayRef        ],  #* subscripts and/or field names and/or *
    };
 
    #* A_ArrayExpr - an ARRAY[] construct
    typedef_struct 'A_ArrayExpr', {
       xpr                  => [ Expr            ],
-      elements             => [ ArrayRef        ],  #* array element expressions 
-      location             => [ HashRef         ],  #* token location, or -1 if unknown 
+      elements             => [ ArrayRef        ],  #* array element expressions
+      location             => [ HashRef         ],  #* token location, or -1 if unknown
    };
 
    #* ResTarget -
@@ -930,20 +931,20 @@ BEGIN {
    #* 'val' is the expression to assign.
    #* See A_Indirection for more info about what can appear in 'indirection'.
    typedef_struct 'ResultTarget', {
-      name                 => [ Str             ],  #* column name or NULL 
-      indirection          => [ ArrayRef        ],  #* subscripts, field names, and '*', or NIL 
-      val                  => [ Any             ],  #* the value expression to compute or assign 
-      location             => [ HashRef         ],  #* token location, or -1 if unknown 
+      name                 => [ Str             ],  #* column name or NULL
+      indirection          => [ ArrayRef        ],  #* subscripts, field names, and '*', or NIL
+      val                  => [ Any             ],  #* the value expression to compute or assign
+      location             => [ HashRef         ],  #* token location, or -1 if unknown
    };
 }
 BEGIN {
    #* SortBy - for ORDER BY clause
    typedef_struct 'SortBy', {
-      node                 => [ Any             ],  #* expression to sort on 
-      sortby_dir           => [ SortByDir       ],  #* ASC/DESC/USING/default 
-      sortby_nulls         => [ SortByNulls     ],  #* NULLS FIRST/LAST 
-      useOp                => [ ArrayRef        ],  #* name of op to use, if SORTBY_USING 
-      location             => [ HashRef         ],  #* operator location, or -1 if none/unknown 
+      node                 => [ Any             ],  #* expression to sort on
+      sortby_dir           => [ SortByDir       ],  #* ASC/DESC/USING/default
+      sortby_nulls         => [ SortByNulls     ],  #* NULLS FIRST/LAST
+      useOp                => [ ArrayRef        ],  #* name of op to use, if SORTBY_USING
+      location             => [ HashRef         ],  #* operator location, or -1 if none/unknown
    };
 
    ### (Moved WindowDef, since it gets used earlier than its definition...)
@@ -955,20 +956,20 @@ BEGIN {
    #* the convenience of gram.y, even though some of them are useless/invalid.
    #* We will need more bits (and fields) to cover the full SQL:2008 option set.
    typedef_enum '', [
-      'FRAMEOPTION_NONDEFAULT=1',                #* any specified? 
-      'FRAMEOPTION_RANGE',                       #* RANGE behavior 
-      'FRAMEOPTION_ROWS',                        #* ROWS behavior 
-      'FRAMEOPTION_BETWEEN',                     #* BETWEEN given? 
-      'FRAMEOPTION_START_UNBOUNDED_PRECEDING',   #* start is U. P. 
-      'FRAMEOPTION_END_UNBOUNDED_PRECEDING',     #* (disallowed) 
-      'FRAMEOPTION_START_UNBOUNDED_FOLLOWING',   #* (disallowed) 
-      'FRAMEOPTION_END_UNBOUNDED_FOLLOWING',     #* end is U. F. 
-      'FRAMEOPTION_START_CURRENT_ROW',           #* start is C. R. 
-      'FRAMEOPTION_END_CURRENT_ROW',             #* end is C. R. 
-      'FRAMEOPTION_START_VALUE_PRECEDING',       #* start is V. P. 
-      'FRAMEOPTION_END_VALUE_PRECEDING',         #* end is V. P. 
-      'FRAMEOPTION_START_VALUE_FOLLOWING',       #* start is V. F. 
-      'FRAMEOPTION_END_VALUE_FOLLOWING',         #* end is V. F. 
+      'FRAMEOPTION_NONDEFAULT=1',                #* any specified?
+      'FRAMEOPTION_RANGE',                       #* RANGE behavior
+      'FRAMEOPTION_ROWS',                        #* ROWS behavior
+      'FRAMEOPTION_BETWEEN',                     #* BETWEEN given?
+      'FRAMEOPTION_START_UNBOUNDED_PRECEDING',   #* start is U. P.
+      'FRAMEOPTION_END_UNBOUNDED_PRECEDING',     #* (disallowed)
+      'FRAMEOPTION_START_UNBOUNDED_FOLLOWING',   #* (disallowed)
+      'FRAMEOPTION_END_UNBOUNDED_FOLLOWING',     #* end is U. F.
+      'FRAMEOPTION_START_CURRENT_ROW',           #* start is C. R.
+      'FRAMEOPTION_END_CURRENT_ROW',             #* end is C. R.
+      'FRAMEOPTION_START_VALUE_PRECEDING',       #* start is V. P.
+      'FRAMEOPTION_END_VALUE_PRECEDING',         #* end is V. P.
+      'FRAMEOPTION_START_VALUE_FOLLOWING',       #* start is V. F.
+      'FRAMEOPTION_END_VALUE_FOLLOWING',         #* end is V. F.
       'FRAMEOPTION_START_VALUE = (FRAMEOPTION_START_VALUE_PRECEDING | FRAMEOPTION_START_VALUE_FOLLOWING)',
       'FRAMEOPTION_END_VALUE   = (FRAMEOPTION_END_VALUE_PRECEDING   | FRAMEOPTION_END_VALUE_FOLLOWING)',
       'FRAMEOPTION_DEFAULTS    = (FRAMEOPTION_RANGE | FRAMEOPTION_START_UNBOUNDED_PRECEDING | FRAMEOPTION_END_CURRENT_ROW)',
@@ -976,16 +977,16 @@ BEGIN {
 
    #* RangeSubselect - subquery appearing in a FROM clause
    typedef_struct 'Range::SubSelect', {
-      subquery             => [ Any             ],  #* the untransformed sub-select clause 
-      alias                => [ Alias           ],  #* table alias & optional column aliases 
+      subquery             => [ Any             ],  #* the untransformed sub-select clause
+      alias                => [ Alias           ],  #* table alias & optional column aliases
    };
 
    #* RangeFunction - function call appearing in a FROM clause
    typedef_struct 'Range::Function', {
-      funccallnode         => [ Any             ],  #* untransformed function call tree 
-      alias                => [ Alias           ],  #* table alias & optional column aliases 
+      funccallnode         => [ Any             ],  #* untransformed function call tree
+      alias                => [ Alias           ],  #* table alias & optional column aliases
       coldeflist           => [ ArrayRef        ],  #* list of ColumnDef nodes to describe result
-                                                    #* of function returning RECORD 
+                                                    #* of function returning RECORD
    };
 
    #* ColumnDef - column definition (used in various creates)
@@ -1002,25 +1003,25 @@ BEGIN {
    #* the item and set raw_default instead.  CONSTR_DEFAULT items
    #* should not appear in any subsequent processing.
    typedef_struct 'Column::Definition', {
-      colname              => [ Str             ],  #* name of column 
-      typeName             => [ TypeName        ],  #* type of column 
-      inhcount             => [ Int             ],  #* number of times column is inherited 
-      is_local             => [ Bool            ],  #* column has local (non-inherited) def'n 
-      is_not_null          => [ Bool            ],  #* NOT NULL constraint specified? 
-      is_from_type         => [ Bool            ],  #* column definition came from table type 
-      storage              => [ Str             ],  #* attstorage setting, or 0 for default 
-      raw_default          => [ Any             ],  #* default value (untransformed parse tree) 
-      cooked_default       => [ Any             ],  #* default value (transformed expr tree) 
-      collClause           => [ CollateClause   ],  #* untransformed COLLATE spec, if any 
-      collOid              => [ UInt            ],  #* collation OID (InvalidOid if not set) 
-      constraints          => [ ArrayRef        ],  #* other constraints on column 
-      fdwoptions           => [ ArrayRef        ],  #* per-column FDW options 
+      colname              => [ Str             ],  #* name of column
+      typeName             => [ TypeName        ],  #* type of column
+      inhcount             => [ Int             ],  #* number of times column is inherited
+      is_local             => [ Bool            ],  #* column has local (non-inherited) def'n
+      is_not_null          => [ Bool            ],  #* NOT NULL constraint specified?
+      is_from_type         => [ Bool            ],  #* column definition came from table type
+      storage              => [ Str             ],  #* attstorage setting, or 0 for default
+      raw_default          => [ Any             ],  #* default value (untransformed parse tree)
+      cooked_default       => [ Any             ],  #* default value (transformed expr tree)
+      collClause           => [ CollateClause   ],  #* untransformed COLLATE spec, if any
+      collOid              => [ UInt            ],  #* collation OID (InvalidOid if not set)
+      constraints          => [ ArrayRef        ],  #* other constraints on column
+      fdwoptions           => [ ArrayRef        ],  #* per-column FDW options
    };
 
    #* TableLikeClause - CREATE TABLE ( ... LIKE ... ) clause
    typedef_struct 'TableLikeClause', {
       relation             => [ RangeVar        ],
-      options              => [ UInt32          ],  #* OR of TableLikeOption flags 
+      options              => [ UInt32          ],  #* OR of TableLikeOption flags
    };
 
    typedef_enum 'TableLikeOption', [
@@ -1037,13 +1038,13 @@ BEGIN {
    #* index, and 'expr' is NULL.  For an index expression, 'name' is NULL and
    #* 'expr' is the expression tree.
    typedef_struct 'IndexElem', {
-      name                 => [ Str             ],  #* name of attribute to index, or NULL 
-      expr                 => [ Any             ],  #* expression to index, or NULL 
-      indexcolname         => [ Str             ],  #* name for index column; NULL = default 
-      collation            => [ ArrayRef        ],  #* name of collation; NIL = default 
-      opclass              => [ ArrayRef        ],  #* name of desired opclass; NIL = default 
-      ordering             => [ SortByDir       ],  #* ASC/DESC/default 
-      nulls_ordering       => [ SortByNulls     ],  #* FIRST/LAST/default 
+      name                 => [ Str             ],  #* name of attribute to index, or NULL
+      expr                 => [ Any             ],  #* expression to index, or NULL
+      indexcolname         => [ Str             ],  #* name for index column; NULL = default
+      collation            => [ ArrayRef        ],  #* name of collation; NIL = default
+      opclass              => [ ArrayRef        ],  #* name of desired opclass; NIL = default
+      ordering             => [ SortByDir       ],  #* ASC/DESC/default
+      nulls_ordering       => [ SortByNulls     ],  #* FIRST/LAST/default
    };
 
    #* DefElem - a generic "name = value" option definition
@@ -1054,7 +1055,7 @@ BEGIN {
    #* where they are relevant; C code can just ignore those fields in other
    #* statements.)
    typedef_enum 'DefElemAction', [
-      'DEFELEM_UNSPEC',             #* no action given 
+      'DEFELEM_UNSPEC',             #* no action given
       'DEFELEM_SET',
       'DEFELEM_ADD',
       'DEFELEM_DROP'
@@ -1062,10 +1063,10 @@ BEGIN {
 }
 BEGIN {
    typedef_struct 'DefElem', {
-      defnamespace         => [ Str             ],  #* NULL if unqualified name 
+      defnamespace         => [ Str             ],  #* NULL if unqualified name
       defname              => [ Str             ],
-      arg                  => [ Any             ],  #* a (Value *) or a (TypeName *) 
-      defaction            => [ DefElemAction   ],  #* unspecified action, or SET/ADD/DROP 
+      arg                  => [ Any             ],  #* a (Value *) or a (TypeName *)
+      defaction            => [ DefElemAction   ],  #* unspecified action, or SET/ADD/DROP
    };
 
    #* LockingClause - raw representation of FOR UPDATE/SHARE options
@@ -1074,17 +1075,17 @@ BEGIN {
    #* a location field --- currently, parse analysis insists on unqualified
    #* names in LockingClause.)
    typedef_struct 'LockingClause', {
-      lockedRels           => [ ArrayRef        ],  #* FOR UPDATE or FOR SHARE relations 
-      forUpdate            => [ Bool            ],  #* true = FOR UPDATE, false = FOR SHARE 
-      noWait               => [ Bool            ],  #* NOWAIT option 
+      lockedRels           => [ ArrayRef        ],  #* FOR UPDATE or FOR SHARE relations
+      forUpdate            => [ Bool            ],  #* true = FOR UPDATE, false = FOR SHARE
+      noWait               => [ Bool            ],  #* NOWAIT option
    };
 
    #* XMLSERIALIZE (in raw parse tree only)
    typedef_struct 'XMLSerialize', {
-      xmloption            => [ XmlOptionType   ],  #* DOCUMENT or CONTENT 
+      xmloption            => [ XmlOptionType   ],  #* DOCUMENT or CONTENT
       expr                 => [ Any             ],
       typeName             => [ TypeName        ],
-      location             => [ HashRef         ],  #* token location, or -1 if unknown 
+      location             => [ HashRef         ],  #* token location, or -1 if unknown
    };
 
    #* WithClause -
@@ -1092,28 +1093,28 @@ BEGIN {
    #* Note: WithClause does not propagate into the Query representation;
    #* but CommonTableExpr does.
    typedef_struct 'WithClause', {
-      ctes                 => [ ArrayRef        ],  #* list of CommonTableExprs 
-      recursive            => [ Bool            ],  #* true = WITH RECURSIVE 
-      location             => [ HashRef         ],  #* token location, or -1 if unknown 
+      ctes                 => [ ArrayRef        ],  #* list of CommonTableExprs
+      recursive            => [ Bool            ],  #* true = WITH RECURSIVE
+      location             => [ HashRef         ],  #* token location, or -1 if unknown
    };
 
    #* CommonTableExpr -
    #*     representation of WITH list element
    #* We don't currently support the SEARCH or CYCLE clause.
    typedef_struct 'CommonTableExpr', {
-      ctename              => [ Str             ],  #* query name (never qualified) 
-      aliascolnames        => [ ArrayRef        ],  #* optional list of column names 
-      #* SelectStmt/InsertStmt/etc before parse analysis, Query afterwards: 
-      ctequery             => [ Any             ],  #* the CTE's subquery 
-      location             => [ HashRef         ],  #* token location, or -1 if unknown 
-      #* These fields are set during parse analysis: 
-      cterecursive         => [ Bool            ],  #* is this CTE actually recursive? 
+      ctename              => [ Str             ],  #* query name (never qualified)
+      aliascolnames        => [ ArrayRef        ],  #* optional list of column names
+      #* SelectStmt/InsertStmt/etc before parse analysis, Query afterwards:
+      ctequery             => [ Any             ],  #* the CTE's subquery
+      location             => [ HashRef         ],  #* token location, or -1 if unknown
+      #* These fields are set during parse analysis:
+      cterecursive         => [ Bool            ],  #* is this CTE actually recursive?
       cterefcount          => [ Int             ],  #* number of RTEs referencing this CTE
-                                                    #* (excluding internal self-references) 
-      ctecolnames          => [ ArrayRef        ],  #* list of output column names 
-      ctecoltypes          => [ ArrayRef        ],  #* OID list of output column type OIDs 
-      ctecoltypmods        => [ ArrayRef        ],  #* integer list of output column typmods 
-      ctecolcollations     => [ ArrayRef        ],  #* OID list of column collation OIDs 
+                                                    #* (excluding internal self-references)
+      ctecolnames          => [ ArrayRef        ],  #* list of output column names
+      ctecoltypes          => [ ArrayRef        ],  #* OID list of output column type OIDs
+      ctecoltypmods        => [ ArrayRef        ],  #* integer list of output column typmods
+      ctecolcollations     => [ ArrayRef        ],  #* OID list of column collation OIDs
    };
 }
 BEGIN {
@@ -1128,34 +1129,34 @@ BEGIN {
    #* is INSERT ... DEFAULT VALUES.
    #* ----------------------
    typedef_struct 'Statement::Insert', {
-      relation             => [ RangeVar        ],  #* relation to insert into 
-      cols                 => [ ArrayRef        ],  #* optional: names of the target columns 
-      selectStmt           => [ Any             ],  #* the source SELECT/VALUES, or NULL 
-      returningList        => [ ArrayRef        ],  #* list of expressions to return 
-      withClause           => [ WithClause      ],  #* WITH clause 
+      relation             => [ RangeVar        ],  #* relation to insert into
+      cols                 => [ ArrayRef        ],  #* optional: names of the target columns
+      selectStmt           => [ Any             ],  #* the source SELECT/VALUES, or NULL
+      returningList        => [ ArrayRef        ],  #* list of expressions to return
+      withClause           => [ WithClause      ],  #* WITH clause
    };
 
    #* ----------------------
    #*      Delete Statement
    #* ----------------------
    typedef_struct 'Statement::Delete', {
-      relation             => [ RangeVar        ],  #* relation to delete from 
-      usingClause          => [ ArrayRef        ],  #* optional using clause for more tables 
-      whereClause          => [ Any             ],  #* qualifications 
-      returningList        => [ ArrayRef        ],  #* list of expressions to return 
-      withClause           => [ WithClause      ],  #* WITH clause 
+      relation             => [ RangeVar        ],  #* relation to delete from
+      usingClause          => [ ArrayRef        ],  #* optional using clause for more tables
+      whereClause          => [ Any             ],  #* qualifications
+      returningList        => [ ArrayRef        ],  #* list of expressions to return
+      withClause           => [ WithClause      ],  #* WITH clause
    };
 
    #* ----------------------
    #*      Update Statement
    #* ----------------------
    typedef_struct 'Statement::Update', {
-      relation             => [ RangeVar        ],  #* relation to update 
-      targetList           => [ ArrayRef        ],  #* the target list (of ResTarget) 
-      whereClause          => [ Any             ],  #* qualifications 
-      fromClause           => [ ArrayRef        ],  #* optional from clause for more tables 
-      returningList        => [ ArrayRef        ],  #* list of expressions to return 
-      withClause           => [ WithClause      ],  #* WITH clause 
+      relation             => [ RangeVar        ],  #* relation to update
+      targetList           => [ ArrayRef        ],  #* the target list (of ResTarget)
+      whereClause          => [ Any             ],  #* qualifications
+      fromClause           => [ ArrayRef        ],  #* optional from clause for more tables
+      returningList        => [ ArrayRef        ],  #* list of expressions to return
+      withClause           => [ WithClause      ],  #* WITH clause
    };
 
    #* ----------------------
@@ -1185,15 +1186,15 @@ BEGIN {
 
       #* These fields are used only in "leaf" SelectStmts.
       distinctClause       => [ ArrayRef        ],  #* NULL, list of DISTINCT ON exprs, or
-                                                    #* lcons(NIL,NIL) for all (SELECT DISTINCT) 
-      intoClause           => [ IntoClause      ],  #* target for SELECT INTO 
-      targetList           => [ ArrayRef        ],  #* the target list (of ResTarget) 
-      fromClause           => [ ArrayRef        ],  #* the FROM clause 
-      whereClause          => [ Any             ],  #* WHERE qualification 
-      groupClause          => [ ArrayRef        ],  #* GROUP BY clauses 
-      havingClause         => [ Any             ],  #* HAVING conditional-expression 
-      windowClause         => [ ArrayRef        ],  #* WINDOW window_name AS (...), ... 
-      withClause           => [ WithClause      ],  #* WITH clause 
+                                                    #* lcons(NIL,NIL) for all (SELECT DISTINCT)
+      intoClause           => [ IntoClause      ],  #* target for SELECT INTO
+      targetList           => [ ArrayRef        ],  #* the target list (of ResTarget)
+      fromClause           => [ ArrayRef        ],  #* the FROM clause
+      whereClause          => [ Any             ],  #* WHERE qualification
+      groupClause          => [ ArrayRef        ],  #* GROUP BY clauses
+      havingClause         => [ Any             ],  #* HAVING conditional-expression
+      windowClause         => [ ArrayRef        ],  #* WINDOW window_name AS (...), ...
+      withClause           => [ WithClause      ],  #* WITH clause
 
       #* In a "leaf" node representing a VALUES list, the above fields are all
       #* null, and instead this field is set.  Note that the elements of the
@@ -1201,21 +1202,21 @@ BEGIN {
       #* that a list element can be DEFAULT (represented as a SetToDefault
       #* node), regardless of the context of the VALUES list. It's up to parse
       #* analysis to reject that where not valid.
-      valuesLists          => [ ArrayRef        ],  #* untransformed list of expression lists 
+      valuesLists          => [ ArrayRef        ],  #* untransformed list of expression lists
 
       #* These fields are used in both "leaf" SelectStmts and upper-level
       #* SelectStmts.
-      sortClause           => [ ArrayRef        ],  #* sort clause (a list of SortBy's) 
-      limitOffset          => [ Any             ],  #* # of result tuples to skip 
-      limitCount           => [ Any             ],  #* # of result tuples to return 
-      lockingClause        => [ ArrayRef        ],  #* FOR UPDATE (list of LockingClause's) 
+      sortClause           => [ ArrayRef        ],  #* sort clause (a list of SortBy's)
+      limitOffset          => [ Any             ],  #* # of result tuples to skip
+      limitCount           => [ Any             ],  #* # of result tuples to return
+      lockingClause        => [ ArrayRef        ],  #* FOR UPDATE (list of LockingClause's)
 
       #* These fields are used only in upper-level SelectStmts.
-      op                   => [ SetOperation    ],  #* type of set op 
-      all                  => [ Bool            ],  #* ALL specified? 
-      larg                 => [ StatementSelect ],  #* left child 
-      rarg                 => [ StatementSelect ],  #* right child 
-      #* Eventually add fields for CORRESPONDING spec here 
+      op                   => [ SetOperation    ],  #* type of set op
+      all                  => [ Bool            ],  #* ALL specified?
+      larg                 => [ StatementSelect ],  #* left child
+      rarg                 => [ StatementSelect ],  #* right child
+      #* Eventually add fields for CORRESPONDING spec here
    };
 
 
@@ -1237,18 +1238,18 @@ BEGIN {
    #* column has a collatable type.
    #* ----------------------
    typedef_struct 'Statement::SetOperation', {
-      op                   => [ SetOperation    ],  #* type of set op 
-      all                  => [ Bool            ],  #* ALL specified? 
-      larg                 => [ Any             ],  #* left child 
-      rarg                 => [ Any             ],  #* right child 
-      #* Eventually add fields for CORRESPONDING spec here 
+      op                   => [ SetOperation    ],  #* type of set op
+      all                  => [ Bool            ],  #* ALL specified?
+      larg                 => [ Any             ],  #* left child
+      rarg                 => [ Any             ],  #* right child
+      #* Eventually add fields for CORRESPONDING spec here
 
-      #* Fields derived during parse analysis: 
-      colTypes             => [ ArrayRef        ],  #* OID list of output column type OIDs 
-      colTypmods           => [ ArrayRef        ],  #* integer list of output column typmods 
-      colCollations        => [ ArrayRef        ],  #* OID list of output column collation OIDs 
-      groupClauses         => [ ArrayRef        ],  #* a list of SortGroupClause's 
-      #* groupClauses is NIL if UNION ALL, but must be set otherwise 
+      #* Fields derived during parse analysis:
+      colTypes             => [ ArrayRef        ],  #* OID list of output column type OIDs
+      colTypmods           => [ ArrayRef        ],  #* integer list of output column typmods
+      colCollations        => [ ArrayRef        ],  #* OID list of output column collation OIDs
+      groupClauses         => [ ArrayRef        ],  #* a list of SortGroupClause's
+      #* groupClauses is NIL if UNION ALL, but must be set otherwise
    };
 
 
@@ -1268,7 +1269,7 @@ BEGIN {
 
    typedef_enum 'ObjectType', [
       'OBJECT_AGGREGATE',
-      'OBJECT_ATTRIBUTE',           #* type's attribute, when distinct from column 
+      'OBJECT_ATTRIBUTE',           #* type's attribute, when distinct from column
       'OBJECT_CAST',
       'OBJECT_COLUMN',
       'OBJECT_CONSTRAINT',
@@ -1309,14 +1310,14 @@ BEGIN {
    #* executed after the schema itself is created.
    #* ----------------------
    typedef_struct 'Statement::CreateSchema', {
-      schemaname           => [ Str             ],  #* the name of the schema to create 
-      authid               => [ Str             ],  #* the owner of the created schema 
-      schemaElts           => [ ArrayRef        ],  #* schema components (list of parsenodes) 
+      schemaname           => [ Str             ],  #* the name of the schema to create
+      authid               => [ Str             ],  #* the owner of the created schema
+      schemaElts           => [ ArrayRef        ],  #* schema components (list of parsenodes)
    };
 
    typedef_enum 'DropBehavior', [
-      'DROP_RESTRICT',              #* drop fails if any dependent objects 
-      'DROP_CASCADE'                #* remove dependent objects too 
+      'DROP_RESTRICT',              #* drop fails if any dependent objects
+      'DROP_CASCADE'                #* remove dependent objects too
    ], 0;
 }
 BEGIN {
@@ -1324,76 +1325,76 @@ BEGIN {
    #*  Alter Table
    #* ----------------------
    typedef_struct 'Statement::AlterTable', {
-      relation             => [ RangeVar        ],  #* table to work on 
-      cmds                 => [ ArrayRef        ],  #* list of subcommands 
-      relkind              => [ ObjectType      ],  #* type of object 
-      missing_ok           => [ Bool            ],  #* skip error if table missing 
+      relation             => [ RangeVar        ],  #* table to work on
+      cmds                 => [ ArrayRef        ],  #* list of subcommands
+      relkind              => [ ObjectType      ],  #* type of object
+      missing_ok           => [ Bool            ],  #* skip error if table missing
    };
 
    typedef_enum 'AlterTableType', [
-      'AT_AddColumn',               #* add column 
-      'AT_AddColumnRecurse',        #* internal to commands/tablecmds.c 
-      'AT_AddColumnToView',         #* implicitly via CREATE OR REPLACE VIEW 
-      'AT_ColumnDefault',           #* alter column default 
-      'AT_DropNotNull',             #* alter column drop not null 
-      'AT_SetNotNull',              #* alter column set not null 
-      'AT_SetStatistics',           #* alter column set statistics 
-      'AT_SetOptions',              #* alter column set ( options ) 
-      'AT_ResetOptions',            #* alter column reset ( options ) 
-      'AT_SetStorage',              #* alter column set storage 
-      'AT_DropColumn',              #* drop column 
-      'AT_DropColumnRecurse',       #* internal to commands/tablecmds.c 
-      'AT_AddIndex',                #* add index 
-      'AT_ReAddIndex',              #* internal to commands/tablecmds.c 
-      'AT_AddConstraint',           #* add constraint 
-      'AT_AddConstraintRecurse',    #* internal to commands/tablecmds.c 
-      'AT_ValidateConstraint',      #* validate constraint 
-      'AT_ValidateConstraintRecurse',       #* internal to commands/tablecmds.c 
+      'AT_AddColumn',               #* add column
+      'AT_AddColumnRecurse',        #* internal to commands/tablecmds.c
+      'AT_AddColumnToView',         #* implicitly via CREATE OR REPLACE VIEW
+      'AT_ColumnDefault',           #* alter column default
+      'AT_DropNotNull',             #* alter column drop not null
+      'AT_SetNotNull',              #* alter column set not null
+      'AT_SetStatistics',           #* alter column set statistics
+      'AT_SetOptions',              #* alter column set ( options )
+      'AT_ResetOptions',            #* alter column reset ( options )
+      'AT_SetStorage',              #* alter column set storage
+      'AT_DropColumn',              #* drop column
+      'AT_DropColumnRecurse',       #* internal to commands/tablecmds.c
+      'AT_AddIndex',                #* add index
+      'AT_ReAddIndex',              #* internal to commands/tablecmds.c
+      'AT_AddConstraint',           #* add constraint
+      'AT_AddConstraintRecurse',    #* internal to commands/tablecmds.c
+      'AT_ValidateConstraint',      #* validate constraint
+      'AT_ValidateConstraintRecurse',       #* internal to commands/tablecmds.c
       'AT_ProcessedConstraint',     #* pre-processed add constraint (local in
-                                    #* parser/parse_utilcmd.c) 
-      'AT_AddIndexConstraint',      #* add constraint using existing index 
-      'AT_DropConstraint',          #* drop constraint 
-      'AT_DropConstraintRecurse',   #* internal to commands/tablecmds.c 
-      'AT_AlterColumnType',         #* alter column type 
-      'AT_AlterColumnGenericOptions',       #* alter column OPTIONS (...) 
-      'AT_ChangeOwner',             #* change owner 
-      'AT_ClusterOn',               #* CLUSTER ON 
-      'AT_DropCluster',             #* SET WITHOUT CLUSTER 
-      'AT_AddOids',                 #* SET WITH OIDS 
-      'AT_AddOidsRecurse',          #* internal to commands/tablecmds.c 
-      'AT_DropOids',                #* SET WITHOUT OIDS 
-      'AT_SetTableSpace',           #* SET TABLESPACE 
-      'AT_SetRelOptions',           #* SET (...) -- AM specific parameters 
-      'AT_ResetRelOptions',         #* RESET (...) -- AM specific parameters 
-      'AT_ReplaceRelOptions',       #* replace reloption list in its entirety 
-      'AT_EnableTrig',              #* ENABLE TRIGGER name 
-      'AT_EnableAlwaysTrig',        #* ENABLE ALWAYS TRIGGER name 
-      'AT_EnableReplicaTrig',       #* ENABLE REPLICA TRIGGER name 
-      'AT_DisableTrig',             #* DISABLE TRIGGER name 
-      'AT_EnableTrigAll',           #* ENABLE TRIGGER ALL 
-      'AT_DisableTrigAll',          #* DISABLE TRIGGER ALL 
-      'AT_EnableTrigUser',          #* ENABLE TRIGGER USER 
-      'AT_DisableTrigUser',         #* DISABLE TRIGGER USER 
-      'AT_EnableRule',              #* ENABLE RULE name 
-      'AT_EnableAlwaysRule',        #* ENABLE ALWAYS RULE name 
-      'AT_EnableReplicaRule',       #* ENABLE REPLICA RULE name 
-      'AT_DisableRule',             #* DISABLE RULE name 
-      'AT_AddInherit',              #* INHERIT parent 
-      'AT_DropInherit',             #* NO INHERIT parent 
-      'AT_AddOf',                   #* OF <type_name> 
-      'AT_DropOf',                  #* NOT OF 
-      'AT_GenericOptions'           #* OPTIONS (...) 
+                                    #* parser/parse_utilcmd.c)
+      'AT_AddIndexConstraint',      #* add constraint using existing index
+      'AT_DropConstraint',          #* drop constraint
+      'AT_DropConstraintRecurse',   #* internal to commands/tablecmds.c
+      'AT_AlterColumnType',         #* alter column type
+      'AT_AlterColumnGenericOptions',       #* alter column OPTIONS (...)
+      'AT_ChangeOwner',             #* change owner
+      'AT_ClusterOn',               #* CLUSTER ON
+      'AT_DropCluster',             #* SET WITHOUT CLUSTER
+      'AT_AddOids',                 #* SET WITH OIDS
+      'AT_AddOidsRecurse',          #* internal to commands/tablecmds.c
+      'AT_DropOids',                #* SET WITHOUT OIDS
+      'AT_SetTableSpace',           #* SET TABLESPACE
+      'AT_SetRelOptions',           #* SET (...) -- AM specific parameters
+      'AT_ResetRelOptions',         #* RESET (...) -- AM specific parameters
+      'AT_ReplaceRelOptions',       #* replace reloption list in its entirety
+      'AT_EnableTrig',              #* ENABLE TRIGGER name
+      'AT_EnableAlwaysTrig',        #* ENABLE ALWAYS TRIGGER name
+      'AT_EnableReplicaTrig',       #* ENABLE REPLICA TRIGGER name
+      'AT_DisableTrig',             #* DISABLE TRIGGER name
+      'AT_EnableTrigAll',           #* ENABLE TRIGGER ALL
+      'AT_DisableTrigAll',          #* DISABLE TRIGGER ALL
+      'AT_EnableTrigUser',          #* ENABLE TRIGGER USER
+      'AT_DisableTrigUser',         #* DISABLE TRIGGER USER
+      'AT_EnableRule',              #* ENABLE RULE name
+      'AT_EnableAlwaysRule',        #* ENABLE ALWAYS RULE name
+      'AT_EnableReplicaRule',       #* ENABLE REPLICA RULE name
+      'AT_DisableRule',             #* DISABLE RULE name
+      'AT_AddInherit',              #* INHERIT parent
+      'AT_DropInherit',             #* NO INHERIT parent
+      'AT_AddOf',                   #* OF <type_name>
+      'AT_DropOf',                  #* NOT OF
+      'AT_GenericOptions'           #* OPTIONS (...)
    ], 0;
 }
 BEGIN {
-   typedef_struct 'AlterTable::Command', {    #* one subcommand of an ALTER TABLE 
-      subtype              => [ AlterTableType  ],  #* Type of table alteration to apply 
+   typedef_struct 'AlterTable::Command', {    #* one subcommand of an ALTER TABLE
+      subtype              => [ AlterTableType  ],  #* Type of table alteration to apply
       name                 => [ Str             ],  #* column, constraint, or trigger to act on,
-                                                    #* or new owner or tablespace 
+                                                    #* or new owner or tablespace
       def                  => [ Any             ],  #* definition of new column, index,
-                                                    #* constraint, or parent table 
-      behavior             => [ DropBehavior    ],  #* RESTRICT or CASCADE for DROP cases 
-      missing_ok           => [ Bool            ],  #* skip error if missing? 
+                                                    #* constraint, or parent table
+      behavior             => [ DropBehavior    ],  #* RESTRICT or CASCADE for DROP cases
+      missing_ok           => [ Bool            ],  #* skip error if missing?
    };
 
 
@@ -1410,11 +1411,11 @@ BEGIN {
                                                     #*  C = add constraint
                                                     #*  X = drop constraint
                                                     #*------------
-      typeName             => [ ArrayRef        ],  #* domain to work on 
-      name                 => [ Str             ],  #* column or constraint name to act on 
-      def                  => [ Any             ],  #* definition of default or constraint 
-      behavior             => [ DropBehavior    ],  #* RESTRICT or CASCADE for DROP cases 
-      missing_ok           => [ Bool            ],  #* skip error if missing? 
+      typeName             => [ ArrayRef        ],  #* domain to work on
+      name                 => [ Str             ],  #* column or constraint name to act on
+      def                  => [ Any             ],  #* definition of default or constraint
+      behavior             => [ DropBehavior    ],  #* RESTRICT or CASCADE for DROP cases
+      missing_ok           => [ Bool            ],  #* skip error if missing?
    };
 
 
@@ -1422,51 +1423,51 @@ BEGIN {
    #*      Grant|Revoke Statement
    #* ----------------------
    typedef_enum 'GrantTargetType', [
-      'ACL_TARGET_OBJECT',          #* grant on specific named object(s) 
-      'ACL_TARGET_ALL_IN_SCHEMA',   #* grant on all objects in given schema(s) 
-      'ACL_TARGET_DEFAULTS'         #* ALTER DEFAULT PRIVILEGES 
+      'ACL_TARGET_OBJECT',          #* grant on specific named object(s)
+      'ACL_TARGET_ALL_IN_SCHEMA',   #* grant on all objects in given schema(s)
+      'ACL_TARGET_DEFAULTS'         #* ALTER DEFAULT PRIVILEGES
    ], 0;
 
    typedef_enum 'GrantObjectType', [
-      'ACL_OBJECT_COLUMN',          #* column 
-      'ACL_OBJECT_RELATION',        #* table, view 
-      'ACL_OBJECT_SEQUENCE',        #* sequence 
-      'ACL_OBJECT_DATABASE',        #* database 
-      'ACL_OBJECT_DOMAIN',          #* domain 
-      'ACL_OBJECT_FDW',             #* foreign-data wrapper 
-      'ACL_OBJECT_FOREIGN_SERVER',  #* foreign server 
-      'ACL_OBJECT_FUNCTION',        #* function 
-      'ACL_OBJECT_LANGUAGE',        #* procedural language 
-      'ACL_OBJECT_LARGEOBJECT',     #* largeobject 
-      'ACL_OBJECT_NAMESPACE',       #* namespace 
-      'ACL_OBJECT_TABLESPACE',      #* tablespace 
-      'ACL_OBJECT_TYPE'             #* type 
+      'ACL_OBJECT_COLUMN',          #* column
+      'ACL_OBJECT_RELATION',        #* table, view
+      'ACL_OBJECT_SEQUENCE',        #* sequence
+      'ACL_OBJECT_DATABASE',        #* database
+      'ACL_OBJECT_DOMAIN',          #* domain
+      'ACL_OBJECT_FDW',             #* foreign-data wrapper
+      'ACL_OBJECT_FOREIGN_SERVER',  #* foreign server
+      'ACL_OBJECT_FUNCTION',        #* function
+      'ACL_OBJECT_LANGUAGE',        #* procedural language
+      'ACL_OBJECT_LARGEOBJECT',     #* largeobject
+      'ACL_OBJECT_NAMESPACE',       #* namespace
+      'ACL_OBJECT_TABLESPACE',      #* tablespace
+      'ACL_OBJECT_TYPE'             #* type
    ], 0;
 }
 BEGIN {
    typedef_struct 'Statement::Grant', {
-      is_grant             => [ Bool            ],  #* true = GRANT, false = REVOKE 
-      targtype             => [ GrantTargetType ],  #* type of the grant target 
-      objtype              => [ GrantObjectType ],  #* kind of object being operated on 
+      is_grant             => [ Bool            ],  #* true = GRANT, false = REVOKE
+      targtype             => [ GrantTargetType ],  #* type of the grant target
+      objtype              => [ GrantObjectType ],  #* kind of object being operated on
       objects              => [ ArrayRef        ],  #* list of RangeVar nodes, Function nodes,
-                                                    #* or plain names (as Value strings) 
-      privileges           => [ ArrayRef        ],  #* list of AccessPriv nodes 
-      #* privileges == NIL denotes ALL PRIVILEGES 
-      grantees             => [ ArrayRef        ],  #* list of PrivGrantee nodes 
-      grant_option         => [ Bool            ],  #* grant or revoke grant option 
-      behavior             => [ DropBehavior    ],  #* drop behavior (for REVOKE) 
+                                                    #* or plain names (as Value strings)
+      privileges           => [ ArrayRef        ],  #* list of AccessPriv nodes
+      #* privileges == NIL denotes ALL PRIVILEGES
+      grantees             => [ ArrayRef        ],  #* list of PrivGrantee nodes
+      grant_option         => [ Bool            ],  #* grant or revoke grant option
+      behavior             => [ DropBehavior    ],  #* drop behavior (for REVOKE)
    };
 
    typedef_struct 'PrivGrantee', {
-      rolname              => [ Str             ],  #* if NULL then PUBLIC 
+      rolname              => [ Str             ],  #* if NULL then PUBLIC
    };
 
    #* Note: FuncWithArgs carries only the types of the input parameters of the
    #* function.  So it is sufficient to identify an existing function, but it
    #* is not enough info to define a function nor to call it.
    typedef_struct 'FuncWithArgs', {
-      funcname             => [ ArrayRef        ],  #* qualified name of function 
-      funcargs             => [ ArrayRef        ],  #* list of Typename nodes 
+      funcname             => [ ArrayRef        ],  #* qualified name of function
+      funcargs             => [ ArrayRef        ],  #* list of Typename nodes
    };
 
    #* An access privilege, with optional list of column names
@@ -1475,8 +1476,8 @@ BEGIN {
    #* Note that simple "ALL PRIVILEGES" is represented as a NIL list, not
    #* an AccessPriv with both fields null.
    typedef_struct 'AccessPriv', {
-      priv_name            => [ Str             ],  #* string name of privilege 
-      cols                 => [ ArrayRef        ],  #* list of Value strings 
+      priv_name            => [ Str             ],  #* string name of privilege
+      cols                 => [ ArrayRef        ],  #* list of Value strings
    };
 
    #* ----------------------
@@ -1487,12 +1488,12 @@ BEGIN {
    #* of role names, as Value strings.
    #* ----------------------
    typedef_struct 'Statement::GrantRole', {
-      granted_roles        => [ ArrayRef        ],  #* list of roles to be granted/revoked 
-      grantee_roles        => [ ArrayRef        ],  #* list of member roles to add/delete 
-      is_grant             => [ Bool            ],  #* true = GRANT, false = REVOKE 
-      admin_opt            => [ Bool            ],  #* with admin option 
-      grantor              => [ Str             ],  #* set grantor to other than current role 
-      behavior             => [ DropBehavior    ],  #* drop behavior (for REVOKE) 
+      granted_roles        => [ ArrayRef        ],  #* list of roles to be granted/revoked
+      grantee_roles        => [ ArrayRef        ],  #* list of member roles to add/delete
+      is_grant             => [ Bool            ],  #* true = GRANT, false = REVOKE
+      admin_opt            => [ Bool            ],  #* with admin option
+      grantor              => [ Str             ],  #* set grantor to other than current role
+      behavior             => [ DropBehavior    ],  #* drop behavior (for REVOKE)
    };
 }
 BEGIN {
@@ -1500,8 +1501,8 @@ BEGIN {
    #*  Alter Default Privileges Statement
    #* ----------------------
    typedef_struct 'AlterDefaultPrivileges', {
-      options              => [ ArrayRef        ],  #* list of DefElem 
-      action               => [ StatementGrant  ],  #* GRANT/REVOKE action (with objects=NIL) 
+      options              => [ ArrayRef        ],  #* list of DefElem
+      action               => [ StatementGrant  ],  #* GRANT/REVOKE action (with objects=NIL)
    };
 
    #* ----------------------
@@ -1511,13 +1512,13 @@ BEGIN {
    #* and "query" must be non-NULL.
    #* ----------------------
    typedef_struct 'Statement::Copy', {
-      relation             => [ RangeVar        ],  #* the relation to copy 
-      query                => [ Any             ],  #* the SELECT query to copy 
+      relation             => [ RangeVar        ],  #* the relation to copy
+      query                => [ Any             ],  #* the SELECT query to copy
       attlist              => [ ArrayRef        ],  #* List of column names (as Strings), or NIL
-                                                    #* for all columns 
-      is_from              => [ Bool            ],  #* TO or FROM 
-      filename             => [ Str             ],  #* filename, or NULL for STDIN/STDOUT 
-      options              => [ ArrayRef        ],  #* List of DefElem nodes 
+                                                    #* for all columns
+      is_from              => [ Bool            ],  #* TO or FROM
+      filename             => [ Str             ],  #* filename, or NULL for STDIN/STDOUT
+      options              => [ ArrayRef        ],  #* List of DefElem nodes
    };
 
    #* ----------------------
@@ -1526,20 +1527,20 @@ BEGIN {
    #* preserve the distinction in VariableSetKind for CreateCommandTag().
    #* ----------------------
    typedef_enum 'VariableSetKind', [
-      'VAR_SET_VALUE',              #* SET var = value 
-      'VAR_SET_DEFAULT',            #* SET var TO DEFAULT 
-      'VAR_SET_CURRENT',            #* SET var FROM CURRENT 
-      'VAR_SET_MULTI',              #* special case for SET TRANSACTION ... 
-      'VAR_RESET',                  #* RESET var 
-      'VAR_RESET_ALL'               #* RESET ALL 
+      'VAR_SET_VALUE',              #* SET var = value
+      'VAR_SET_DEFAULT',            #* SET var TO DEFAULT
+      'VAR_SET_CURRENT',            #* SET var FROM CURRENT
+      'VAR_SET_MULTI',              #* special case for SET TRANSACTION ...
+      'VAR_RESET',                  #* RESET var
+      'VAR_RESET_ALL'               #* RESET ALL
    ], 0;
 }
 BEGIN {
    typedef_struct 'Statement::VariableSet', {
       kind                 => [ VariableSetKind ],
-      name                 => [ Str             ],  #* variable to be set 
-      args                 => [ ArrayRef        ],  #* List of A_Const nodes 
-      is_local             => [ Bool            ],  #* SET LOCAL? 
+      name                 => [ Str             ],  #* variable to be set
+      args                 => [ ArrayRef        ],  #* List of A_Const nodes
+      is_local             => [ Bool            ],  #* SET LOCAL?
    };
 
    #* ----------------------
@@ -1559,16 +1560,16 @@ BEGIN {
    #* ----------------------
 
    typedef_struct 'Statement::Create', {
-      relation             => [ RangeVar        ],  #* relation to create 
-      tableElts            => [ ArrayRef        ],  #* column definitions (list of ColumnDef) 
+      relation             => [ RangeVar        ],  #* relation to create
+      tableElts            => [ ArrayRef        ],  #* column definitions (list of ColumnDef)
       inhRelations         => [ ArrayRef        ],  #* relations to inherit from (list of
-                                                    #* inhRelation) 
-      ofTypename           => [ TypeName        ],  #* OF typename 
-      constraints          => [ ArrayRef        ],  #* constraints (list of Constraint nodes) 
-      options              => [ ArrayRef        ],  #* options from WITH clause 
-      oncommit             => [ OnCommitAction  ],  #* what do we do at COMMIT? 
-      tablespacename       => [ Str             ],  #* table space to use, or NULL 
-      if_not_exists        => [ Bool            ],  #* just do nothing if it already exists? 
+                                                    #* inhRelation)
+      ofTypename           => [ TypeName        ],  #* OF typename
+      constraints          => [ ArrayRef        ],  #* constraints (list of Constraint nodes)
+      options              => [ ArrayRef        ],  #* options from WITH clause
+      oncommit             => [ OnCommitAction  ],  #* what do we do at COMMIT?
+      tablespacename       => [ Str             ],  #* table space to use, or NULL
+      if_not_exists        => [ Bool            ],  #* just do nothing if it already exists?
    };
 
    #* ----------
@@ -1596,8 +1597,8 @@ BEGIN {
    #* Constraint node.
    #* ----------
 
-   typedef_enum 'ConstrType', [      #* types of constraints 
-      'CONSTR_NULL',                #* not SQL92, but a lot of people expect it 
+   typedef_enum 'ConstrType', [      #* types of constraints
+      'CONSTR_NULL',                #* not SQL92, but a lot of people expect it
       'CONSTR_NOTNULL',
       'CONSTR_DEFAULT',
       'CONSTR_CHECK',
@@ -1605,7 +1606,7 @@ BEGIN {
       'CONSTR_UNIQUE',
       'CONSTR_EXCLUSION',
       'CONSTR_FOREIGN',
-      'CONSTR_ATTR_DEFERRABLE',     #* attributes for previous constraint node 
+      'CONSTR_ATTR_DEFERRABLE',     #* attributes for previous constraint node
       'CONSTR_ATTR_NOT_DEFERRABLE',
       'CONSTR_ATTR_DEFERRED',
       'CONSTR_ATTR_IMMEDIATE'
@@ -1619,7 +1620,7 @@ BEGIN {
       'FKCONSTR_ACTION_SETNULL    = n',
       'FKCONSTR_ACTION_SETDEFAULT = d',
 
-      #* Foreign key matchtype codes 
+      #* Foreign key matchtype codes
       'FKCONSTR_MATCH_FULL        = f',
       'FKCONSTR_MATCH_PARTIAL     = p',
       'FKCONSTR_MATCH_SIMPLE      = s',
@@ -1627,45 +1628,45 @@ BEGIN {
 }
 BEGIN {
    typedef_struct 'Constraint', {
-      contype              => [ ConstrType      ],  #* see above 
+      contype              => [ ConstrType      ],  #* see above
 
-      #* Fields used for most/all constraint types: 
-      conname              => [ Str             ],  #* Constraint name, or NULL if unnamed 
-      deferrable           => [ Bool            ],  #* DEFERRABLE? 
-      initdeferred         => [ Bool            ],  #* INITIALLY DEFERRED? 
-      location             => [ HashRef         ],  #* token location, or -1 if unknown 
+      #* Fields used for most/all constraint types:
+      conname              => [ Str             ],  #* Constraint name, or NULL if unnamed
+      deferrable           => [ Bool            ],  #* DEFERRABLE?
+      initdeferred         => [ Bool            ],  #* INITIALLY DEFERRED?
+      location             => [ HashRef         ],  #* token location, or -1 if unknown
 
-      #* Fields used for constraints with expressions (CHECK and DEFAULT): 
-      is_no_inherit        => [ Bool            ],  #* is constraint non-inheritable? 
-      raw_expr             => [ Any             ],  #* expr, as untransformed parse tree 
-      cooked_expr          => [ Str             ],  #* expr, as nodeToString representation 
+      #* Fields used for constraints with expressions (CHECK and DEFAULT):
+      is_no_inherit        => [ Bool            ],  #* is constraint non-inheritable?
+      raw_expr             => [ Any             ],  #* expr, as untransformed parse tree
+      cooked_expr          => [ Str             ],  #* expr, as nodeToString representation
 
-      #* Fields used for unique constraints (UNIQUE and PRIMARY KEY): 
-      keys                 => [ ArrayRef        ],  #* String nodes naming referenced column(s) 
+      #* Fields used for unique constraints (UNIQUE and PRIMARY KEY):
+      keys                 => [ ArrayRef        ],  #* String nodes naming referenced column(s)
 
-      #* Fields used for EXCLUSION constraints: 
-      exclusions           => [ ArrayRef        ],  #* list of (IndexElem, operator name) pairs 
+      #* Fields used for EXCLUSION constraints:
+      exclusions           => [ ArrayRef        ],  #* list of (IndexElem, operator name) pairs
 
-      #* Fields used for index constraints (UNIQUE, PRIMARY KEY, EXCLUSION): 
-      options              => [ ArrayRef        ],  #* options from WITH clause 
-      indexname            => [ Str             ],  #* existing index to use; otherwise NULL 
-      indexspace           => [ Str             ],  #* index tablespace; NULL for default 
-      #* These could be, but currently are not, used for UNIQUE/PKEY: 
-      access_method        => [ Str             ],  #* index access method; NULL for default 
-      where_clause         => [ Any             ],  #* partial index predicate 
+      #* Fields used for index constraints (UNIQUE, PRIMARY KEY, EXCLUSION):
+      options              => [ ArrayRef        ],  #* options from WITH clause
+      indexname            => [ Str             ],  #* existing index to use; otherwise NULL
+      indexspace           => [ Str             ],  #* index tablespace; NULL for default
+      #* These could be, but currently are not, used for UNIQUE/PKEY:
+      access_method        => [ Str             ],  #* index access method; NULL for default
+      where_clause         => [ Any             ],  #* partial index predicate
 
-      #* Fields used for FOREIGN KEY constraints: 
-      pktable              => [ RangeVar        ],  #* Primary key table 
-      fk_attrs             => [ ArrayRef        ],  #* Attributes of foreign key 
-      pk_attrs             => [ ArrayRef        ],  #* Corresponding attrs in PK table 
-      fk_matchtype         => [ Str             ],  #* FULL, PARTIAL, SIMPLE 
-      fk_upd_action        => [ Str             ],  #* ON UPDATE action 
-      fk_del_action        => [ Str             ],  #* ON DELETE action 
-      old_conpfeqop        => [ ArrayRef        ],  #* pg_constraint.conpfeqop of my former self 
+      #* Fields used for FOREIGN KEY constraints:
+      pktable              => [ RangeVar        ],  #* Primary key table
+      fk_attrs             => [ ArrayRef        ],  #* Attributes of foreign key
+      pk_attrs             => [ ArrayRef        ],  #* Corresponding attrs in PK table
+      fk_matchtype         => [ Str             ],  #* FULL, PARTIAL, SIMPLE
+      fk_upd_action        => [ Str             ],  #* ON UPDATE action
+      fk_del_action        => [ Str             ],  #* ON DELETE action
+      old_conpfeqop        => [ ArrayRef        ],  #* pg_constraint.conpfeqop of my former self
 
-      #* Fields used for constraints that allow a NOT VALID specification 
-      skip_validation      => [ Bool            ],  #* skip validation of existing rows? 
-      initially_valid      => [ Bool            ],  #* mark the new constraint as valid? 
+      #* Fields used for constraints that allow a NOT VALID specification
+      skip_validation      => [ Bool            ],  #* skip validation of existing rows?
+      initially_valid      => [ Bool            ],  #* mark the new constraint as valid?
    };
 
    #* ----------------------
@@ -1680,7 +1681,7 @@ BEGIN {
 
    typedef_struct 'Statement::DropTableSpace', {
       tablespacename       => [ Str             ],
-      missing_ok           => [ Bool            ],  #* skip error if missing? 
+      missing_ok           => [ Bool            ],  #* skip error if missing?
    };
 
    typedef_struct 'AlterTableSpaceOptions', {
@@ -1695,22 +1696,22 @@ BEGIN {
 
    typedef_struct 'Statement::CreateExtension', {
       extname              => [ Str             ],
-      if_not_exists        => [ Bool            ],  #* just do nothing if it already exists? 
-      options              => [ ArrayRef        ],  #* List of DefElem nodes 
+      if_not_exists        => [ Bool            ],  #* just do nothing if it already exists?
+      options              => [ ArrayRef        ],  #* List of DefElem nodes
    };
 
-   #* Only used for ALTER EXTENSION UPDATE; later might need an action field 
+   #* Only used for ALTER EXTENSION UPDATE; later might need an action field
    typedef_struct 'Statement::AlterExtension', {
       extname              => [ Str             ],
-      options              => [ ArrayRef        ],  #* List of DefElem nodes 
+      options              => [ ArrayRef        ],  #* List of DefElem nodes
    };
 
    typedef_struct 'AlterExtensionContents', {
-      extname              => [ Str             ],  #* Extension's name 
-      action               => [ Int             ],  #* +1 = add object, -1 = drop object 
-      objtype              => [ ObjectType      ],  #* Object's type 
-      objname              => [ ArrayRef        ],  #* Qualified name of the object 
-      objargs              => [ ArrayRef        ],  #* Arguments if needed (eg, for functions) 
+      extname              => [ Str             ],  #* Extension's name
+      action               => [ Int             ],  #* +1 = add object, -1 = drop object
+      objtype              => [ ObjectType      ],  #* Object's type
+      objname              => [ ArrayRef        ],  #* Qualified name of the object
+      objargs              => [ ArrayRef        ],  #* Arguments if needed (eg, for functions)
    };
 
    #* ----------------------
@@ -1718,15 +1719,15 @@ BEGIN {
    #* ----------------------
 
    typedef_struct 'Statement::CreateFdw', {
-      fdwname              => [ Str             ],  #* foreign-data wrapper name 
-      func_options         => [ ArrayRef        ],  #* HANDLER/VALIDATOR options 
-      options              => [ ArrayRef        ],  #* generic options to FDW 
+      fdwname              => [ Str             ],  #* foreign-data wrapper name
+      func_options         => [ ArrayRef        ],  #* HANDLER/VALIDATOR options
+      options              => [ ArrayRef        ],  #* generic options to FDW
    };
 
    typedef_struct 'Statement::AlterFdw', {
-      fdwname              => [ Str             ],  #* foreign-data wrapper name 
-      func_options         => [ ArrayRef        ],  #* HANDLER/VALIDATOR options 
-      options              => [ ArrayRef        ],  #* generic options to FDW 
+      fdwname              => [ Str             ],  #* foreign-data wrapper name
+      func_options         => [ ArrayRef        ],  #* HANDLER/VALIDATOR options
+      options              => [ ArrayRef        ],  #* generic options to FDW
    };
 
    #* ----------------------
@@ -1734,18 +1735,18 @@ BEGIN {
    #* ----------------------
 
    typedef_struct 'Statement::CreateForeignServer', {
-      servername           => [ Str             ],  #* server name 
-      servertype           => [ Str             ],  #* optional server type 
-      version              => [ Str             ],  #* optional server version 
-      fdwname              => [ Str             ],  #* FDW name 
-      options              => [ ArrayRef        ],  #* generic options to server 
+      servername           => [ Str             ],  #* server name
+      servertype           => [ Str             ],  #* optional server type
+      version              => [ Str             ],  #* optional server version
+      fdwname              => [ Str             ],  #* FDW name
+      options              => [ ArrayRef        ],  #* generic options to server
    };
 
    typedef_struct 'Statement::AlterForeignServer', {
-      servername           => [ Str             ],  #* server name 
-      version              => [ Str             ],  #* optional server version 
-      options              => [ ArrayRef        ],  #* generic options to server 
-      has_version          => [ Bool            ],  #* version specified 
+      servername           => [ Str             ],  #* server name
+      version              => [ Str             ],  #* optional server version
+      options              => [ ArrayRef        ],  #* generic options to server
+      has_version          => [ Bool            ],  #* version specified
    };
 
    #* ----------------------
@@ -1763,21 +1764,21 @@ BEGIN {
    #* ----------------------
 
    typedef_struct 'Statement::CreateUserMapping', {
-      username             => [ Str             ],  #* username or PUBLIC/CURRENT_USER 
-      servername           => [ Str             ],  #* server name 
-      options              => [ ArrayRef        ],  #* generic options to server 
+      username             => [ Str             ],  #* username or PUBLIC/CURRENT_USER
+      servername           => [ Str             ],  #* server name
+      options              => [ ArrayRef        ],  #* generic options to server
    };
 
    typedef_struct 'Statement::AlterUserMapping', {
-      username             => [ Str             ],  #* username or PUBLIC/CURRENT_USER 
-      servername           => [ Str             ],  #* server name 
-      options              => [ ArrayRef        ],  #* generic options to server 
+      username             => [ Str             ],  #* username or PUBLIC/CURRENT_USER
+      servername           => [ Str             ],  #* server name
+      options              => [ ArrayRef        ],  #* generic options to server
    };
 
    typedef_struct 'Statement::DropUserMapping', {
-      username             => [ Str             ],  #* username or PUBLIC/CURRENT_USER 
-      servername           => [ Str             ],  #* server name 
-      missing_ok           => [ Bool            ],  #* ignore missing mappings 
+      username             => [ Str             ],  #* username or PUBLIC/CURRENT_USER
+      servername           => [ Str             ],  #* server name
+      missing_ok           => [ Bool            ],  #* ignore missing mappings
    };
 
    #* ----------------------
@@ -1800,36 +1801,36 @@ BEGIN {
       'TRIGGER_TYPE_AFTER       = 0',
       'TRIGGER_TYPE_EVENT_MASK  = (TRIGGER_TYPE_INSERT | TRIGGER_TYPE_DELETE | TRIGGER_TYPE_UPDATE | TRIGGER_TYPE_TRUNCATE)',
    ], 1;
-      
+
    typedef_struct 'Statement::CreateTrig', {
-      trigname             => [ Str             ],  #* TRIGGER's name 
-      relation             => [ RangeVar        ],  #* relation trigger is on 
-      funcname             => [ ArrayRef        ],  #* qual. name of function to call 
-      args                 => [ ArrayRef        ],  #* list of (T_String) Values or NIL 
-      row                  => [ Bool            ],  #* ROW/STATEMENT 
-      #* timing uses the TRIGGER_TYPE bits defined in catalog/pg_trigger.h 
-      timing               => [ Int16           ],  #* BEFORE, AFTER, or INSTEAD 
-      #* events uses the TRIGGER_TYPE bits defined in catalog/pg_trigger.h 
-      events               => [ Int16           ],  #* "OR" of INSERT/UPDATE/DELETE/TRUNCATE 
-      columns              => [ ArrayRef        ],  #* column names, or NIL for all columns 
-      whenClause           => [ Any             ],  #* qual expression, or NULL if none 
-      isconstraint         => [ Bool            ],  #* This is a constraint trigger 
-      #* The remaining fields are only used for constraint triggers 
-      deferrable           => [ Bool            ],  #* [NOT] DEFERRABLE 
-      initdeferred         => [ Bool            ],  #* INITIALLY {DEFERRED|IMMEDIATE} 
-      constrrel            => [ RangeVar        ],  #* opposite relation, if RI trigger 
+      trigname             => [ Str             ],  #* TRIGGER's name
+      relation             => [ RangeVar        ],  #* relation trigger is on
+      funcname             => [ ArrayRef        ],  #* qual. name of function to call
+      args                 => [ ArrayRef        ],  #* list of (T_String) Values or NIL
+      row                  => [ Bool            ],  #* ROW/STATEMENT
+      #* timing uses the TRIGGER_TYPE bits defined in catalog/pg_trigger.h
+      timing               => [ Int16           ],  #* BEFORE, AFTER, or INSTEAD
+      #* events uses the TRIGGER_TYPE bits defined in catalog/pg_trigger.h
+      events               => [ Int16           ],  #* "OR" of INSERT/UPDATE/DELETE/TRUNCATE
+      columns              => [ ArrayRef        ],  #* column names, or NIL for all columns
+      whenClause           => [ Any             ],  #* qual expression, or NULL if none
+      isconstraint         => [ Bool            ],  #* This is a constraint trigger
+      #* The remaining fields are only used for constraint triggers
+      deferrable           => [ Bool            ],  #* [NOT] DEFERRABLE
+      initdeferred         => [ Bool            ],  #* INITIALLY {DEFERRED|IMMEDIATE}
+      constrrel            => [ RangeVar        ],  #* opposite relation, if RI trigger
    };
 
    #* ----------------------
    #*      Create PROCEDURAL LANGUAGE Statements
    #* ----------------------
    typedef_struct 'Statement::CreatePLang', {
-      replace              => [ Bool            ],  #* T => replace if already exists 
-      plname               => [ Str             ],  #* PL name 
-      plhandler            => [ ArrayRef        ],  #* PL call handler function (qual. name) 
-      plinline             => [ ArrayRef        ],  #* optional inline function (qual. name) 
-      plvalidator          => [ ArrayRef        ],  #* optional validator function (qual. name) 
-      pltrusted            => [ Bool            ],  #* PL is trusted 
+      replace              => [ Bool            ],  #* T => replace if already exists
+      plname               => [ Str             ],  #* PL name
+      plhandler            => [ ArrayRef        ],  #* PL call handler function (qual. name)
+      plinline             => [ ArrayRef        ],  #* optional inline function (qual. name)
+      plvalidator          => [ ArrayRef        ],  #* optional validator function (qual. name)
+      pltrusted            => [ Bool            ],  #* PL is trusted
    };
 
    #* ----------------------
@@ -1847,26 +1848,26 @@ BEGIN {
 }
 BEGIN {
    typedef_struct 'Statement::CreateRole', {
-      stmt_type            => [ RoleStmtType    ],  #* ROLE/USER/GROUP 
-      role                 => [ Str             ],  #* role name 
-      options              => [ ArrayRef        ],  #* List of DefElem nodes 
+      stmt_type            => [ RoleStmtType    ],  #* ROLE/USER/GROUP
+      role                 => [ Str             ],  #* role name
+      options              => [ ArrayRef        ],  #* List of DefElem nodes
    };
 
    typedef_struct 'Statement::AlterRole', {
-      role                 => [ Str             ],  #* role name 
-      options              => [ ArrayRef        ],  #* List of DefElem nodes 
-      action               => [ Int             ],  #* +1 = add members, -1 = drop members 
+      role                 => [ Str             ],  #* role name
+      options              => [ ArrayRef        ],  #* List of DefElem nodes
+      action               => [ Int             ],  #* +1 = add members, -1 = drop members
    };
 
    typedef_struct 'Statement::AlterRoleSet', {
-      role                 => [ Str             ],  #* role name 
-      database             => [ Str             ],  #* database name, or NULL 
-      setstmt              => [ StatementVariableSet ],  #* SET or RESET subcommand 
+      role                 => [ Str             ],  #* role name
+      database             => [ Str             ],  #* database name, or NULL
+      setstmt              => [ StatementVariableSet ],  #* SET or RESET subcommand
    };
 
    typedef_struct 'Statement::DropRole', {
-      roles                => [ ArrayRef        ],  #* List of roles to remove 
-      missing_ok           => [ Bool            ],  #* skip error if a role is missing? 
+      roles                => [ ArrayRef        ],  #* List of roles to remove
+      missing_ok           => [ Bool            ],  #* skip error if a role is missing?
    };
 
    #* ----------------------
@@ -1874,48 +1875,48 @@ BEGIN {
    #* ----------------------
 
    typedef_struct 'Statement::CreateSeq', {
-      sequence             => [ RangeVar        ],  #* the sequence to create 
+      sequence             => [ RangeVar        ],  #* the sequence to create
       options              => [ ArrayRef        ],
-      ownerId              => [ UInt            ],  #* ID of owner, or InvalidOid for default 
+      ownerId              => [ UInt            ],  #* ID of owner, or InvalidOid for default
    };
 
    typedef_struct 'Statement::AlterSeq', {
-      sequence             => [ RangeVar        ],  #* the sequence to alter 
+      sequence             => [ RangeVar        ],  #* the sequence to alter
       options              => [ ArrayRef        ],
-      missing_ok           => [ Bool            ],  #* skip error if a role is missing? 
+      missing_ok           => [ Bool            ],  #* skip error if a role is missing?
    };
 
    #* ----------------------
    #*      Create {Aggregate|Operator|Type} Statement
    #* ----------------------
    typedef_struct 'Statement::Define', {
-      kind                 => [ ObjectType      ],  #* aggregate, operator, type 
-      oldstyle             => [ Bool            ],  #* hack to signal old CREATE AGG syntax 
-      defnames             => [ ArrayRef        ],  #* qualified name (list of Value strings) 
-      args                 => [ ArrayRef        ],  #* a list of TypeName (if needed) 
-      definition           => [ ArrayRef        ],  #* a list of DefElem 
+      kind                 => [ ObjectType      ],  #* aggregate, operator, type
+      oldstyle             => [ Bool            ],  #* hack to signal old CREATE AGG syntax
+      defnames             => [ ArrayRef        ],  #* qualified name (list of Value strings)
+      args                 => [ ArrayRef        ],  #* a list of TypeName (if needed)
+      definition           => [ ArrayRef        ],  #* a list of DefElem
    };
 
    #* ----------------------
    #*      Create Domain Statement
    #* ----------------------
    typedef_struct 'Statement::CreateDomain', {
-      domainname           => [ ArrayRef        ],  #* qualified name (list of Value strings) 
-      typeName             => [ TypeName        ],  #* the base type 
-      collClause           => [ CollateClause   ],  #* untransformed COLLATE spec, if any 
-      constraints          => [ ArrayRef        ],  #* constraints (list of Constraint nodes) 
+      domainname           => [ ArrayRef        ],  #* qualified name (list of Value strings)
+      typeName             => [ TypeName        ],  #* the base type
+      collClause           => [ CollateClause   ],  #* untransformed COLLATE spec, if any
+      constraints          => [ ArrayRef        ],  #* constraints (list of Constraint nodes)
    };
 
    #* ----------------------
    #*      Create Operator Class Statement
    #* ----------------------
    typedef_struct 'Statement::CreateOpClass', {
-      opclassname          => [ ArrayRef        ],  #* qualified name (list of Value strings) 
-      opfamilyname         => [ ArrayRef        ],  #* qualified name (ditto); NIL if omitted 
-      amname               => [ Str             ],  #* name of index AM opclass is for 
-      datatype             => [ TypeName        ],  #* datatype of indexed column 
-      items                => [ ArrayRef        ],  #* List of CreateOpClassItem nodes 
-      isDefault            => [ Bool            ],  #* Should be marked as default for type? 
+      opclassname          => [ ArrayRef        ],  #* qualified name (list of Value strings)
+      opfamilyname         => [ ArrayRef        ],  #* qualified name (ditto); NIL if omitted
+      amname               => [ Str             ],  #* name of index AM opclass is for
+      datatype             => [ TypeName        ],  #* datatype of indexed column
+      items                => [ ArrayRef        ],  #* List of CreateOpClassItem nodes
+      isDefault            => [ Bool            ],  #* Should be marked as default for type?
    };
 
    typedef_enum '', [
@@ -1925,33 +1926,33 @@ BEGIN {
    ], 1;
 
    typedef_struct 'CreateOpClass::Item', {
-      itemtype             => [ Str             ],  #* see codes above 
-      #* fields used for an operator or function item: 
-      name                 => [ ArrayRef        ],  #* operator or function name 
-      args                 => [ ArrayRef        ],  #* argument types 
-      number               => [ Int             ],  #* strategy num or support proc num 
-      order_family         => [ ArrayRef        ],  #* only used for ordering operators 
-      class_args           => [ ArrayRef        ],  #* only used for functions 
-      #* fields used for a storagetype item: 
-      storedtype           => [ TypeName        ],  #* datatype stored in index 
+      itemtype             => [ Str             ],  #* see codes above
+      #* fields used for an operator or function item:
+      name                 => [ ArrayRef        ],  #* operator or function name
+      args                 => [ ArrayRef        ],  #* argument types
+      number               => [ Int             ],  #* strategy num or support proc num
+      order_family         => [ ArrayRef        ],  #* only used for ordering operators
+      class_args           => [ ArrayRef        ],  #* only used for functions
+      #* fields used for a storagetype item:
+      storedtype           => [ TypeName        ],  #* datatype stored in index
    };
 
    #* ----------------------
    #*      Create Operator Family Statement
    #* ----------------------
    typedef_struct 'Statement::CreateOpFamily', {
-      opfamilyname         => [ ArrayRef        ],  #* qualified name (list of Value strings) 
-      amname               => [ Str             ],  #* name of index AM opfamily is for 
+      opfamilyname         => [ ArrayRef        ],  #* qualified name (list of Value strings)
+      amname               => [ Str             ],  #* name of index AM opfamily is for
    };
 
    #* ----------------------
    #*      Alter Operator Family Statement
    #* ----------------------
    typedef_struct 'Statement::AlterOpFamily', {
-      opfamilyname         => [ ArrayRef        ],  #* qualified name (list of Value strings) 
-      amname               => [ Str             ],  #* name of index AM opfamily is for 
-      isDrop               => [ Bool            ],  #* ADD or DROP the items? 
-      items                => [ ArrayRef        ],  #* List of CreateOpClassItem nodes 
+      opfamilyname         => [ ArrayRef        ],  #* qualified name (list of Value strings)
+      amname               => [ Str             ],  #* name of index AM opfamily is for
+      isDrop               => [ Bool            ],  #* ADD or DROP the items?
+      items                => [ ArrayRef        ],  #* List of CreateOpClassItem nodes
    };
 
    #* ----------------------
@@ -1959,42 +1960,42 @@ BEGIN {
    #* ----------------------
 
    typedef_struct 'Statement::Drop', {
-      objects              => [ ArrayRef        ],  #* list of sublists of names (as Values) 
-      arguments            => [ ArrayRef        ],  #* list of sublists of arguments (as Values) 
-      removeType           => [ ObjectType      ],  #* object type 
-      behavior             => [ DropBehavior    ],  #* RESTRICT or CASCADE behavior 
-      missing_ok           => [ Bool            ],  #* skip error if object is missing? 
-      concurrent           => [ Bool            ],  #* drop index concurrently? 
+      objects              => [ ArrayRef        ],  #* list of sublists of names (as Values)
+      arguments            => [ ArrayRef        ],  #* list of sublists of arguments (as Values)
+      removeType           => [ ObjectType      ],  #* object type
+      behavior             => [ DropBehavior    ],  #* RESTRICT or CASCADE behavior
+      missing_ok           => [ Bool            ],  #* skip error if object is missing?
+      concurrent           => [ Bool            ],  #* drop index concurrently?
    };
 
    #* ----------------------
    #*              Truncate Table Statement
    #* ----------------------
    typedef_struct 'Statement::Truncate', {
-      relations            => [ ArrayRef        ],  #* relations (RangeVars) to be truncated 
-      restart_seqs         => [ Bool            ],  #* restart owned sequences? 
-      behavior             => [ DropBehavior    ],  #* RESTRICT or CASCADE behavior 
+      relations            => [ ArrayRef        ],  #* relations (RangeVars) to be truncated
+      restart_seqs         => [ Bool            ],  #* restart owned sequences?
+      behavior             => [ DropBehavior    ],  #* RESTRICT or CASCADE behavior
    };
 
    #* ----------------------
    #*              Comment On Statement
    #* ----------------------
    typedef_struct 'Statement::Comment', {
-      objtype              => [ ObjectType      ],  #* Object's type 
-      objname              => [ ArrayRef        ],  #* Qualified name of the object 
-      objargs              => [ ArrayRef        ],  #* Arguments if needed (eg, for functions) 
-      comment              => [ Str             ],  #* Comment to insert, or NULL to remove 
+      objtype              => [ ObjectType      ],  #* Object's type
+      objname              => [ ArrayRef        ],  #* Qualified name of the object
+      objargs              => [ ArrayRef        ],  #* Arguments if needed (eg, for functions)
+      comment              => [ Str             ],  #* Comment to insert, or NULL to remove
    };
 
    #* ----------------------
    #*              SECURITY LABEL Statement
    #* ----------------------
    typedef_struct 'Statement::SecLabel', {
-      objtype              => [ ObjectType      ],  #* Object's type 
-      objname              => [ ArrayRef        ],  #* Qualified name of the object 
-      objargs              => [ ArrayRef        ],  #* Arguments if needed (eg, for functions) 
-      provider             => [ Str             ],  #* Label provider (or NULL) 
-      label                => [ Str             ],  #* New security label to be assigned 
+      objtype              => [ ObjectType      ],  #* Object's type
+      objname              => [ ArrayRef        ],  #* Qualified name of the object
+      objargs              => [ ArrayRef        ],  #* Arguments if needed (eg, for functions)
+      provider             => [ Str             ],  #* Label provider (or NULL)
+      label                => [ Str             ],  #* New security label to be assigned
    };
 
    #* ----------------------
@@ -2004,39 +2005,39 @@ BEGIN {
    #* DeclareCursorStmt, not vice versa.
    #* ----------------------
    typedef_enum '', [
-      'CURSOR_OPT_BINARY=1',      #* BINARY 
-      'CURSOR_OPT_SCROLL',        #* SCROLL explicitly given 
-      'CURSOR_OPT_NO_SCROLL',     #* NO SCROLL explicitly given 
-      'CURSOR_OPT_INSENSITIVE',   #* INSENSITIVE 
-      'CURSOR_OPT_HOLD',          #* WITH HOLD 
-      #* these planner-control flags do not correspond to any SQL grammar: 
-      'CURSOR_OPT_FAST_PLAN',     #* prefer fast-start plan 
-      'CURSOR_OPT_GENERIC_PLAN',  #* force use of generic plan 
-      'CURSOR_OPT_CUSTOM_PLAN',   #* force use of custom plan 
+      'CURSOR_OPT_BINARY=1',      #* BINARY
+      'CURSOR_OPT_SCROLL',        #* SCROLL explicitly given
+      'CURSOR_OPT_NO_SCROLL',     #* NO SCROLL explicitly given
+      'CURSOR_OPT_INSENSITIVE',   #* INSENSITIVE
+      'CURSOR_OPT_HOLD',          #* WITH HOLD
+      #* these planner-control flags do not correspond to any SQL grammar:
+      'CURSOR_OPT_FAST_PLAN',     #* prefer fast-start plan
+      'CURSOR_OPT_GENERIC_PLAN',  #* force use of generic plan
+      'CURSOR_OPT_CUSTOM_PLAN',   #* force use of custom plan
    ], 1;
 
    typedef_struct 'Statement::DeclareCursor', {
-      portalname           => [ Str             ],  #* name of the portal (cursor) 
-      options              => [ Int             ],  #* bitmask of options (see above) 
-      query                => [ Any             ],  #* the raw SELECT query 
+      portalname           => [ Str             ],  #* name of the portal (cursor)
+      options              => [ Int             ],  #* bitmask of options (see above)
+      query                => [ Any             ],  #* the raw SELECT query
    };
 
    #* ----------------------
    #*      Close Portal Statement
    #* ----------------------
    typedef_struct 'Statement::ClosePortal', {
-      portalname           => [ Str             ],  #* name of the portal (cursor) 
-      #* NULL means CLOSE ALL 
+      portalname           => [ Str             ],  #* name of the portal (cursor)
+      #* NULL means CLOSE ALL
    };
 
    #* ----------------------
    #*      Fetch Statement (also Move)
    #* ----------------------
    typedef_enum 'FetchDirection', [
-      #* for these, howMany is how many rows to fetch; FETCH_ALL means ALL 
+      #* for these, howMany is how many rows to fetch; FETCH_ALL means ALL
       'FETCH_FORWARD',
       'FETCH_BACKWARD',
-      #* for these, howMany indicates a position; only one row is fetched 
+      #* for these, howMany indicates a position; only one row is fetched
       'FETCH_ABSOLUTE',
       'FETCH_RELATIVE',
       'FETCH_ALL',
@@ -2044,10 +2045,10 @@ BEGIN {
 }
 BEGIN {
    typedef_struct 'Statement::Fetch', {
-      direction            => [ FetchDirection  ],  #* see above 
-      howMany              => [ Long            ],  #* number of rows, or position argument 
-      portalname           => [ Str             ],  #* name of portal (cursor) 
-      ismove               => [ Bool            ],  #* TRUE if MOVE 
+      direction            => [ FetchDirection  ],  #* see above
+      howMany              => [ Long            ],  #* number of rows, or position argument
+      portalname           => [ Str             ],  #* name of portal (cursor)
+      ismove               => [ Bool            ],  #* TRUE if MOVE
    };
 
    #* ----------------------
@@ -2059,55 +2060,55 @@ BEGIN {
    #* empty.
    #* ----------------------
    typedef_struct 'Statement::Index', {
-      idxname              => [ Str             ],  #* name of new index, or NULL for default 
-      relation             => [ RangeVar        ],  #* relation to build index on 
-      accessMethod         => [ Str             ],  #* name of access method (eg. btree) 
-      tableSpace           => [ Str             ],  #* tablespace, or NULL for default 
-      indexParams          => [ ArrayRef        ],  #* a list of IndexElem 
-      options              => [ ArrayRef        ],  #* options from WITH clause 
-      whereClause          => [ Any             ],  #* qualification (partial-index predicate) 
-      excludeOpNames       => [ ArrayRef        ],  #* exclusion operator names, or NIL if none 
-      indexOid             => [ UInt            ],  #* OID of an existing index, if any 
-      oldNode              => [ UInt            ],  #* relfilenode of my former self 
-      unique               => [ Bool            ],  #* is index unique? 
-      primary              => [ Bool            ],  #* is index on primary key? 
-      isconstraint         => [ Bool            ],  #* is it from a CONSTRAINT clause? 
-      deferrable           => [ Bool            ],  #* is the constraint DEFERRABLE? 
-      initdeferred         => [ Bool            ],  #* is the constraint INITIALLY DEFERRED? 
-      concurrent           => [ Bool            ],  #* should this be a concurrent index build? 
+      idxname              => [ Str             ],  #* name of new index, or NULL for default
+      relation             => [ RangeVar        ],  #* relation to build index on
+      accessMethod         => [ Str             ],  #* name of access method (eg. btree)
+      tableSpace           => [ Str             ],  #* tablespace, or NULL for default
+      indexParams          => [ ArrayRef        ],  #* a list of IndexElem
+      options              => [ ArrayRef        ],  #* options from WITH clause
+      whereClause          => [ Any             ],  #* qualification (partial-index predicate)
+      excludeOpNames       => [ ArrayRef        ],  #* exclusion operator names, or NIL if none
+      indexOid             => [ UInt            ],  #* OID of an existing index, if any
+      oldNode              => [ UInt            ],  #* relfilenode of my former self
+      unique               => [ Bool            ],  #* is index unique?
+      primary              => [ Bool            ],  #* is index on primary key?
+      isconstraint         => [ Bool            ],  #* is it from a CONSTRAINT clause?
+      deferrable           => [ Bool            ],  #* is the constraint DEFERRABLE?
+      initdeferred         => [ Bool            ],  #* is the constraint INITIALLY DEFERRED?
+      concurrent           => [ Bool            ],  #* should this be a concurrent index build?
    };
 
    #* ----------------------
    #*      Create Function Statement
    #* ----------------------
    typedef_struct 'Statement::CreateFunction', {
-      replace              => [ Bool            ],  #* T => replace if already exists 
-      funcname             => [ ArrayRef        ],  #* qualified name of function to create 
-      parameters           => [ ArrayRef        ],  #* a list of FunctionParameter 
-      returnType           => [ TypeName        ],  #* the return type 
-      options              => [ ArrayRef        ],  #* a list of DefElem 
-      withClause           => [ ArrayRef        ],  #* a list of DefElem 
+      replace              => [ Bool            ],  #* T => replace if already exists
+      funcname             => [ ArrayRef        ],  #* qualified name of function to create
+      parameters           => [ ArrayRef        ],  #* a list of FunctionParameter
+      returnType           => [ TypeName        ],  #* the return type
+      options              => [ ArrayRef        ],  #* a list of DefElem
+      withClause           => [ ArrayRef        ],  #* a list of DefElem
    };
 
    typedef_enum 'FunctionParameterMode', [
-      'FUNC_PARAM_IN',        #* input only 
-      'FUNC_PARAM_OUT',       #* output only 
-      'FUNC_PARAM_INOUT',     #* both 
-      'FUNC_PARAM_VARIADIC',  #* variadic (always input) 
-      'FUNC_PARAM_TABLE'      #* table function output column 
+      'FUNC_PARAM_IN',        #* input only
+      'FUNC_PARAM_OUT',       #* output only
+      'FUNC_PARAM_INOUT',     #* both
+      'FUNC_PARAM_VARIADIC',  #* variadic (always input)
+      'FUNC_PARAM_TABLE'      #* table function output column
    ], 0;
 }
 BEGIN {
    typedef_struct 'Function::Parameter', {
-      name                 => [ Str             ],  #* parameter name, or NULL if not given 
-      argType              => [ TypeName        ],  #* TypeName for parameter type 
-      mode                 => [ FunctionParameterMode ],  #* IN/OUT/etc 
-      defexpr              => [ Any             ],  #* raw default expr, or NULL if not given 
+      name                 => [ Str             ],  #* parameter name, or NULL if not given
+      argType              => [ TypeName        ],  #* TypeName for parameter type
+      mode                 => [ FunctionParameterMode ],  #* IN/OUT/etc
+      defexpr              => [ Any             ],  #* raw default expr, or NULL if not given
    };
 
    typedef_struct 'AlterFunction', {
-      func                 => [ Function        ],  #* name and args of function 
-      actions              => [ ArrayRef        ],  #* list of DefElem 
+      func                 => [ Function        ],  #* name and args of function
+      actions              => [ ArrayRef        ],  #* list of DefElem
    };
 
    #* ----------------------
@@ -2115,7 +2116,7 @@ BEGIN {
    #* DoStmt is the raw parser output, InlineCodeBlock is the execution-time API
    #* ----------------------
    typedef_struct 'Statement::Do', {
-      args                 => [ ArrayRef        ],  #* List of DefElem nodes 
+      args                 => [ ArrayRef        ],  #* List of DefElem nodes
    };
 
    ### RIP: InlineCodeBlock ###
@@ -2124,41 +2125,41 @@ BEGIN {
    #*      Alter Object Rename Statement
    #* ----------------------
    typedef_struct 'Statement::Rename', {
-      renameType           => [ ObjectType      ],  #* OBJECT_TABLE, OBJECT_COLUMN, etc 
-      relationType         => [ ObjectType      ],  #* if column name, associated relation type 
-      relation             => [ RangeVar        ],  #* in case it's a table 
-      object               => [ ArrayRef        ],  #* in case it's some other object 
-      objarg               => [ ArrayRef        ],  #* argument types, if applicable 
+      renameType           => [ ObjectType      ],  #* OBJECT_TABLE, OBJECT_COLUMN, etc
+      relationType         => [ ObjectType      ],  #* if column name, associated relation type
+      relation             => [ RangeVar        ],  #* in case it's a table
+      object               => [ ArrayRef        ],  #* in case it's some other object
+      objarg               => [ ArrayRef        ],  #* argument types, if applicable
       subname              => [ Str             ],  #* name of contained object (column, rule,
-                                                    #* trigger, etc) 
-      newname              => [ Str             ],  #* the new name 
-      behavior             => [ DropBehavior    ],  #* RESTRICT or CASCADE behavior 
-      missing_ok           => [ Bool            ],  #* skip error if missing? 
+                                                    #* trigger, etc)
+      newname              => [ Str             ],  #* the new name
+      behavior             => [ DropBehavior    ],  #* RESTRICT or CASCADE behavior
+      missing_ok           => [ Bool            ],  #* skip error if missing?
    };
 
    #* ----------------------
    #*      ALTER object SET SCHEMA Statement
    #* ----------------------
    typedef_struct 'Statement::AlterObjectSchema', {
-      objectType           => [ ObjectType      ],  #* OBJECT_TABLE, OBJECT_TYPE, etc 
-      relation             => [ RangeVar        ],  #* in case it's a table 
-      object               => [ ArrayRef        ],  #* in case it's some other object 
-      objarg               => [ ArrayRef        ],  #* argument types, if applicable 
-      addname              => [ Str             ],  #* additional name if needed 
-      newschema            => [ Str             ],  #* the new schema 
-      missing_ok           => [ Bool            ],  #* skip error if missing? 
+      objectType           => [ ObjectType      ],  #* OBJECT_TABLE, OBJECT_TYPE, etc
+      relation             => [ RangeVar        ],  #* in case it's a table
+      object               => [ ArrayRef        ],  #* in case it's some other object
+      objarg               => [ ArrayRef        ],  #* argument types, if applicable
+      addname              => [ Str             ],  #* additional name if needed
+      newschema            => [ Str             ],  #* the new schema
+      missing_ok           => [ Bool            ],  #* skip error if missing?
    };
 
    #* ----------------------
    #*      Alter Object Owner Statement
    #* ----------------------
    typedef_struct 'Statement::AlterOwner', {
-      objectType           => [ ObjectType      ],  #* OBJECT_TABLE, OBJECT_TYPE, etc 
-      relation             => [ RangeVar        ],  #* in case it's a table 
-      object               => [ ArrayRef        ],  #* in case it's some other object 
-      objarg               => [ ArrayRef        ],  #* argument types, if applicable 
-      addname              => [ Str             ],  #* additional name if needed 
-      newowner             => [ Str             ],  #* the new owner 
+      objectType           => [ ObjectType      ],  #* OBJECT_TABLE, OBJECT_TYPE, etc
+      relation             => [ RangeVar        ],  #* in case it's a table
+      object               => [ ArrayRef        ],  #* in case it's some other object
+      objarg               => [ ArrayRef        ],  #* argument types, if applicable
+      addname              => [ Str             ],  #* additional name if needed
+      newowner             => [ Str             ],  #* the new owner
    };
 
 
@@ -2166,35 +2167,35 @@ BEGIN {
    #*      Create Rule Statement
    #* ----------------------
    typedef_struct 'Statement::Rule', {
-      relation             => [ RangeVar        ],  #* relation the rule is for 
-      rulename             => [ Str             ],  #* name of the rule 
-      whereClause          => [ Any             ],  #* qualifications 
-      event                => [ CmdType         ],  #* SELECT, INSERT, etc 
-      instead              => [ Bool            ],  #* is a 'do instead'? 
-      actions              => [ ArrayRef        ],  #* the action statements 
-      replace              => [ Bool            ],  #* OR REPLACE 
+      relation             => [ RangeVar        ],  #* relation the rule is for
+      rulename             => [ Str             ],  #* name of the rule
+      whereClause          => [ Any             ],  #* qualifications
+      event                => [ CmdType         ],  #* SELECT, INSERT, etc
+      instead              => [ Bool            ],  #* is a 'do instead'?
+      actions              => [ ArrayRef        ],  #* the action statements
+      replace              => [ Bool            ],  #* OR REPLACE
    };
 
    #* ----------------------
    #*      Notify Statement
    #* ----------------------
    typedef_struct 'Statement::Notify', {
-      conditionname        => [ Str             ],  #* condition name to notify 
-      payload              => [ Str             ],  #* the payload string, or NULL if none 
+      conditionname        => [ Str             ],  #* condition name to notify
+      payload              => [ Str             ],  #* the payload string, or NULL if none
    };
 
    #* ----------------------
    #*      Listen Statement
    #* ----------------------
    typedef_struct 'Statement::Listen', {
-      conditionname        => [ Str             ],  #* condition name to listen on 
+      conditionname        => [ Str             ],  #* condition name to listen on
    };
 
    #* ----------------------
    #*      Unlisten Statement
    #* ----------------------
    typedef_struct 'Statement::Unlisten', {
-      conditionname        => [ Str             ],  #* name to unlisten on, or NULL for all 
+      conditionname        => [ Str             ],  #* name to unlisten on, or NULL for all
    };
 
    #* ----------------------
@@ -2202,7 +2203,7 @@ BEGIN {
    #* ----------------------
    typedef_enum 'TransactionStmtKind', [
       'TRANS_STMT_BEGIN',
-      'TRANS_STMT_START',           #* semantically identical to BEGIN 
+      'TRANS_STMT_START',           #* semantically identical to BEGIN
       'TRANS_STMT_COMMIT',
       'TRANS_STMT_ROLLBACK',
       'TRANS_STMT_SAVEPOINT',
@@ -2215,99 +2216,99 @@ BEGIN {
 }
 BEGIN {
    typedef_struct 'Statement::Transaction', {
-      kind                 => [ TransactionStmtKind ],  #* see above 
-      options              => [ ArrayRef        ],  #* for BEGIN/START and savepoint commands 
-      gid                  => [ Str             ],  #* for two-phase-commit related commands 
+      kind                 => [ TransactionStmtKind ],  #* see above
+      options              => [ ArrayRef        ],  #* for BEGIN/START and savepoint commands
+      gid                  => [ Str             ],  #* for two-phase-commit related commands
    };
 
    #* ----------------------
    #*      Create Type Statement, composite types
    #* ----------------------
    typedef_struct 'Statement::CompositeType', {
-      typevar              => [ RangeVar        ],  #* the composite type to be created 
-      coldeflist           => [ ArrayRef        ],  #* list of ColumnDef nodes 
+      typevar              => [ RangeVar        ],  #* the composite type to be created
+      coldeflist           => [ ArrayRef        ],  #* list of ColumnDef nodes
    };
 
    #* ----------------------
    #*      Create Type Statement, enum types
    #* ----------------------
    typedef_struct 'Statement::CreateEnum', {
-      typeName             => [ ArrayRef        ],  #* qualified name (list of Value strings) 
-      vals                 => [ ArrayRef        ],  #* enum values (list of Value strings) 
+      typeName             => [ ArrayRef        ],  #* qualified name (list of Value strings)
+      vals                 => [ ArrayRef        ],  #* enum values (list of Value strings)
    };
 
    #* ----------------------
    #*      Create Type Statement, range types
    #* ----------------------
    typedef_struct 'Statement::CreateRange', {
-      typeName             => [ ArrayRef        ],  #* qualified name (list of Value strings) 
-      params               => [ ArrayRef        ],  #* range parameters (list of DefElem) 
+      typeName             => [ ArrayRef        ],  #* qualified name (list of Value strings)
+      params               => [ ArrayRef        ],  #* range parameters (list of DefElem)
    };
 
    #* ----------------------
    #*      Alter Type Statement, enum types
    #* ----------------------
    typedef_struct 'Statement::AlterEnum', {
-      typeName             => [ ArrayRef        ],  #* qualified name (list of Value strings) 
-      newVal               => [ Str             ],  #* new enum value's name 
-      newValNeighbor       => [ Str             ],  #* neighboring enum value, if specified 
-      newValIsAfter        => [ Bool            ],  #* place new enum value after neighbor? 
+      typeName             => [ ArrayRef        ],  #* qualified name (list of Value strings)
+      newVal               => [ Str             ],  #* new enum value's name
+      newValNeighbor       => [ Str             ],  #* neighboring enum value, if specified
+      newValIsAfter        => [ Bool            ],  #* place new enum value after neighbor?
    };
 
    #* ----------------------
    #*      Create View Statement
    #* ----------------------
    typedef_struct 'Statement::View', {
-      view                 => [ RangeVar        ],  #* the view to be created 
-      aliases              => [ ArrayRef        ],  #* target column names 
-      query                => [ Any             ],  #* the SELECT query 
-      replace              => [ Bool            ],  #* replace an existing view? 
-      options              => [ ArrayRef        ],  #* options from WITH clause 
+      view                 => [ RangeVar        ],  #* the view to be created
+      aliases              => [ ArrayRef        ],  #* target column names
+      query                => [ Any             ],  #* the SELECT query
+      replace              => [ Bool            ],  #* replace an existing view?
+      options              => [ ArrayRef        ],  #* options from WITH clause
    };
 
    #* ----------------------
    #*      Load Statement
    #* ----------------------
    typedef_struct 'Statement::Load', {
-      filename             => [ Str             ],  #* file to load 
+      filename             => [ Str             ],  #* file to load
    };
 
    #* ----------------------
    #*      Createdb Statement
    #* ----------------------
    typedef_struct 'Statement::Createdb', {
-      dbname               => [ Str             ],  #* name of database to create 
-      options              => [ ArrayRef        ],  #* List of DefElem nodes 
+      dbname               => [ Str             ],  #* name of database to create
+      options              => [ ArrayRef        ],  #* List of DefElem nodes
    };
 
    #* ----------------------
    #*  Alter Database
    #* ----------------------
    typedef_struct 'Statement::AlterDatabase', {
-      dbname               => [ Str             ],  #* name of database to alter 
-      options              => [ ArrayRef        ],  #* List of DefElem nodes 
+      dbname               => [ Str             ],  #* name of database to alter
+      options              => [ ArrayRef        ],  #* List of DefElem nodes
    };
 
    typedef_struct 'AlterDatabaseSet', {
-      dbname               => [ Str             ],  #* database name 
-      setstmt              => [ StatementVariableSet ],  #* SET or RESET subcommand 
+      dbname               => [ Str             ],  #* database name
+      setstmt              => [ StatementVariableSet ],  #* SET or RESET subcommand
    };
 
    #* ----------------------
    #*      Dropdb Statement
    #* ----------------------
    typedef_struct 'Statement::Dropdb', {
-      dbname               => [ Str             ],  #* database to drop 
-      missing_ok           => [ Bool            ],  #* skip error if db is missing? 
+      dbname               => [ Str             ],  #* database to drop
+      missing_ok           => [ Bool            ],  #* skip error if db is missing?
    };
 
    #* ----------------------
    #*      Cluster Statement (support pbrown's cluster index implementation)
    #* ----------------------
    typedef_struct 'Statement::Cluster', {
-      relation             => [ RangeVar        ],  #* relation being indexed, or NULL if all 
-      indexname            => [ Str             ],  #* original index defined 
-      verbose              => [ Bool            ],  #* print progress info 
+      relation             => [ RangeVar        ],  #* relation being indexed, or NULL if all
+      indexname            => [ Str             ],  #* original index defined
+      verbose              => [ Bool            ],  #* print progress info
    };
 
    #* ----------------------
@@ -2319,20 +2320,20 @@ BEGIN {
    #* freeze_min_age and freeze_table_age fields are what matter.
    #* ----------------------
    typedef_enum 'VacuumOption', [
-      'VACOPT_VACUUM  = 1 << 0',    #* do VACUUM 
-      'VACOPT_ANALYZE = 1 << 1',    #* do ANALYZE 
-      'VACOPT_VERBOSE = 1 << 2',    #* print progress info 
-      'VACOPT_FREEZE  = 1 << 3',    #* FREEZE option 
-      'VACOPT_FULL    = 1 << 4',    #* FULL (non-concurrent) vacuum 
-      'VACOPT_NOWAIT  = 1 << 5'     #* don't wait to get lock (autovacuum only) 
+      'VACOPT_VACUUM  = 1 << 0',    #* do VACUUM
+      'VACOPT_ANALYZE = 1 << 1',    #* do ANALYZE
+      'VACOPT_VERBOSE = 1 << 2',    #* print progress info
+      'VACOPT_FREEZE  = 1 << 3',    #* FREEZE option
+      'VACOPT_FULL    = 1 << 4',    #* FULL (non-concurrent) vacuum
+      'VACOPT_NOWAIT  = 1 << 5'     #* don't wait to get lock (autovacuum only)
    ], 1;
 
    typedef_struct 'Statement::Vacuum', {
-      options              => [ Int             ],  #* OR of VacuumOption flags 
-      freeze_min_age       => [ Int             ],  #* min freeze age, or -1 to use default 
-      freeze_table_age     => [ Int             ],  #* age at which to scan whole table 
-      relation             => [ RangeVar        ],  #* single table to process, or NULL 
-      va_cols              => [ ArrayRef        ],  #* list of column names, or NIL for all 
+      options              => [ Int             ],  #* OR of VacuumOption flags
+      freeze_min_age       => [ Int             ],  #* min freeze age, or -1 to use default
+      freeze_table_age     => [ Int             ],  #* age at which to scan whole table
+      relation             => [ RangeVar        ],  #* single table to process, or NULL
+      va_cols              => [ ArrayRef        ],  #* list of column names, or NIL for all
    };
 
    #* ----------------------
@@ -2342,8 +2343,8 @@ BEGIN {
    #* planning of the query are always postponed until execution of EXPLAIN.
    #* ----------------------
    typedef_struct 'Statement::Explain', {
-      query                => [ Any             ],  #* the query (see comments above) 
-      options              => [ ArrayRef        ],  #* list of DefElem nodes 
+      query                => [ Any             ],  #* the query (see comments above)
+      options              => [ ArrayRef        ],  #* list of DefElem nodes
    };
 
    #* ----------------------
@@ -2355,9 +2356,9 @@ BEGIN {
    #* can be a SELECT or an EXECUTE, but not other DML statements.
    #* ----------------------
    typedef_struct 'Statement::CreateTableAs', {
-      query                => [ Any             ],  #* the query (see comments above) 
-      into                 => [ IntoClause      ],  #* destination table 
-      is_select_into       => [ Bool            ],  #* it was written as SELECT INTO 
+      query                => [ Any             ],  #* the query (see comments above)
+      into                 => [ IntoClause      ],  #* destination table
+      is_select_into       => [ Bool            ],  #* it was written as SELECT INTO
    };
 
    #* ----------------------
@@ -2385,16 +2386,16 @@ BEGIN {
    #*      LOCK Statement
    #* ----------------------
    typedef_struct 'Statement::Lock', {
-      relations            => [ ArrayRef        ],  #* relations to lock 
-      mode                 => [ Str             ],  #* lock mode 
-      nowait               => [ Bool            ],  #* no wait mode 
+      relations            => [ ArrayRef        ],  #* relations to lock
+      mode                 => [ Str             ],  #* lock mode
+      nowait               => [ Bool            ],  #* no wait mode
    };
 
    #* ----------------------
    #*      SET CONSTRAINTS Statement
    #* ----------------------
    typedef_struct 'Statement::ConstraintsSet', {
-      constraints          => [ ArrayRef        ],  #* List of names as RangeVars 
+      constraints          => [ ArrayRef        ],  #* List of names as RangeVars
       deferred             => [ Bool            ],
    };
 
@@ -2402,22 +2403,22 @@ BEGIN {
    #*      REINDEX Statement
    #* ----------------------
    typedef_struct 'Statement::Reindex', {
-      kind                 => [ ObjectType      ],  #* OBJECT_INDEX, OBJECT_TABLE, OBJECT_DATABASE 
-      relation             => [ RangeVar        ],  #* Table or index to reindex 
-      name                 => [ Str             ],  #* name of database to reindex 
-      do_system            => [ Bool            ],  #* include system tables in database case 
-      do_user              => [ Bool            ],  #* include user tables in database case 
+      kind                 => [ ObjectType      ],  #* OBJECT_INDEX, OBJECT_TABLE, OBJECT_DATABASE
+      relation             => [ RangeVar        ],  #* Table or index to reindex
+      name                 => [ Str             ],  #* name of database to reindex
+      do_system            => [ Bool            ],  #* include system tables in database case
+      do_user              => [ Bool            ],  #* include user tables in database case
    };
 
    #* ----------------------
    #*      CREATE CONVERSION Statement
    #* ----------------------
    typedef_struct 'Statement::CreateConversion', {
-      conversion_name      => [ ArrayRef        ],  #* Name of the conversion 
-      for_encoding_name    => [ Str             ],  #* source encoding name 
-      to_encoding_name     => [ Str             ],  #* destination encoding name 
-      func_name            => [ ArrayRef        ],  #* qualified conversion function name 
-      def                  => [ Bool            ],  #* is this a default conversion? 
+      conversion_name      => [ ArrayRef        ],  #* Name of the conversion
+      for_encoding_name    => [ Str             ],  #* source encoding name
+      to_encoding_name     => [ Str             ],  #* destination encoding name
+      func_name            => [ ArrayRef        ],  #* qualified conversion function name
+      def                  => [ Bool            ],  #* is this a default conversion?
    };
 
    #* ----------------------
@@ -2435,9 +2436,9 @@ BEGIN {
    #*      PREPARE Statement
    #* ----------------------
    typedef_struct 'Statement::Prepare', {
-      name                 => [ Str             ],  #* Name of plan, arbitrary 
-      argtypes             => [ ArrayRef        ],  #* Types of parameters (List of TypeName) 
-      query                => [ Any             ],  #* The query itself (as a raw parsetree) 
+      name                 => [ Str             ],  #* Name of plan, arbitrary
+      argtypes             => [ ArrayRef        ],  #* Types of parameters (List of TypeName)
+      query                => [ Any             ],  #* The query itself (as a raw parsetree)
    };
 
 
@@ -2445,16 +2446,16 @@ BEGIN {
    #*      EXECUTE Statement
    #* ----------------------
    typedef_struct 'Statement::Execute', {
-      name                 => [ Str             ],  #* The name of the plan to execute 
-      params               => [ ArrayRef        ],  #* Values to assign to parameters 
+      name                 => [ Str             ],  #* The name of the plan to execute
+      params               => [ ArrayRef        ],  #* Values to assign to parameters
    };
 
    #* ----------------------
    #*      DEALLOCATE Statement
    #* ----------------------
    typedef_struct 'Statement::Deallocate', {
-      name                 => [ Str             ],  #* The name of the plan to remove 
-      #* NULL means DEALLOCATE ALL 
+      name                 => [ Str             ],  #* The name of the plan to remove
+      #* NULL means DEALLOCATE ALL
    };
 
    #*      DROP OWNED statement
@@ -2471,28 +2472,28 @@ BEGIN {
 
    #* TS Dictionary stmts: DefineStmt, RenameStmt and DropStmt are default
    typedef_struct 'Statement::AlterTSDictionary', {
-      dictname             => [ ArrayRef        ],  #* qualified name (list of Value strings) 
-      options              => [ ArrayRef        ],  #* List of DefElem nodes 
+      dictname             => [ ArrayRef        ],  #* qualified name (list of Value strings)
+      options              => [ ArrayRef        ],  #* List of DefElem nodes
    };
 
    #* TS Configuration stmts: DefineStmt, RenameStmt and DropStmt are default
    typedef_struct 'Statement::AlterTSConfiguration', {
-      cfgname              => [ ArrayRef        ],  #* qualified name (list of Value strings) 
+      cfgname              => [ ArrayRef        ],  #* qualified name (list of Value strings)
 
       #* dicts will be non-NIL if ADD/ALTER MAPPING was specified. If dicts is
       #* NIL, but tokentype isn't, DROP MAPPING was specified.
-      tokentype            => [ ArrayRef        ],  #* list of Value strings 
-      dicts                => [ ArrayRef        ],  #* list of list of Value strings 
-      override             => [ Bool            ],  #* if true - remove old variant 
-      replace              => [ Bool            ],  #* if true - replace dictionary by another 
-      missing_ok           => [ Bool            ],  #* for DROP - skip error if missing? 
+      tokentype            => [ ArrayRef        ],  #* list of Value strings
+      dicts                => [ ArrayRef        ],  #* list of list of Value strings
+      override             => [ Bool            ],  #* if true - remove old variant
+      replace              => [ Bool            ],  #* if true - replace dictionary by another
+      missing_ok           => [ Bool            ],  #* for DROP - skip error if missing?
    };
 }
 
-#endif   #* PARSENODES_H    
+#endif   #* PARSENODES_H
 
 # use Data::Dump 'dd';
-# use Package::Subroutine::Namespace; 
+# use Package::Subroutine::Namespace;
 # my @childs = sort Package::Subroutine::Namespace->list_childs('SQL::Converter::PIL');
 # dd(\@childs, scalar @childs);
 

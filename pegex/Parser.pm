@@ -9,7 +9,7 @@ my $identifier_max_size = 64;
 
 sub match_rule_Op {
    my $self  = $_[0];
-   my $re_op = $self->grammar->tree->{L_Op}->{'.rgx'};
+   my $re_op = $self->{grammar}{tree}{L_Op}{'.rgx'};
    use Data::Dump;
    dd $self->grammar->tree;
   

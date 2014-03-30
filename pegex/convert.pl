@@ -10,14 +10,13 @@ use Data::Dump;
 require "./eyapp2pegex.pm";
 
 my $start_time = time;
-my $grtree = Pegex::Compiler->new->compile(
-   Pegex::Input->new(file => 'eyapp2pegex.pgx')->open->read
-)->tree;
+my $grammar = Pegex::Input->new(file => 'eyapp2pegex.pgx');
+my $grtree = Pegex::Compiler->new->compile($grammar)->tree;
 printf "[%.3f] Compiled\n", time-$start_time;
 
 my $parser = Pegex::Parser->new(
    grammar  => Pegex::Grammar->new(tree => $grtree),
-   receiver => Transform::Parser::Input::Eyapp::AST->new,
+   receiver => 'Transform::Parser::Input::Eyapp::AST',
    wrap     => 0,
 );
 #$parser->debug(1);

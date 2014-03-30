@@ -1,0 +1,720 @@
+ModuleList: ModuleDefinition+ % ~
+
+# ASN module definition.
+# === EXAMPLE ===
+# MySyntax DEFINITIONS AUTOMATIC TAGS ::=
+# BEGIN
+# ...
+# END
+# === EOF ===
+ModuleDefinition: TypeRefName ObjectIdentifier? TOK_DEFINITIONS ModuleDefinitionFlags? TOK_PPEQ TOK_BEGIN ModuleBody? TOK_END
+
+# Object Identifier Definition
+# { iso member-body(2) 3 }
+ObjectIdentifier:
+     ObjectIdentifier_1
+   | ObjectIdentifier_2
+;
+ObjectIdentifier_1: <P_LCURLY> ObjectIdentifierBody <P_RCURLY>
+ObjectIdentifier_2: <P_LCURLY> <P_RCURLY>
+
+ObjectIdentifierBody: ObjectIdentifierElement+ % ~
+
+ObjectIdentifierElement:
+     ObjectIdentifierElement_1
+   | ObjectIdentifierElement_2
+   | ObjectIdentifierElement_3
+;
+ObjectIdentifierElement_1: Identifier
+ObjectIdentifierElement_2: Identifier <P_LPAREN> TOK_number <P_RPAREN>
+ObjectIdentifierElement_3: TOK_number
+
+# Module flags.
+ModuleDefinitionFlags: ModuleDefinitionFlag+ % ~
+
+# Single module flag.
+ModuleDefinitionFlag:
+     ModuleDefinitionFlag_1
+   | ModuleDefinitionFlag_2
+   | ModuleDefinitionFlag_3
+   | ModuleDefinitionFlag_4
+   | TOK_capitalreference TOK_INSTRUCTIONS
+;
+ModuleDefinitionFlag_1: TOK_EXPLICIT TOK_TAGS
+ModuleDefinitionFlag_2: TOK_IMPLICIT TOK_TAGS
+ModuleDefinitionFlag_3: TOK_AUTOMATIC TOK_TAGS
+ModuleDefinitionFlag_4: TOK_EXTENSIBILITY TOK_IMPLIED
+
+# ASN.1 Module body.
+ModuleBody: Exports? Imports? AssignmentList
+
+AssignmentList: Assignment+ % ~
+
+# One of the elements of ASN.1 module specification.
+Assignment:
+     Assignment_1
+   | Assignment_2
+   | Assignment_3
+   | TOK_ENCODING_CONTROL TOK_capitalreference
+# Erroneous attemps
+   | Assignment_4
+;
+Assignment_1: DataTypeReference
+Assignment_2: ValueAssignment
+Assignment_3: ValueSetTypeAssignment
+Assignment_4: BasicString
+
+# === EXAMPLE ===
+# IMPORTS Type1, value FROM Module { iso standard(0) } ;
+# === EOF ===
+ImportsDefinition:
+     ImportsDefinition_1
+   | ImportsDefinition_2
+;
+ImportsDefinition_1: TOK_IMPORTS ImportsBundleSet? <P_SEMI>
+ImportsDefinition_2: TOK_IMPORTS TOK_FROM
+
+ImportsBundleSet: ImportsBundle+ % ~
+
+AssignedIdentifier: ObjectIdentifier?
+
+ImportsBundle: ImportsList TOK_FROM TypeRefName AssignedIdentifier
+
+ImportsList: ImportsElement+ % <P_COMMA>
+
+ImportsElement:
+     ImportsElement_1
+   | ImportsElement_2
+   | ImportsElement_3
+;
+ImportsElement_1: TypeRefName
+ImportsElement_2: TypeRefName <P_LCURLY> <P_RCURLY>
+ImportsElement_3: Identifier
+
+ExportsDefinition:
+     ExportsDefinition_1
+   | ExportsDefinition_2
+   | ExportsDefinition_3
+;
+ExportsDefinition_1: TOK_EXPORTS ExportsBody <P_SEMI>
+ExportsDefinition_2: TOK_EXPORTS TOK_ALL <P_SEMI>
+ExportsDefinition_3: TOK_EXPORTS <P_SEMI>
+
+ExportsBody: ExportsElement+ % <P_COMMA>
+
+ExportsElement:
+     ExportsElement_1
+   | ExportsElement_2
+   | ExportsElement_3
+;
+ExportsElement_1: TypeRefName
+ExportsElement_2: TypeRefName <P_LCURLY> <P_RCURLY>
+ExportsElement_3: Identifier
+
+ValueSet: <P_LCURLY> ElementSetSpecs <P_RCURLY>
+
+ValueSetTypeAssignment: TypeRefName DefinedType TOK_PPEQ ValueSet
+
+DefinedType:
+     DefinedType_1
+   | DefinedType_2
+   | DefinedType_3
+;
+DefinedType_1: BasicType
+DefinedType_2: ComplexTypeReference
+DefinedType_3: ComplexTypeReference <P_LCURLY> ActualParameterList <P_RCURLY>
+
+# Data Type Reference.
+# === EXAMPLE ===
+# Type3 ::= CHOICE { a Type1,  b Type 2 }
+# === EOF ===
+DataTypeReference:
+     DataTypeReference_1
+   | DataTypeReference_2
+   | DataTypeReference_3
+   | DataTypeReference_4
+;
+# Optionally tagged type definition.
+DataTypeReference_1: TypeRefName TOK_PPEQ Type
+DataTypeReference_2: TypeRefName TOK_PPEQ ObjectClass
+DataTypeReference_3: TypeRefName <P_LCURLY> ParameterArgumentList <P_RCURLY> TOK_PPEQ Type
+DataTypeReference_4: TypeRefName <P_LCURLY> ParameterArgumentList <P_RCURLY> TOK_PPEQ ObjectClass
+
+ParameterArgumentList: ParameterArgumentName+ % <P_COMMA>
+
+ParameterArgumentName:
+     ParameterArgumentName_1
+   | ParameterArgumentName_2
+   | ParameterArgumentName_3
+   | ParameterArgumentName_4
+   | ParameterArgumentName_5
+;
+ParameterArgumentName_1: TypeRefName
+ParameterArgumentName_2: TypeRefName <P_COLON> Identifier
+ParameterArgumentName_3: TypeRefName <P_COLON> TypeRefName
+ParameterArgumentName_4: BasicTypeId <P_COLON> Identifier
+ParameterArgumentName_5: BasicTypeId <P_COLON> TypeRefName
+
+ActualParameterList: ActualParameter+ % <P_COMMA>
+
+ActualParameter:
+     ActualParameter_1
+   | ActualParameter_2
+   | ActualParameter_3
+   | ActualParameter_4
+;
+ActualParameter_1: Type
+ActualParameter_2: SimpleValue
+ActualParameter_3: Identifier
+ActualParameter_4: ValueSet
+
+# A collection of constructed data type members.
+ComponentTypeLists: ComponentType+ % <P_COMMA>
+
+ComponentType:
+     ComponentType_1
+   | ComponentType_2
+   | ComponentType_3
+   | ComponentType_4
+;
+ComponentType_1: Identifier Type Marker?
+ComponentType_2: Type Marker?
+ComponentType_3: TOK_COMPONENTS TOK_OF Type
+ComponentType_4: ExtensionAndException
+
+AlternativeTypeLists: AlternativeType+ % <P_COMMA>
+
+AlternativeType:
+     AlternativeType_1
+   | AlternativeType_2
+   | AlternativeType_3
+;
+AlternativeType_1: Identifier Type
+AlternativeType_2: ExtensionAndException
+AlternativeType_3: Type
+
+ObjectClass: TOK_CLASS <P_LCURLY> FieldSpec <P_RCURLY> WithSyntax?
+
+FieldSpec: ClassField+ % <P_COMMA>
+
+# X.681
+ClassField:
+     ClassField_1
+   | ClassField_2
+   | ClassField_3
+   | ClassField_4
+   | ClassField_5
+   | ClassField_6
+   | ClassField_7
+;
+# TypeFieldSpec ::= typefieldreference TypeOptionalitySpec?
+ClassField_1: TOK_typefieldreference Marker?
+ClassField_2: TOK_valuefieldreference Type TOK_UNIQUE? Marker?
+ClassField_3: TOK_valuefieldreference FieldName Marker?
+ClassField_4: TOK_valuefieldreference DefinedObjectClass Marker?
+ClassField_5: TOK_typefieldreference FieldName Marker?
+ClassField_6: TOK_typefieldreference Type Marker?
+ClassField_7: TOK_typefieldreference DefinedObjectClass Marker?
+
+WithSyntax: TOK_WITH TOK_SYNTAX <P_LCURLY> WithSyntaxList <P_RCURLY>
+
+WithSyntaxList: WithSyntaxToken+ % ~
+
+WithSyntaxToken:
+     WithSyntaxToken_1
+   | WithSyntaxToken_2
+   | WithSyntaxToken_3
+   | WithSyntaxToken_4
+;
+WithSyntaxToken_1: TOK_whitespace
+WithSyntaxToken_2: TOK_Literal
+WithSyntaxToken_3: PrimitiveFieldReference
+WithSyntaxToken_4: <P_LSQUARE> WithSyntaxList <P_RSQUARE>
+
+ExtensionAndException:
+     ExtensionAndException_1
+   | ExtensionAndException_2
+   | ExtensionAndException_3
+;
+ExtensionAndException_1: TOK_ThreeDots
+ExtensionAndException_2: TOK_ThreeDots <P_BANG> DefinedValue
+ExtensionAndException_3: TOK_ThreeDots <P_BANG> SignedNumber
+
+Type: Tag? TypeDeclaration Constraints?
+
+NSTD_IndirectMarker: (
+
+)?
+
+TypeDeclaration: NSTD_IndirectMarker TypeDeclarationSet
+
+TypeDeclarationSet:
+     TypeDeclarationSet_1
+   | TypeDeclarationSet_2
+   | TypeDeclarationSet_3
+   | TypeDeclarationSet_4
+   | TypeDeclarationSet_5
+   | TypeDeclarationSet_6
+   | TypeDeclarationSet_7
+   | TypeDeclarationSet_8
+   | TypeDeclarationSet_9
+;
+TypeDeclarationSet_1: DefinedType
+TypeDeclarationSet_2: TOK_CHOICE <P_LCURLY> AlternativeTypeLists <P_RCURLY>
+TypeDeclarationSet_3: TOK_SEQUENCE <P_LCURLY> ComponentTypeLists? <P_RCURLY>
+TypeDeclarationSet_4: TOK_SET <P_LCURLY> ComponentTypeLists? <P_RCURLY>
+TypeDeclarationSet_5: TOK_SEQUENCE Constraints? TOK_OF Identifier? Tag? TypeDeclaration
+TypeDeclarationSet_6: TOK_SET Constraints? TOK_OF Identifier? Tag? TypeDeclaration
+TypeDeclarationSet_7: TOK_ANY
+TypeDeclarationSet_8: TOK_ANY TOK_DEFINED TOK_BY Identifier
+TypeDeclarationSet_9: TOK_INSTANCE TOK_OF ComplexTypeReference
+
+# A type name consisting of several components.
+# === EXAMPLE ===
+# === EOF ===
+ComplexTypeReference:
+     ComplexTypeReference_1
+   | ComplexTypeReference_2
+   | ComplexTypeReference_3
+   | ComplexTypeReference_4
+   | ComplexTypeReference_5
+   | ComplexTypeReference_6
+;
+ComplexTypeReference_1: TOK_typereference
+ComplexTypeReference_2: TOK_typereference <P_DOT> TypeRefName
+ComplexTypeReference_3: ObjectClassReference <P_DOT> TypeRefName
+ComplexTypeReference_4: TOK_typereference <P_DOT> Identifier
+ComplexTypeReference_5: ObjectClassReference
+ComplexTypeReference_6: ObjectClassReference <P_DOT> ComplexTypeReferenceAmpList
+
+ComplexTypeReferenceAmpList: ComplexTypeReferenceElement+ % <P_DOT>
+
+ComplexTypeReferenceElement: PrimitiveFieldReference
+
+PrimitiveFieldReference:
+     PrimitiveFieldReference_1
+   | PrimitiveFieldReference_2
+;
+PrimitiveFieldReference_1:
+# "&Type1"
+    TOK_typefieldreference
+PrimitiveFieldReference_2: TOK_valuefieldreference
+
+### WARNING: Recursion; needs refactoring! ###
+FieldName:
+     FieldName_1
+   | FieldName_2
+   | FieldName_3
+;
+FieldName_1:
+# "&Type1"
+    TOK_typefieldreference
+FieldName_2: FieldName <P_DOT> TOK_typefieldreference
+FieldName_3: FieldName <P_DOT> TOK_valuefieldreference
+
+DefinedObjectClass: TOK_capitalreference
+
+# === EXAMPLE ===
+# value INTEGER ::= 1
+# === EOF ===
+ValueAssignment: Identifier Type TOK_PPEQ Value
+
+### WARNING: Recursion; needs refactoring! ###
+Value:
+     SimpleValue
+   | DefinedValue
+   | Value_1
+   | Value_2
+   | Value_3
+;
+Value_1: Identifier <P_COLON> Value
+Value_2: <P_LCURLY> Opaque
+Value_3: TOK_NULL
+
+SimpleValue:
+     SimpleValue_1
+   | SimpleValue_2
+   | SimpleValue_3
+   | SimpleValue_4
+   | SimpleValue_5
+   | SimpleValue_6
+;
+SimpleValue_1: TOK_FALSE
+SimpleValue_2: TOK_TRUE
+SimpleValue_3: TOK_bstring
+SimpleValue_4: TOK_hstring
+SimpleValue_5: RestrictedCharacterStringValue
+SimpleValue_6: SignedNumber
+
+DefinedValue:
+     DefinedValue_1
+   | DefinedValue_2
+;
+DefinedValue_1: Identifier
+DefinedValue_2: TypeRefName <P_DOT> Identifier
+
+RestrictedCharacterStringValue:
+     RestrictedCharacterStringValue_1
+   | RestrictedCharacterStringValue_2
+   | RestrictedCharacterStringValue_3
+;
+RestrictedCharacterStringValue_1: TOK_cstring
+RestrictedCharacterStringValue_2: TOK_tuple
+RestrictedCharacterStringValue_3: TOK_quadruple
+
+Opaque: TOK_opaque+ % ~
+
+BasicTypeId:
+     BasicTypeId_1
+   | BasicTypeId_2
+   | BasicTypeId_3
+   | BasicTypeId_4
+   | BasicTypeId_5
+   | BasicTypeId_6
+   | BasicTypeId_7
+   | BasicTypeId_8
+   | BasicTypeId_9
+   | BasicTypeId_10
+   | BasicTypeId_11
+   | BasicTypeId_12
+   | BasicTypeId_13
+;
+BasicTypeId_1 : TOK_BOOLEAN
+BasicTypeId_2 : TOK_NULL
+BasicTypeId_3 : TOK_REAL
+BasicTypeId_4 : BasicTypeId_UniverationCompatible
+BasicTypeId_5 : TOK_OCTET TOK_STRING
+BasicTypeId_6 : TOK_OBJECT TOK_IDENTIFIER
+BasicTypeId_7 : TOK_RELATIVE_OID
+BasicTypeId_8 : TOK_EXTERNAL
+BasicTypeId_9 : TOK_EMBEDDED TOK_PDV
+BasicTypeId_10: TOK_CHARACTER TOK_STRING
+BasicTypeId_11: TOK_UTCTime
+BasicTypeId_12: TOK_GeneralizedTime
+BasicTypeId_13: BasicString
+
+# A type identifier which may be used with "{ a(1), b(2) }" clause.
+BasicTypeId_UniverationCompatible:
+     BasicTypeId_UniverationCompatible_1
+   | BasicTypeId_UniverationCompatible_2
+   | BasicTypeId_UniverationCompatible_3
+;
+BasicTypeId_UniverationCompatible_1: TOK_INTEGER
+BasicTypeId_UniverationCompatible_2: TOK_ENUMERATED
+BasicTypeId_UniverationCompatible_3: TOK_BIT TOK_STRING
+
+BasicType:
+     BasicType_1
+   | BasicType_2
+;
+BasicType_1: BasicTypeId
+BasicType_2: BasicTypeId_UniverationCompatible UniverationDefinition
+
+BasicString:
+     BasicString_1
+   | BasicString_2
+   | BasicString_3
+   | BasicString_4
+   | BasicString_5
+   | BasicString_6
+   | BasicString_7
+   | BasicString_8
+   | BasicString_9
+   | BasicString_10
+   | BasicString_11
+   | BasicString_12
+   | BasicString_13
+   | BasicString_14
+;
+BasicString_1 : TOK_BMPString
+BasicString_2 : TOK_GeneralString
+BasicString_3 : TOK_GraphicString
+BasicString_4 : TOK_IA5String
+BasicString_5 : TOK_ISO646String
+BasicString_6 : TOK_NumericString
+BasicString_7 : TOK_PrintableString
+BasicString_8 : TOK_T61String
+BasicString_9 : TOK_TeletexString
+BasicString_10: TOK_UniversalString
+BasicString_11: TOK_UTF8String
+BasicString_12: TOK_VideotexString
+BasicString_13: TOK_VisibleString
+BasicString_14: TOK_ObjectDescriptor
+
+# Data type constraints.
+UnionMark:
+     <P_PIPE>
+   | TOK_UNION
+;
+
+IntersectionMark:
+     <P_CARET>
+   | TOK_INTERSECTION
+;
+
+Constraint: SubtypeConstraint
+
+SubtypeConstraint:
+     SubtypeConstraint_1
+   | SubtypeConstraint_2
+;
+SubtypeConstraint_1: SetOfConstraints
+SubtypeConstraint_2: TOK_SIZE <P_LPAREN> ElementSetSpecs <P_RPAREN>
+
+SetOfConstraints:
+     SetOfConstraints_1
+   | SetOfConstraints_2
+;
+SetOfConstraints_1: <P_LPAREN> ElementSetSpecs <P_RPAREN>
+SetOfConstraints_2: <P_RPAREN>2+ % <P_LPAREN> ElementSetSpecs
+
+ElementSetSpecs:
+     ElementSetSpecs_1
+   | ElementSetSpecs_2
+   | ElementSetSpecs_3
+   | ElementSetSpecs_4
+   | ElementSetSpecs_5
+;
+ElementSetSpecs_1: TOK_ThreeDots
+ElementSetSpecs_2: ElementSetSpec
+ElementSetSpecs_3: ElementSetSpec <P_COMMA> TOK_ThreeDots
+ElementSetSpecs_4: ElementSetSpec <P_COMMA> TOK_ThreeDots <P_COMMA> ElementSetSpec
+ElementSetSpecs_5: GeneralConstraint
+
+ElementSetSpec:
+     Unions
+   | ElementSetSpec_1
+;
+ElementSetSpec_1: TOK_ALL TOK_EXCEPT ConstraintSubtypeElement
+
+Unions: Intersections+ % UnionMark
+
+Intersections: IntersectionElements+ % IntersectionMark
+
+IntersectionElements:
+     ConstraintSubtypeElement
+   | IntersectionElements_1
+;
+IntersectionElements_1: ConstraintSubtypeElement TOK_EXCEPT ConstraintSubtypeElement
+
+ConstraintSubtypeElement:
+     ConstraintSubtypeElement_1
+   | ConstraintSubtypeElement_2
+   | ConstraintSubtypeElement_3
+   | ConstraintSubtypeElement_4
+   | ConstraintSubtypeElement_5
+   | ConstraintSubtypeElement_6
+   | ConstraintSubtypeElement_7
+   | ConstraintSubtypeElement_8
+   | ConstraintSubtypeElement_9
+   | ConstraintSubtypeElement_10
+;
+ConstraintSubtypeElement_1 : ConstraintSpec <P_LPAREN> ElementSetSpecs <P_RPAREN>
+ConstraintSubtypeElement_2 : <P_LPAREN> ElementSetSpecs <P_RPAREN>
+ConstraintSubtypeElement_3 : SingleValue
+ConstraintSubtypeElement_4 : ContainedSubtype
+ConstraintSubtypeElement_5 : SingleValue ConstraintRangeSpec SingleValue
+ConstraintSubtypeElement_6 : TOK_MIN ConstraintRangeSpec SingleValue
+ConstraintSubtypeElement_7 : SingleValue ConstraintRangeSpec TOK_MAX
+ConstraintSubtypeElement_8 : TOK_MIN ConstraintRangeSpec TOK_MAX
+ConstraintSubtypeElement_9 : InnerTypeConstraint
+ConstraintSubtypeElement_10: PatternConstraint
+
+PatternConstraint:
+     PatternConstraint_1
+   | PatternConstraint_2
+;
+PatternConstraint_1: TOK_PATTERN TOK_cstring
+PatternConstraint_2: TOK_PATTERN Identifier
+
+ConstraintSpec:
+     ConstraintSpec_1
+   | ConstraintSpec_2
+;
+ConstraintSpec_1: TOK_SIZE
+ConstraintSpec_2: TOK_FROM
+
+SingleValue:
+     SingleValue_1
+   | SingleValue_2
+   | RealValue
+   | RestrictedCharacterStringValue
+   | BitStringValue
+   | SingleValue_3
+;
+SingleValue_1: TOK_FALSE
+SingleValue_2: TOK_TRUE
+SingleValue_3: Identifier
+
+BitStringValue:
+     BitStringValue_1
+   | BitStringValue_2
+;
+BitStringValue_1: TOK_bstring
+BitStringValue_2: TOK_hstring
+
+ContainedSubtype: TypeRefName
+
+InnerTypeConstraint:
+     InnerTypeConstraint_1
+   | InnerTypeConstraint_2
+;
+InnerTypeConstraint_1: TOK_WITH TOK_COMPONENT SetOfConstraints
+InnerTypeConstraint_2: TOK_WITH TOK_COMPONENTS <P_LCURLY> WithComponentsList <P_RCURLY>
+
+WithComponentsList: WithComponentsElement+ % <P_COMMA>
+
+WithComponentsElement:
+     WithComponentsElement_1
+   | WithComponentsElement_2
+;
+WithComponentsElement_1: TOK_ThreeDots
+WithComponentsElement_2: Identifier Constraints? PresenceConstraint?
+
+# presence constraint for WithComponents
+PresenceConstraint:
+     PresenceConstraint_1
+   | PresenceConstraint_2
+   | PresenceConstraint_3
+;
+PresenceConstraint_1: TOK_PRESENT
+PresenceConstraint_2: TOK_ABSENT
+PresenceConstraint_3: TOK_OPTIONAL
+
+# X.682
+GeneralConstraint:
+     UserDefinedConstraint
+   | TableConstraint
+   | ContentsConstraint
+;
+
+UserDefinedConstraint: TOK_CONSTRAINED TOK_BY <P_LCURLY> Opaque
+
+ContentsConstraint: TOK_CONTAINING Type
+
+ConstraintRangeSpec:
+     ConstraintRangeSpec_1
+   | ConstraintRangeSpec_2
+   | ConstraintRangeSpec_3
+   | ConstraintRangeSpec_4
+;
+ConstraintRangeSpec_1: TOK_TwoDots
+ConstraintRangeSpec_2: TOK_TwoDots <P_LANGLE>
+ConstraintRangeSpec_3: <P_LANGLE> TOK_TwoDots
+ConstraintRangeSpec_4: <P_LANGLE> TOK_TwoDots <P_LANGLE>
+
+TableConstraint:
+     TableConstraint_1
+   | TableConstraint_2
+;
+TableConstraint_1: SimpleTableConstraint
+TableConstraint_2: ComponentRelationConstraint
+
+# "{ExtensionSet}"
+SimpleTableConstraint: <P_LCURLY> TypeRefName <P_RCURLY>
+
+ComponentRelationConstraint: SimpleTableConstraint <P_LCURLY> AtNotationList <P_RCURLY>
+
+AtNotationList: AtNotationElement+ % <P_COMMA>
+
+# @blah
+AtNotationElement:
+     AtNotationElement_1
+   | AtNotationElement_2
+;
+AtNotationElement_1: <P_AT> ComponentIdList
+AtNotationElement_2: <P_AT> <P_DOT> ComponentIdList
+
+# identifier "." ...
+ComponentIdList: Identifier+ % <P_DOT>
+
+# MARKERS
+Marker:
+     Marker_1
+   | Marker_2
+;
+Marker_1: TOK_OPTIONAL
+Marker_2: TOK_DEFAULT Value
+
+# Universal enumeration definition to use in INTEGER and ENUMERATED.
+# === EXAMPLE ===
+# Gender ::= ENUMERATED { unknown(0), male(1), female(2) }
+# Temperature ::= INTEGER { absolute-zero(-273), freezing(0), boiling(100) }
+# === EOF ===
+UniverationDefinition: <P_LCURLY> UniverationList? <P_RCURLY>
+
+UniverationList: UniverationElement+ % <P_COMMA>
+
+UniverationElement:
+     UniverationElement_1
+   | UniverationElement_2
+   | UniverationElement_3
+   | UniverationElement_4
+   | UniverationElement_5
+;
+UniverationElement_1: Identifier
+UniverationElement_2: Identifier <P_LPAREN> SignedNumber <P_RPAREN>
+UniverationElement_3: Identifier <P_LPAREN> DefinedValue <P_RPAREN>
+UniverationElement_4: SignedNumber
+UniverationElement_5: TOK_ThreeDots
+
+SignedNumber:
+     SignedNumber_1
+   | SignedNumber_2
+;
+SignedNumber_1: TOK_number
+SignedNumber_2: TOK_number_negative
+
+RealValue:
+     SignedNumber
+   | RealValue_1
+;
+RealValue_1: TOK_realnumber
+
+# SEQUENCE definition.
+# === EXAMPLE ===
+# Struct1 ::= SEQUENCE {
+#    memb1 Struct2,
+#    memb2 SEQUENCE OF {
+#       memb2-1 Struct 3
+#    }
+# }
+# === EOF ===
+
+# SET definition.
+# === EXAMPLE ===
+# Person ::= SET {
+#    name [0] PrintableString (SIZE(1..20)),
+#    country [1] PrintableString (SIZE(1..20)) DEFAULT default-country,
+# }
+# === EOF ===
+Tag: TagTypeValue TagPlicit
+
+TagTypeValue: <P_LSQUARE> TagClass TOK_number <P_RSQUARE>
+
+TagClass: (
+     TagClass_1
+   | TagClass_2
+   | TagClass_3
+)?
+TagClass_1: TOK_UNIVERSAL
+TagClass_2: TOK_APPLICATION
+TagClass_3: TOK_PRIVATE
+
+TagPlicit: (
+     TagPlicit_1
+   | TagPlicit_2
+)?
+TagPlicit_1: TOK_IMPLICIT
+TagPlicit_2: TOK_EXPLICIT
+
+TypeRefName:
+     TypeRefName_1
+   | TypeRefName_2
+;
+TypeRefName_1: TOK_typereference
+TypeRefName_2: TOK_capitalreference
+
+ObjectClassReference: TOK_capitalreference
+
+Identifier: TOK_identifier

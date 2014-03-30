@@ -19,7 +19,7 @@ Math::BigFloat->config({
    round_mode => 'common',
 });
 
-my $perl_safe_digits    = int( log(2)/log(10) * $Config{ivsize} * 8 );
+my $perl_safe_digits    = int( log(2)/log(10) * $Config{ivsize} * 8 );  ### FIXME: Use better measurements from Types::Numbers
 my $identifier_max_size = 64;
 
 # blank out any whitespace captures

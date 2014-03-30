@@ -2,7 +2,7 @@ package SQL::Transform::Parser::Pg::AST;
 
 use Moo;
 
-extends 'Pegex::Receiver';
+extends 'Pegex::Tree';
 
 ## %% ##
 
@@ -26,11 +26,8 @@ use constant {
 };
 ## %% ##
 
-### stmtblock: stmtmulti
 sub got_stmtblock { $_[0]->{parsetree} = $_[1]; }
-### stmtmulti: stmt+ % / ~  ~ <C_SEMI> ~  ~ /
 sub got_stmtmulti { defined $_[3] ? $_[0]->lappend($_[1], $_[3]) : $_[1] }
-### CreateRoleStmt: CREATE ROLE RoleId opt_with OptRoleList
 sub got_CreateRoleStmt {
    return SQL::Translator::Statement::CreateRole->new(
       stmt_type => ROLESTMT_ROLE,
@@ -38,33 +35,21 @@ sub got_CreateRoleStmt {
       options   => $_[5],
    );
 }
-### opt_with: WITH
 sub got_opt_with {}
-### OptRoleList: CreateOptRoleElem* % ~
 sub got_OptRoleList { $_[0]->lappend($_[1], $_[2]) }
-### AlterOptRoleList: AlterOptRoleElem* % ~
 sub got_AlterOptRoleList { $_[0]->lappend($_[1], $_[2]) }
-### AlterOptRoleElem_1: PASSWORD Sconst
 sub got_AlterOptRoleElem_1 { $_[0]->makeDefElem("password",            $_[2] ) }
-### AlterOptRoleElem_2: PASSWORD NULL
 sub got_AlterOptRoleElem_2 { $_[0]->makeDefElem("password",            'NULL') }
-### AlterOptRoleElem_3: ENCRYPTED PASSWORD Sconst
 sub got_AlterOptRoleElem_3 { $_[0]->makeDefElem("encryptedPassword",   $_[3] ) }
-### AlterOptRoleElem_4: UNENCRYPTED PASSWORD Sconst
 sub got_AlterOptRoleElem_4 { $_[0]->makeDefElem("unencryptedPassword", $_[3] ) }
-### AlterOptRoleElem_5: INHERIT
 sub got_AlterOptRoleElem_5 { $_[0]->makeDefElem("inherit",             'TRUE') }
-### AlterOptRoleElem_6: CONNECTION LIMIT SignedIconst
 sub got_AlterOptRoleElem_6 { $_[0]->makeDefElem("connectionlimit",     $_[3] ) }
 # Supported but not documented for roles, for use by ALTER GROUP.
-### AlterOptRoleElem_7: VALID UNTIL Sconst
 sub got_AlterOptRoleElem_7 { $_[0]->makeDefElem("validUntil",          $_[3] ) }
-### AlterOptRoleElem_8: USER name_list
 sub got_AlterOptRoleElem_8 { $_[0]->makeDefElem("rolemembers",         $_[2] ) }
 # We handle identifiers that aren't parser keywords with
 # the following special-case codes, to avoid bloating the
 # size of the main parser.
-### AlterOptRoleElem_9: IDENT
 sub got_AlterOptRoleElem_9 {
    for ($_[1]) {
       when (/^(?:super|create)user$/)   { $_[0]->makeDefElem("superuser",     TRUE ) }
@@ -89,19 +74,12 @@ sub got_AlterOptRoleElem_9 {
    }
 }
 # The following are not supported by ALTER ROLE/USER/GROUP
-### CreateOptRoleElem_1: AlterOptRoleElem
 sub got_CreateOptRoleElem_1 { $_[1] }
-### CreateOptRoleElem_2: SYSID Iconst
 sub got_CreateOptRoleElem_2 { $_[0]->makeDefElem("sysid",        $_[2]) }
-### CreateOptRoleElem_3: ADMIN name_list
 sub got_CreateOptRoleElem_3 { $_[0]->makeDefElem("adminmembers", $_[2]) }
-### CreateOptRoleElem_4: ROLE name_list
 sub got_CreateOptRoleElem_4 { $_[0]->makeDefElem("rolemembers",  $_[2]) }
-### CreateOptRoleElem_5: IN ROLE name_list
 sub got_CreateOptRoleElem_5 { $_[0]->makeDefElem("addroleto",    $_[3]) }
-### CreateOptRoleElem_6: IN GROUP name_list
 sub got_CreateOptRoleElem_6 { $_[0]->makeDefElem("addroleto",    $_[3]) }
-### CreateUserStmt: CREATE USER RoleId opt_with OptRoleList
 sub got_CreateUserStmt {
    return SQL::Translator::Statement::CreateRole->new(
       stmt_type => ROLESTMT_USER,
@@ -109,7 +87,6 @@ sub got_CreateUserStmt {
       options   => $_[5],
    );
 }
-### AlterRoleStmt: ALTER ROLE RoleId opt_with AlterOptRoleList
 sub got_AlterRoleStmt {
   return SQL::Translator::Statement::AlterRole->new(
      role     => $_[3],
@@ -117,9 +94,7 @@ sub got_AlterRoleStmt {
      options  => $_[5],
   );
 }
-### opt_in_database: IN DATABASE database_name
 sub got_opt_in_database { $_[3] }
-### AlterRoleSetStmt: ALTER ROLE RoleId opt_in_database SetResetClause
 sub got_AlterRoleSetStmt {
    return SQL::Translator::Statement::AlterRoleSet->new(
       role     => $_[3],
@@ -127,7 +102,6 @@ sub got_AlterRoleSetStmt {
       setstmt  => $_[5],
    );
 }
-### AlterUserStmt: ALTER USER RoleId opt_with AlterOptRoleList
 sub got_AlterUserStmt {
   return SQL::Translator::Statement::AlterRole->new(
      role     => $_[3],
@@ -135,7 +109,6 @@ sub got_AlterUserStmt {
      options  => $_[5],
   );
 }
-### AlterUserSetStmt: ALTER USER RoleId SetResetClause
 sub got_AlterUserSetStmt {
    return SQL::Translator::Statement::AlterRoleSet->new(
       role     => $_[3],
@@ -143,35 +116,30 @@ sub got_AlterUserSetStmt {
       setstmt  => $_[4],
    );
 }
-### DropRoleStmt_1: DROP ROLE name_list
 sub got_DropRoleStmt_1 {
    return SQL::Translator::Statement::DropRole->new(
       missing_ok => FALSE,
       roles      => $_[3],
    );
 }
-### DropRoleStmt_2: DROP ROLE IF EXISTS name_list
 sub got_DropRoleStmt_2 {
    return SQL::Translator::Statement::DropRole->new(
       missing_ok => TRUE,
       roles      => $_[5],
    );
 }
-### DropUserStmt_1: DROP USER name_list
 sub got_DropUserStmt_1 {
    return SQL::Translator::Statement::DropRole->new(
       missing_ok => FALSE,
       roles      => $_[3],
    );
 }
-### DropUserStmt_2: DROP USER IF EXISTS name_list
 sub got_DropUserStmt_2 {
    return SQL::Translator::Statement::DropRole->new(
       roles      => $_[5],
       missing_ok => TRUE,
    );
 }
-### CreateGroupStmt: CREATE GROUP RoleId opt_with OptRoleList
 sub got_CreateGroupStmt {
    return SQL::Translator::Statement::CreateRole->new(
       stmt_type => ROLESTMT_GROUP,
@@ -179,7 +147,6 @@ sub got_CreateGroupStmt {
       options   => $_[5],
    );
 }
-### AlterGroupStmt: ALTER GROUP RoleId add_drop USER name_list
 sub got_AlterGroupStmt {
    return SQL::Translator::Statement::AlterRole->new(
       role    => $_[3],
@@ -187,25 +154,20 @@ sub got_AlterGroupStmt {
       options => $_[0]->lappend( $_[0]->makeDefElem("rolemembers", $_[6]) ),
    );
 }
-### add_drop_1: ADD
 sub got_add_drop_1 { +1 }
-### add_drop_2: DROP
 sub got_add_drop_2 { -1 }
-### DropGroupStmt_1: DROP GROUP name_list
 sub got_DropGroupStmt_1 {
    return SQL::Translator::Statement::DropRole->new(
       missing_ok => FALSE,
       roles      => $_[3],
    );
 }
-### DropGroupStmt_2: DROP GROUP IF EXISTS name_list
 sub got_DropGroupStmt_2 {
    return SQL::Translator::Statement::DropRole->new(
       missing_ok => TRUE,
       roles      => $_[5],
    );
 }
-### CreateSchemaStmt_1: CREATE SCHEMA OptSchemaName AUTHORIZATION RoleId OptSchemaEltList
 sub got_CreateSchemaStmt_1 {
    return SQL::Translator::Statement::CreateSchema->new(
       #* One can omit the schema name or the authorization id.
@@ -218,7 +180,6 @@ sub got_CreateSchemaStmt_1 {
       ),
    );
 }
-### CreateSchemaStmt_2: CREATE SCHEMA ColId OptSchemaEltList
 sub got_CreateSchemaStmt_2 {
    return SQL::Translator::Statement::CreateSchema->new(
       #* ...but not both
@@ -227,17 +188,11 @@ sub got_CreateSchemaStmt_2 {
       schemaElts => $_[4],
    );
 }
-### OptSchemaName: ColId
 sub got_OptSchemaName { $_[1] }
-### OptSchemaEltList: schema_stmt* % ~
 sub got_OptSchemaEltList { $_[0]->lappend($_[1], $_[2]) }
-### VariableSetStmt_1: SET set_rest
 sub got_VariableSetStmt_1 { $_[2]->is_local(0); $_[2] }
-### VariableSetStmt_2: SET LOCAL set_rest
 sub got_VariableSetStmt_2 { $_[3]->is_local(1); $_[3] }
-### VariableSetStmt_3: SET SESSION set_rest
 sub got_VariableSetStmt_3 { $_[3]->is_local(0); $_[3] }
-### set_rest_1: TRANSACTION transaction_mode_list
 sub got_set_rest_1 {
    return SQL::Translator::Statement::VariableSet->new(
       kind => VAR_SET_MULTI,
@@ -245,7 +200,6 @@ sub got_set_rest_1 {
       args => $_[2],
    );
 }
-### set_rest_2: SESSION CHARACTERISTICS AS TRANSACTION transaction_mode_list
 sub got_set_rest_2 {
    return SQL::Translator::Statement::VariableSet->new(
       kind => VAR_SET_MULTI,
@@ -253,9 +207,6 @@ sub got_set_rest_2 {
       args => $_[5],
    );
 }
-### set_rest_more_1 : 
-# Generic SET syntaxes:
-    var_name TO var_list
 sub got_set_rest_more_1  {
    return SQL::Translator::Statement::VariableSet->new(
       kind => VAR_SET_VALUE,
@@ -263,7 +214,6 @@ sub got_set_rest_more_1  {
       args => $_[3],
    );
 }
-### set_rest_more_2 : var_name  ~ <C_EQUAL> ~  var_list
 sub got_set_rest_more_2  {
    return SQL::Translator::Statement::VariableSet->new(
       kind => VAR_SET_VALUE,
@@ -271,14 +221,12 @@ sub got_set_rest_more_2  {
       args => $_[3],
    );
 }
-### set_rest_more_3 : var_name TO DEFAULT
 sub got_set_rest_more_3  {
    return SQL::Translator::Statement::VariableSet->new(
       kind => VAR_SET_DEFAULT,
       name => $_[1],
    );
 }
-### set_rest_more_4 : var_name  ~ <C_EQUAL> ~  DEFAULT
 sub got_set_rest_more_4  {
    return SQL::Translator::Statement::VariableSet->new(
       kind => VAR_SET_DEFAULT,
@@ -286,14 +234,12 @@ sub got_set_rest_more_4  {
    );
 }
 # Special syntaxes mandated by SQL standard:
-### set_rest_more_5 : var_name FROM CURRENT
 sub got_set_rest_more_5  {
    return SQL::Translator::Statement::VariableSet->new(
       kind => VAR_SET_CURRENT,
       name => $_[1],
    );
 }
-### set_rest_more_6 : TIME ZONE zone_value
 sub got_set_rest_more_6  {
    return SQL::Translator::Statement::VariableSet->new(
       kind => VAR_SET_VALUE,
@@ -303,7 +249,6 @@ sub got_set_rest_more_6  {
          (kind => VAR_SET_DEFAULT)
    );
 }
-### set_rest_more_7 : CATALOG Sconst
 sub got_set_rest_more_7  {
    $_[0]->ereport(ERROR,
          ERRCODE_FEATURE_NOT_SUPPORTED,
@@ -311,7 +256,6 @@ sub got_set_rest_more_7  {
           $_[0]->YYLLoc($_[2], 2));
    return NULL; #*not reached
 }
-### set_rest_more_8 : SCHEMA Sconst
 sub got_set_rest_more_8  {
    return SQL::Translator::Statement::VariableSet->new(
       kind => VAR_SET_VALUE,
@@ -319,7 +263,6 @@ sub got_set_rest_more_8  {
       args => $_[0]->lappend($_[0]->makeStringConst($_[2], $_[0]->YYLLoc($_[2], 2))),
    );
 }
-### set_rest_more_9 : NAMES opt_encoding
 sub got_set_rest_more_9  {
    return SQL::Translator::Statement::VariableSet->new(
       kind => VAR_SET_VALUE,
@@ -329,7 +272,6 @@ sub got_set_rest_more_9  {
          (kind => VAR_SET_DEFAULT),
    );
 }
-### set_rest_more_10: ROLE ColId_or_Sconst
 sub got_set_rest_more_10 {
    return SQL::Translator::Statement::VariableSet->new(
       kind => VAR_SET_VALUE,
@@ -337,7 +279,6 @@ sub got_set_rest_more_10 {
       args => $_[0]->lappend($_[0]->makeStringConst($_[2], $_[0]->YYLLoc($_[2], 2))),
    );
 }
-### set_rest_more_11: SESSION AUTHORIZATION ColId_or_Sconst
 sub got_set_rest_more_11 {
    return SQL::Translator::Statement::VariableSet->new(
       kind => VAR_SET_VALUE,
@@ -345,7 +286,6 @@ sub got_set_rest_more_11 {
       args => $_[0]->lappend($_[0]->makeStringConst($_[3], $_[0]->YYLLoc($_[3], 3))),
    );
 }
-### set_rest_more_12: SESSION AUTHORIZATION DEFAULT
 sub got_set_rest_more_12 {
    return SQL::Translator::Statement::VariableSet->new(
       kind => VAR_SET_DEFAULT,
@@ -353,7 +293,6 @@ sub got_set_rest_more_12 {
    );
 }
 # Special syntaxes invented by PostgreSQL:
-### set_rest_more_13: XML OPTION document_or_content
 sub got_set_rest_more_13 {
    return SQL::Translator::Statement::VariableSet->new(
       kind => VAR_SET_VALUE,
@@ -361,7 +300,6 @@ sub got_set_rest_more_13 {
       args => $_[0]->lappend($_[0]->makeStringConst($_[3], $_[0]->YYLLoc($_[3], 3))),
    );
 }
-### set_rest_more_14: TRANSACTION SNAPSHOT Sconst
 sub got_set_rest_more_14 {
    return SQL::Translator::Statement::VariableSet->new(
       kind => VAR_SET_MULTI,
@@ -369,38 +307,23 @@ sub got_set_rest_more_14 {
       args => [ $_[0]->makeStringConst($_[3], $_[0]->YYLLoc($_[3], 3)) ],
    );
 }
-### var_name: ColId+ % / ~  ~ <C_DOT> ~  ~ /
 sub got_var_name { sprintf("%s.%s", $_[1], $_[3]) }
-### var_list: var_value+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_var_list { $_[0]->lappend($_[1], $_[3]) }
-### var_value_1: opt_boolean_or_string
 sub got_var_value_1 { $_[0]->makeStringConst($_[1], $_[0]->YYLLoc($_[1], 1)) }
-### var_value_2: NumericOnly
 sub got_var_value_2 { $_[0]->makeAConst     ($_[1], $_[0]->YYLLoc($_[1], 1)) }
-### iso_level_1: READ UNCOMMITTED
 sub got_iso_level_1 { "read uncommitted" }
-### iso_level_2: READ COMMITTED
 sub got_iso_level_2 { "read committed"   }
-### iso_level_3: REPEATABLE READ
 sub got_iso_level_3 { "repeatable read"  }
-### iso_level_4: SERIALIZABLE
 sub got_iso_level_4 { "serializable"     }
-### opt_boolean_or_string_1: TRUE
 sub got_opt_boolean_or_string_1 { "TRUE" }
-### opt_boolean_or_string_2: FALSE
 sub got_opt_boolean_or_string_2 { "FALSE" }
 # OFF is also accepted as a boolean value, but is handled
 # by the ColId rule below. The action for booleans and strings
 # is the same, so we don't need to distinguish them here.
-### opt_boolean_or_string_3: ON
 sub got_opt_boolean_or_string_3 { "on" }
-### opt_boolean_or_string_4: ColId_or_Sconst
 sub got_opt_boolean_or_string_4 { $_[1] }
-### zone_value_1: Sconst
 sub got_zone_value_1 { $_[0]->makeStringConst($_[1], $_[0]->YYLLoc($_[1], 1)) }
-### zone_value_2: IDENT
 sub got_zone_value_2 { $_[0]->makeStringConst($_[1], $_[0]->YYLLoc($_[1], 1)) }
-### zone_value_3: ConstInterval Sconst opt_interval
 sub got_zone_value_3 {
    my $t = $_[1];
    if (defined $_[3]) {
@@ -415,7 +338,6 @@ sub got_zone_value_3 {
    $t->typmods($_[3]);
    return $_[0]->makeStringConstCast($_[2], $_[0]->YYLLoc($_[2], 2), $t);
 }
-### zone_value_4: ConstInterval  ~ <C_LPAREN> ~  Iconst  ~ <C_RPAREN> ~  Sconst opt_interval
 sub got_zone_value_4 {
    my $t = $_[1];
    if (defined $_[6]) {
@@ -439,134 +361,102 @@ sub got_zone_value_4 {
    }
    return $_[0]->makeStringConstCast($_[5], $_[0]->YYLLoc($_[5], 5), $t);
 }
-### zone_value_5: NumericOnly
 sub got_zone_value_5 { $_[0]->makeAConst($_[1], $_[0]->YYLLoc($_[1], 1)) }
-### zone_value_6: DEFAULT
 sub got_zone_value_6 { NULL }
-### zone_value_7: LOCAL
 sub got_zone_value_7 { NULL }
-### opt_encoding_1: Sconst
 sub got_opt_encoding_1 { $_[1] }
-### opt_encoding_2: DEFAULT
 sub got_opt_encoding_2 { NULL  }
-### ColId_or_Sconst_1: ColId
 sub got_ColId_or_Sconst_1 { $_[1] }
-### ColId_or_Sconst_2: Sconst
 sub got_ColId_or_Sconst_2 { $_[1] }
-### VariableResetStmt_1: RESET var_name
 sub got_VariableResetStmt_1 {
    return SQL::Translator::Statement::VariableSet->new(
       kind => VAR_RESET,
       name => $_[2],
    );
 }
-### VariableResetStmt_2: RESET TIME ZONE
 sub got_VariableResetStmt_2 {
    return SQL::Translator::Statement::VariableSet->new(
       kind => VAR_RESET,
       name => 'timezone',
    );
 }
-### VariableResetStmt_3: RESET TRANSACTION ISOLATION LEVEL
 sub got_VariableResetStmt_3 {
    return SQL::Translator::Statement::VariableSet->new(
       kind => VAR_RESET,
       name => 'transaction_isolation',
    );
 }
-### VariableResetStmt_4: RESET SESSION AUTHORIZATION
 sub got_VariableResetStmt_4 {
    return SQL::Translator::Statement::VariableSet->new(
       kind => VAR_RESET,
       name => 'session_authorization',
    );
 }
-### VariableResetStmt_5: RESET ALL
 sub got_VariableResetStmt_5 {
    return SQL::Translator::Statement::VariableSet->new(
       kind => VAR_RESET_ALL,
    );
 }
-### SetResetClause_1: SET set_rest
 sub got_SetResetClause_1 { $_[2] }
-### SetResetClause_2: VariableResetStmt
 sub got_SetResetClause_2 { $_[1] }
-### FunctionSetResetClause_1: SET set_rest_more
 sub got_FunctionSetResetClause_1 { $_[2] }
-### FunctionSetResetClause_2: VariableResetStmt
 sub got_FunctionSetResetClause_2 { $_[1] }
-### VariableShowStmt_1: SHOW var_name
 sub got_VariableShowStmt_1 {
    return SQL::Translator::Statement::VariableShow->new(
       name => $_[2],
    );
 }
-### VariableShowStmt_2: SHOW TIME ZONE
 sub got_VariableShowStmt_2 {
    return SQL::Translator::Statement::VariableShow->new(
       name => 'timezone',
    );
 }
-### VariableShowStmt_3: SHOW TRANSACTION ISOLATION LEVEL
 sub got_VariableShowStmt_3 {
    return SQL::Translator::Statement::VariableShow->new(
       name => 'transaction_isolation',
    );
 }
-### VariableShowStmt_4: SHOW SESSION AUTHORIZATION
 sub got_VariableShowStmt_4 {
    return SQL::Translator::Statement::VariableShow->new(
       name => 'session_authorization',
    );
 }
-### VariableShowStmt_5: SHOW ALL
 sub got_VariableShowStmt_5 {
    return SQL::Translator::Statement::VariableShow->new(
       name => 'all',
    );
 }
-### ConstraintsSetStmt: SET CONSTRAINTS constraints_set_list constraints_set_mode
 sub got_ConstraintsSetStmt {
    return SQL::Translator::Statement::ConstraintsSet->new(
       constraints => $_[3],
       deferred    => $_[4],
    );
 }
-### constraints_set_list_1: ALL
 sub got_constraints_set_list_1 { NIL   }
-### constraints_set_list_2: qualified_name_list
 sub got_constraints_set_list_2 { $_[1] }
-### constraints_set_mode_1: DEFERRED
 sub got_constraints_set_mode_1 { TRUE  }
-### constraints_set_mode_2: IMMEDIATE
 sub got_constraints_set_mode_2 { FALSE }
-### CheckPointStmt: CHECKPOINT
 sub got_CheckPointStmt { SQL::Translator::Statement::CheckPoint->new() }
-### DiscardStmt_1: DISCARD ALL
 sub got_DiscardStmt_1 {
    return SQL::Translator::Statement::Discard->new(
       target => DISCARD_ALL,
    );
 }
-### DiscardStmt_2: DISCARD TEMP
 sub got_DiscardStmt_2 {
    return SQL::Translator::Statement::Discard->new(
       target => DISCARD_TEMP,
    );
 }
-### DiscardStmt_3: DISCARD TEMPORARY
 sub got_DiscardStmt_3 {
    return SQL::Translator::Statement::Discard->new(
       target => DISCARD_TEMP,
    );
 }
-### DiscardStmt_4: DISCARD PLANS
 sub got_DiscardStmt_4 {
    return SQL::Translator::Statement::Discard->new(
       target => DISCARD_PLANS,
    );
 }
-### AlterTableStmt_1: ALTER TABLE relation_expr alter_table_cmds
 sub got_AlterTableStmt_1 {
    return SQL::Translator::Statement::AlterTable->new(
       relation   => $_[3],
@@ -575,7 +465,6 @@ sub got_AlterTableStmt_1 {
       missing_ok => FALSE,
    );
 }
-### AlterTableStmt_2: ALTER TABLE IF EXISTS relation_expr alter_table_cmds
 sub got_AlterTableStmt_2 {
    return SQL::Translator::Statement::AlterTable->new(
       relation   => $_[5],
@@ -584,7 +473,6 @@ sub got_AlterTableStmt_2 {
       missing_ok => TRUE,
    );
 }
-### AlterTableStmt_3: ALTER INDEX qualified_name alter_table_cmds
 sub got_AlterTableStmt_3 {
    return SQL::Translator::Statement::AlterTable->new(
       relation   => $_[3],
@@ -593,7 +481,6 @@ sub got_AlterTableStmt_3 {
       missing_ok => FALSE,
    );
 }
-### AlterTableStmt_4: ALTER INDEX IF EXISTS qualified_name alter_table_cmds
 sub got_AlterTableStmt_4 {
    return SQL::Translator::Statement::AlterTable->new(
       relation   => $_[5],
@@ -602,7 +489,6 @@ sub got_AlterTableStmt_4 {
       missing_ok => TRUE,
    );
 }
-### AlterTableStmt_5: ALTER SEQUENCE qualified_name alter_table_cmds
 sub got_AlterTableStmt_5 {
    return SQL::Translator::Statement::AlterTable->new(
       relation   => $_[3],
@@ -611,7 +497,6 @@ sub got_AlterTableStmt_5 {
       missing_ok => FALSE,
    );
 }
-### AlterTableStmt_6: ALTER SEQUENCE IF EXISTS qualified_name alter_table_cmds
 sub got_AlterTableStmt_6 {
    return SQL::Translator::Statement::AlterTable->new(
       relation   => $_[5],
@@ -620,7 +505,6 @@ sub got_AlterTableStmt_6 {
       missing_ok => TRUE,
    );
 }
-### AlterTableStmt_7: ALTER VIEW qualified_name alter_table_cmds
 sub got_AlterTableStmt_7 {
    return SQL::Translator::Statement::AlterTable->new(
       relation   => $_[3],
@@ -629,7 +513,6 @@ sub got_AlterTableStmt_7 {
       missing_ok => FALSE,
    );
 }
-### AlterTableStmt_8: ALTER VIEW IF EXISTS qualified_name alter_table_cmds
 sub got_AlterTableStmt_8 {
    return SQL::Translator::Statement::AlterTable->new(
       relation   => $_[5],
@@ -638,12 +521,8 @@ sub got_AlterTableStmt_8 {
       missing_ok => TRUE,
    );
 }
-### alter_table_cmds: alter_table_cmd+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_alter_table_cmds { $_[0]->lappend($_[1], $_[3]) }
 # ALTER TABLE <name> ADD COLUMN <coldef>
-### alter_table_cmd_1 : 
-# ALTER TABLE <name> ADD <coldef>
-    ADD columnDef
 sub got_alter_table_cmd_1  {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_AddColumn,
@@ -651,7 +530,6 @@ sub got_alter_table_cmd_1  {
    );
 }
 # ALTER TABLE <name> ALTER [COLUMN] <colname> {SET DEFAULT <expr>|DROP DEFAULT}
-### alter_table_cmd_2 : ADD COLUMN columnDef
 sub got_alter_table_cmd_2  {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_AddColumn,
@@ -659,7 +537,6 @@ sub got_alter_table_cmd_2  {
    );
 }
 # ALTER TABLE <name> ALTER [COLUMN] <colname> DROP NOT NULL
-### alter_table_cmd_3 : ALTER opt_column ColId alter_column_default
 sub got_alter_table_cmd_3  {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_ColumnDefault,
@@ -668,7 +545,6 @@ sub got_alter_table_cmd_3  {
    );
 }
 # ALTER TABLE <name> ALTER [COLUMN] <colname> SET NOT NULL
-### alter_table_cmd_4 : ALTER opt_column ColId DROP NOT NULL
 sub got_alter_table_cmd_4  {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_DropNotNull,
@@ -676,7 +552,6 @@ sub got_alter_table_cmd_4  {
    );
 }
 # ALTER TABLE <name> ALTER [COLUMN] <colname> SET STATISTICS <SignedIconst>
-### alter_table_cmd_5 : ALTER opt_column ColId SET NOT NULL
 sub got_alter_table_cmd_5  {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_SetNotNull,
@@ -684,7 +559,6 @@ sub got_alter_table_cmd_5  {
    );
 }
 # ALTER TABLE <name> ALTER [COLUMN] <colname> SET ( column_parameter = value [, ... ] )
-### alter_table_cmd_6 : ALTER opt_column ColId SET STATISTICS SignedIconst
 sub got_alter_table_cmd_6  {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_SetStatistics,
@@ -693,7 +567,6 @@ sub got_alter_table_cmd_6  {
    );
 }
 # ALTER TABLE <name> ALTER [COLUMN] <colname> SET ( column_parameter = value [, ... ] )
-### alter_table_cmd_7 : ALTER opt_column ColId SET reloptions
 sub got_alter_table_cmd_7  {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_SetOptions,
@@ -702,7 +575,6 @@ sub got_alter_table_cmd_7  {
    );
 }
 # ALTER TABLE <name> ALTER [COLUMN] <colname> SET STORAGE <storagemode>
-### alter_table_cmd_8 : ALTER opt_column ColId RESET reloptions
 sub got_alter_table_cmd_8  {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_ResetOptions,
@@ -711,7 +583,6 @@ sub got_alter_table_cmd_8  {
    );
 }
 # ALTER TABLE <name> DROP [COLUMN] IF EXISTS <colname> [RESTRICT|CASCADE]
-### alter_table_cmd_9 : ALTER opt_column ColId SET STORAGE ColId
 sub got_alter_table_cmd_9  {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_SetStorage,
@@ -720,7 +591,6 @@ sub got_alter_table_cmd_9  {
    );
 }
 # ALTER TABLE <name> DROP [COLUMN] <colname> [RESTRICT|CASCADE]
-### alter_table_cmd_10: DROP opt_column IF EXISTS ColId opt_drop_behavior
 sub got_alter_table_cmd_10 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_DropColumn,
@@ -731,7 +601,6 @@ sub got_alter_table_cmd_10 {
 }
 # ALTER TABLE <name> ALTER [COLUMN] <colname> [SET DATA] TYPE <typename>
 #      [ USING <expression> ]
-### alter_table_cmd_11: DROP opt_column ColId opt_drop_behavior
 sub got_alter_table_cmd_11 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_DropColumn,
@@ -741,7 +610,6 @@ sub got_alter_table_cmd_11 {
    );
 }
 # ALTER FOREIGN TABLE <name> ALTER [COLUMN] <colname> OPTIONS
-### alter_table_cmd_12: ALTER opt_column ColId opt_set_data TYPE Typename opt_collate_clause alter_using
 sub got_alter_table_cmd_12 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype => AT_AlterColumnType,
@@ -755,7 +623,6 @@ sub got_alter_table_cmd_12 {
    );
 }
 # ALTER TABLE <name> ADD CONSTRAINT ...
-### alter_table_cmd_13: ALTER opt_column ColId alter_generic_options
 sub got_alter_table_cmd_13 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype => AT_AlterColumnGenericOptions,
@@ -764,7 +631,6 @@ sub got_alter_table_cmd_13 {
    );
 }
 # ALTER TABLE <name> VALIDATE CONSTRAINT ...
-### alter_table_cmd_14: ADD TableConstraint
 sub got_alter_table_cmd_14 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_AddConstraint,
@@ -772,7 +638,6 @@ sub got_alter_table_cmd_14 {
    );
 }
 # ALTER TABLE <name> DROP CONSTRAINT IF EXISTS <name> [RESTRICT|CASCADE]
-### alter_table_cmd_15: VALIDATE CONSTRAINT name
 sub got_alter_table_cmd_15 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_ValidateConstraint,
@@ -780,7 +645,6 @@ sub got_alter_table_cmd_15 {
    );
 }
 # ALTER TABLE <name> DROP CONSTRAINT <name> [RESTRICT|CASCADE]
-### alter_table_cmd_16: DROP CONSTRAINT IF EXISTS name opt_drop_behavior
 sub got_alter_table_cmd_16 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_DropConstraint,
@@ -790,7 +654,6 @@ sub got_alter_table_cmd_16 {
    );
 }
 # ALTER TABLE <name> SET WITH OIDS
-### alter_table_cmd_17: DROP CONSTRAINT name opt_drop_behavior
 sub got_alter_table_cmd_17 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_DropConstraint,
@@ -800,21 +663,18 @@ sub got_alter_table_cmd_17 {
    );
 }
 # ALTER TABLE <name> SET WITHOUT OIDS
-### alter_table_cmd_18: SET WITH OIDS
 sub got_alter_table_cmd_18 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_AddOids,
    );
 }
 # ALTER TABLE <name> CLUSTER ON <indexname>
-### alter_table_cmd_19: SET WITHOUT OIDS
 sub got_alter_table_cmd_19 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_DropOids,
    );
 }
 # ALTER TABLE <name> SET WITHOUT CLUSTER
-### alter_table_cmd_20: CLUSTER ON name
 sub got_alter_table_cmd_20 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_ClusterOn,
@@ -822,7 +682,6 @@ sub got_alter_table_cmd_20 {
    );
 }
 # ALTER TABLE <name> ENABLE TRIGGER <trig>
-### alter_table_cmd_21: SET WITHOUT CLUSTER
 sub got_alter_table_cmd_21 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_DropCluster,
@@ -830,7 +689,6 @@ sub got_alter_table_cmd_21 {
    );
 }
 # ALTER TABLE <name> ENABLE ALWAYS TRIGGER <trig>
-### alter_table_cmd_22: ENABLE TRIGGER name
 sub got_alter_table_cmd_22 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_EnableTrig,
@@ -838,7 +696,6 @@ sub got_alter_table_cmd_22 {
    );
 }
 # ALTER TABLE <name> ENABLE REPLICA TRIGGER <trig>
-### alter_table_cmd_23: ENABLE ALWAYS TRIGGER name
 sub got_alter_table_cmd_23 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_EnableAlwaysTrig,
@@ -846,7 +703,6 @@ sub got_alter_table_cmd_23 {
    );
 }
 # ALTER TABLE <name> ENABLE TRIGGER ALL
-### alter_table_cmd_24: ENABLE REPLICA TRIGGER name
 sub got_alter_table_cmd_24 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_EnableReplicaTrig,
@@ -854,21 +710,18 @@ sub got_alter_table_cmd_24 {
    );
 }
 # ALTER TABLE <name> ENABLE TRIGGER USER
-### alter_table_cmd_25: ENABLE TRIGGER ALL
 sub got_alter_table_cmd_25 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_EnableTrigAll,
    );
 }
 # ALTER TABLE <name> DISABLE TRIGGER <trig>
-### alter_table_cmd_26: ENABLE TRIGGER USER
 sub got_alter_table_cmd_26 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_EnableTrigUser,
    );
 }
 # ALTER TABLE <name> DISABLE TRIGGER ALL
-### alter_table_cmd_27: DISABLE TRIGGER name
 sub got_alter_table_cmd_27 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_DisableTrig,
@@ -876,21 +729,18 @@ sub got_alter_table_cmd_27 {
    );
 }
 # ALTER TABLE <name> DISABLE TRIGGER USER
-### alter_table_cmd_28: DISABLE TRIGGER ALL
 sub got_alter_table_cmd_28 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_DisableTrigAll,
    );
 }
 # ALTER TABLE <name> ENABLE RULE <rule>
-### alter_table_cmd_29: DISABLE TRIGGER USER
 sub got_alter_table_cmd_29 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_DisableTrigUser,
    );
 }
 # ALTER TABLE <name> ENABLE ALWAYS RULE <rule>
-### alter_table_cmd_30: ENABLE RULE name
 sub got_alter_table_cmd_30 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_EnableRule,
@@ -898,7 +748,6 @@ sub got_alter_table_cmd_30 {
    );
 }
 # ALTER TABLE <name> ENABLE REPLICA RULE <rule>
-### alter_table_cmd_31: ENABLE ALWAYS RULE name
 sub got_alter_table_cmd_31 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_EnableAlwaysRule,
@@ -906,7 +755,6 @@ sub got_alter_table_cmd_31 {
    );
 }
 # ALTER TABLE <name> DISABLE RULE <rule>
-### alter_table_cmd_32: ENABLE REPLICA RULE name
 sub got_alter_table_cmd_32 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_EnableReplicaRule,
@@ -914,7 +762,6 @@ sub got_alter_table_cmd_32 {
    );
 }
 # ALTER TABLE <name> INHERIT <parent>
-### alter_table_cmd_33: DISABLE RULE name
 sub got_alter_table_cmd_33 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_DisableRule,
@@ -922,7 +769,6 @@ sub got_alter_table_cmd_33 {
    );
 }
 # ALTER TABLE <name> NO INHERIT <parent>
-### alter_table_cmd_34: INHERIT qualified_name
 sub got_alter_table_cmd_34 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_AddInherit,
@@ -930,7 +776,6 @@ sub got_alter_table_cmd_34 {
    );
 }
 # ALTER TABLE <name> OF <type_name>
-### alter_table_cmd_35: NO INHERIT qualified_name
 sub got_alter_table_cmd_35 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_DropInherit,
@@ -938,7 +783,6 @@ sub got_alter_table_cmd_35 {
    );
 }
 # ALTER TABLE <name> NOT OF
-### alter_table_cmd_36: OF any_name
 sub got_alter_table_cmd_36 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_AddOf,
@@ -946,14 +790,12 @@ sub got_alter_table_cmd_36 {
    );
 }
 # ALTER TABLE <name> OWNER TO RoleId
-### alter_table_cmd_37: NOT OF
 sub got_alter_table_cmd_37 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_DropOf,
    );
 }
 # ALTER TABLE <name> SET TABLESPACE <tablespacename>
-### alter_table_cmd_38: OWNER TO RoleId
 sub got_alter_table_cmd_38 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_ChangeOwner,
@@ -961,7 +803,6 @@ sub got_alter_table_cmd_38 {
    );
 }
 # ALTER TABLE <name> SET (...)
-### alter_table_cmd_39: SET TABLESPACE name
 sub got_alter_table_cmd_39 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_SetTableSpace,
@@ -969,36 +810,28 @@ sub got_alter_table_cmd_39 {
    );
 }
 # ALTER TABLE <name> RESET (...)
-### alter_table_cmd_40: SET reloptions
 sub got_alter_table_cmd_40 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_SetRelOptions,
       def        => $_[2],
    );
 }
-### alter_table_cmd_41: RESET reloptions
 sub got_alter_table_cmd_41 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_ResetRelOptions,
       def        => $_[2],
    );
 }
-### alter_table_cmd_42: alter_generic_options
 sub got_alter_table_cmd_42 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_GenericOptions,
       def        => $_[1],
    );
 }
-### alter_column_default_1: SET DEFAULT a_expr
 sub got_alter_column_default_1 { $_[3] }
-### alter_column_default_2: DROP DEFAULT
 sub got_alter_column_default_2 { NULL  }
-### opt_drop_behavior_1: CASCADE
 sub got_opt_drop_behavior_1 { DROP_CASCADE  }
-### opt_drop_behavior_2: RESTRICT
 sub got_opt_drop_behavior_2 { DROP_RESTRICT }
-### opt_collate_clause: COLLATE any_name
 sub got_opt_collate_clause {
    return SQL::Translator::Statement::CollateClause->new(
       arg      => NULL,
@@ -1006,23 +839,14 @@ sub got_opt_collate_clause {
       location => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### alter_using: USING a_expr
 sub got_alter_using { $_[2] }
-### reloptions:  ~ <C_LPAREN> ~  reloption_list  ~ <C_RPAREN> ~ 
 sub got_reloptions { $_[2] }
-### opt_reloptions: WITH reloptions
 sub got_opt_reloptions { $_[2] }
-### reloption_list: reloption_elem+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_reloption_list { $_[0]->lappend($_[1], $_[3]) }
-### reloption_elem_1: ColLabel  ~ <C_EQUAL> ~  def_arg
 sub got_reloption_elem_1 { $_[0]->makeDefElem        ($_[1], $_[3])                        }
-### reloption_elem_2: ColLabel
 sub got_reloption_elem_2 { $_[0]->makeDefElem        ($_[1], NULL)                         }
-### reloption_elem_3: ColLabel  ~ <C_DOT> ~  ColLabel  ~ <C_EQUAL> ~  def_arg
 sub got_reloption_elem_3 { $_[0]->makeDefElemExtended($_[1], $_[3], $_[5], DEFELEM_UNSPEC) }
-### reloption_elem_4: ColLabel  ~ <C_DOT> ~  ColLabel
 sub got_reloption_elem_4 { $_[0]->makeDefElemExtended($_[1], $_[3], NULL,  DEFELEM_UNSPEC) }
-### AlterCompositeTypeStmt: ALTER TYPE any_name alter_type_cmds
 sub got_AlterCompositeTypeStmt {
    return SQL::Translator::Statement::AlterTable->new(
       #* can't use qualified_name, sigh
@@ -1031,12 +855,8 @@ sub got_AlterCompositeTypeStmt {
       relkind  => OBJECT_TYPE,
    );
 }
-### alter_type_cmds: alter_type_cmd+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_alter_type_cmds { $_[0]->lappend($_[1], $_[3]) }
 # ALTER TYPE <name> DROP ATTRIBUTE IF EXISTS <attname> [RESTRICT|CASCADE]
-### alter_type_cmd_1: 
-# ALTER TYPE <name> ADD ATTRIBUTE <coldef> [RESTRICT|CASCADE]
-    ADD ATTRIBUTE TableFuncElement opt_drop_behavior
 sub got_alter_type_cmd_1 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_AddColumn,
@@ -1045,7 +865,6 @@ sub got_alter_type_cmd_1 {
    );
 }
 # ALTER TYPE <name> DROP ATTRIBUTE <attname> [RESTRICT|CASCADE]
-### alter_type_cmd_2: DROP ATTRIBUTE IF EXISTS ColId opt_drop_behavior
 sub got_alter_type_cmd_2 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_DropColumn,
@@ -1055,7 +874,6 @@ sub got_alter_type_cmd_2 {
    );
 }
 # ALTER TYPE <name> ALTER ATTRIBUTE <attname> [SET DATA] TYPE <typename> [RESTRICT|CASCADE]
-### alter_type_cmd_3: DROP ATTRIBUTE ColId opt_drop_behavior
 sub got_alter_type_cmd_3 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_DropColumn,
@@ -1064,7 +882,6 @@ sub got_alter_type_cmd_3 {
       missing_ok => FALSE,
    );
 }
-### alter_type_cmd_4: ALTER ATTRIBUTE ColId opt_set_data TYPE Typename opt_collate_clause opt_drop_behavior
 sub got_alter_type_cmd_4 {
    return SQL::Translator::Statement::AlterTable::Command->new(
       subtype    => AT_AlterColumnType,
@@ -1078,19 +895,16 @@ sub got_alter_type_cmd_4 {
       behavior   => $_[8],
    );
 }
-### ClosePortalStmt_1: CLOSE cursor_name
 sub got_ClosePortalStmt_1 {
    return SQL::Translator::Statement::ClosePortal->new(
       portalname => $_[2],
    );
 }
-### ClosePortalStmt_2: CLOSE ALL
 sub got_ClosePortalStmt_2 {
    return SQL::Translator::Statement::ClosePortal->new(
       portalname => NULL,
    );
 }
-### CopyStmt_1: COPY opt_binary qualified_name opt_column_list opt_oids copy_from copy_file_name copy_delimiter opt_with copy_options
 sub got_CopyStmt_1 {
    return SQL::Translator::Statement::Copy->new(
       relation => $_[3],
@@ -1103,7 +917,6 @@ sub got_CopyStmt_1 {
       options  => $_[0]->lappend(@_[2,5,8,10]),
    );
 }
-### CopyStmt_2: COPY select_with_parens TO copy_file_name opt_with copy_options
 sub got_CopyStmt_2 {
    return SQL::Translator::Statement::Copy->new(
       relation => NULL,
@@ -1114,71 +927,38 @@ sub got_CopyStmt_2 {
       options  => $_[6],
    );
 }
-### copy_from_1: FROM
 sub got_copy_from_1 { TRUE  }
-### copy_from_2: TO
 sub got_copy_from_2 { FALSE }
-### copy_file_name_1: Sconst
 sub got_copy_file_name_1 { $_[1] }
-### copy_file_name_2: STDIN
 sub got_copy_file_name_2 { NULL  }
-### copy_file_name_3: STDOUT
 sub got_copy_file_name_3 { NULL  }
-### copy_options_1: copy_opt_list
 sub got_copy_options_1 { $_[1] }
-### copy_options_2:  ~ <C_LPAREN> ~  copy_generic_opt_list  ~ <C_RPAREN> ~ 
 sub got_copy_options_2 { $_[2] }
-### copy_opt_list: copy_opt_item* % ~
 sub got_copy_opt_list { $_[0]->lappend($_[1], $_[2]) }
-### copy_opt_item_1 : BINARY
 sub got_copy_opt_item_1  { $_[0]->makeDefElem("format",         "binary") }
-### copy_opt_item_2 : OIDS
 sub got_copy_opt_item_2  { $_[0]->makeDefElem("oids",           TRUE);     }
-### copy_opt_item_3 : DELIMITER opt_as Sconst
 sub got_copy_opt_item_3  { $_[0]->makeDefElem("delimiter",      $_[3]);    }
-### copy_opt_item_4 : NULL opt_as Sconst
 sub got_copy_opt_item_4  { $_[0]->makeDefElem("null",           $_[3]);    }
-### copy_opt_item_5 : CSV
 sub got_copy_opt_item_5  { $_[0]->makeDefElem("format",         "csv");    }
-### copy_opt_item_6 : HEADER
 sub got_copy_opt_item_6  { $_[0]->makeDefElem("header",         TRUE);     }
-### copy_opt_item_7 : QUOTE opt_as Sconst
 sub got_copy_opt_item_7  { $_[0]->makeDefElem("quote",          $_[3]);    }
-### copy_opt_item_8 : ESCAPE opt_as Sconst
 sub got_copy_opt_item_8  { $_[0]->makeDefElem("escape",         $_[3]);    }
-### copy_opt_item_9 : FORCE QUOTE columnList
 sub got_copy_opt_item_9  { $_[0]->makeDefElem("force_quote",    $_[3]);    }
-### copy_opt_item_10: FORCE QUOTE  ~ <C_STAR> ~ 
 sub got_copy_opt_item_10 { $_[0]->makeDefElem("force_quote",    SQL::Translator::Statement::A_Star->new()) }
-### copy_opt_item_11: FORCE NOT NULL columnList
 sub got_copy_opt_item_11 { $_[0]->makeDefElem("force_not_null", $_[4]);    }
-### copy_opt_item_12: ENCODING Sconst
 sub got_copy_opt_item_12 { $_[0]->makeDefElem("encoding",       $_[2]);    }
-### opt_binary: BINARY
 sub got_opt_binary { $_[0]->makeDefElem("format",    "binary") }
-### opt_oids: WITH OIDS
 sub got_opt_oids { $_[0]->makeDefElem("oids",      TRUE);     }
-### copy_delimiter: opt_using DELIMITERS Sconst
 sub got_copy_delimiter { $_[0]->makeDefElem("delimiter", $_[3]);    }
-### opt_using: USING
 sub got_opt_using {}
-### copy_generic_opt_list: copy_generic_opt_elem+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_copy_generic_opt_list { $_[0]->lappend($_[1], $_[3]);     }
-### copy_generic_opt_elem: ColLabel copy_generic_opt_arg
 sub got_copy_generic_opt_elem { $_[0]->makeDefElem($_[1], $_[2]) }
-### copy_generic_opt_arg_1: opt_boolean_or_string
 sub got_copy_generic_opt_arg_1 { $_[1] }
-### copy_generic_opt_arg_2: NumericOnly
 sub got_copy_generic_opt_arg_2 { $_[1] }
-### copy_generic_opt_arg_3:  ~ <C_STAR> ~ 
 sub got_copy_generic_opt_arg_3 { SQL::Translator::Statement::A_Star->new() }
-### copy_generic_opt_arg_4:  ~ <C_LPAREN> ~  copy_generic_opt_arg_list  ~ <C_RPAREN> ~ 
 sub got_copy_generic_opt_arg_4 { $_[2] }
-### copy_generic_opt_arg_list: copy_generic_opt_arg_list_item+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_copy_generic_opt_arg_list { $_[0]->lappend($_[1], $_[3]) }
-### copy_generic_opt_arg_list_item: opt_boolean_or_string
 sub got_copy_generic_opt_arg_list_item { $_[1] }
-### CreateStmt_1: CREATE OptTemp TABLE qualified_name  ~ <C_LPAREN> ~  OptTableElementList  ~ <C_RPAREN> ~  OptInherit OptWith OnCommitOption OptTableSpace
 sub got_CreateStmt_1 {
    $_[4]->relpersistence($_[2]);
    return SQL::Translator::Statement::Create->new(
@@ -1192,7 +972,6 @@ sub got_CreateStmt_1 {
       if_not_exists  => FALSE,
    );
 }
-### CreateStmt_2: CREATE OptTemp TABLE IF NOT EXISTS qualified_name  ~ <C_LPAREN> ~  OptTableElementList  ~ <C_RPAREN> ~  OptInherit OptWith OnCommitOption OptTableSpace
 sub got_CreateStmt_2 {
    $_[7]->relpersistence($_[2]);
    return SQL::Translator::Statement::Create->new(
@@ -1206,7 +985,6 @@ sub got_CreateStmt_2 {
       if_not_exists  => TRUE,
    );
 }
-### CreateStmt_3: CREATE OptTemp TABLE qualified_name OF any_name OptTypedTableElementList OptWith OnCommitOption OptTableSpace
 sub got_CreateStmt_3 {
    my $ofTypename = $_[0]->makeTypeNameFromNameList($_[6]);
    $ofTypename->_set_location( $_[0]->YYLLoc($_[6], 6) );
@@ -1223,7 +1001,6 @@ sub got_CreateStmt_3 {
       if_not_exists  => FALSE,
    );
 }
-### CreateStmt_4: CREATE OptTemp TABLE IF NOT EXISTS qualified_name OF any_name OptTypedTableElementList OptWith OnCommitOption OptTableSpace
 sub got_CreateStmt_4 {
    my $ofTypename = $_[0]->makeTypeNameFromNameList($_[9]);
    $ofTypename->_set_location( $_[0]->YYLLoc($_[9], 9) );
@@ -1240,39 +1017,22 @@ sub got_CreateStmt_4 {
       if_not_exists  => TRUE,
    );
 }
-### OptTemp_1: TEMPORARY
 sub got_OptTemp_1 { RELPERSISTENCE_TEMP      }
-### OptTemp_2: TEMP
 sub got_OptTemp_2 { RELPERSISTENCE_TEMP      }
-### OptTemp_3: LOCAL TEMPORARY
 sub got_OptTemp_3 { RELPERSISTENCE_TEMP      }
-### OptTemp_4: LOCAL TEMP
 sub got_OptTemp_4 { RELPERSISTENCE_TEMP      }
-### OptTemp_5: GLOBAL TEMPORARY
 sub got_OptTemp_5 { RELPERSISTENCE_TEMP      }
-### OptTemp_6: GLOBAL TEMP
 sub got_OptTemp_6 { RELPERSISTENCE_TEMP      }
-### OptTemp_7: UNLOGGED
 sub got_OptTemp_7 { RELPERSISTENCE_UNLOGGED  }
-### OptTableElementList: TableElementList
 sub got_OptTableElementList { $_[1] }
-### OptTypedTableElementList:  ~ <C_LPAREN> ~  TypedTableElementList  ~ <C_RPAREN> ~ 
 sub got_OptTypedTableElementList { $_[2] }
-### TableElementList: TableElement+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_TableElementList { $_[0]->lappend($_[1], $_[3]) }
-### TypedTableElementList: TypedTableElement+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_TypedTableElementList { $_[0]->lappend($_[1], $_[3]) }
-### TableElement_1: columnDef
 sub got_TableElement_1 { $_[1] }
-### TableElement_2: TableLikeClause
 sub got_TableElement_2 { $_[1] }
-### TableElement_3: TableConstraint
 sub got_TableElement_3 { $_[1] }
-### TypedTableElement_1: columnOptions
 sub got_TypedTableElement_1 { $_[1] }
-### TypedTableElement_2: TableConstraint
 sub got_TypedTableElement_2 { $_[1] }
-### columnDef: ColId Typename create_generic_options ColQualList
 sub got_columnDef {
    my $n = SQL::Translator::Statement::Column::Definition->new(
       colname        => $_[1],
@@ -1290,7 +1050,6 @@ sub got_columnDef {
    $_[0]->SplitColQualList($_[4], $n);
    return $n;
 }
-### columnOptions: ColId WITH OPTIONS ColQualList
 sub got_columnOptions {
    my $n = SQL::Translator::Statement::Column::Definition->new(
       colname        => $_[1],
@@ -1307,22 +1066,17 @@ sub got_columnOptions {
    $_[0]->SplitColQualList($_[4], $n);
    return $n;
 }
-### ColQualList: ColConstraint* % ~
 sub got_ColQualList { $_[0]->lappend($_[1], $_[2]) }
-### ColConstraint_1: CONSTRAINT name ColConstraintElem
 sub got_ColConstraint_1 {
    $_[3]->conname($_[2]);
    $_[3]->_set_location($_[0]->YYLLoc($_[1], 1));
    return $_[3];
 }
-### ColConstraint_2: ColConstraintElem
 sub got_ColConstraint_2 { $_[1] }
 # Note: the CollateClause is momentarily included in
 # the list built by ColQualList, but we split it out
 # again in SplitColQualList.
-### ColConstraint_3: ConstraintAttr
 sub got_ColConstraint_3 { $_[1] }
-### ColConstraint_4: COLLATE any_name
 sub got_ColConstraint_4 {
    return SQL::Translator::Statement::CollateClause->new(
       arg      => NULL,
@@ -1330,21 +1084,18 @@ sub got_ColConstraint_4 {
       location => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### ColConstraintElem_1: NOT NULL
 sub got_ColConstraintElem_1 {
    return SQL::Translator::Statement::Constraint->new(
       contype         => CONSTR_NOTNULL,
       location        => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### ColConstraintElem_2: NULL
 sub got_ColConstraintElem_2 {
    return SQL::Translator::Statement::Constraint->new(
       contype         => CONSTR_NULL,
       location        => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### ColConstraintElem_3: UNIQUE opt_definition OptConsTableSpace
 sub got_ColConstraintElem_3 {
    return SQL::Translator::Statement::Constraint->new(
       contype         => CONSTR_UNIQUE,
@@ -1355,7 +1106,6 @@ sub got_ColConstraintElem_3 {
       indexspace      => $_[3],
    );
 }
-### ColConstraintElem_4: PRIMARY KEY opt_definition OptConsTableSpace
 sub got_ColConstraintElem_4 {
    return SQL::Translator::Statement::Constraint->new(
       contype         => CONSTR_PRIMARY,
@@ -1366,7 +1116,6 @@ sub got_ColConstraintElem_4 {
       indexspace      => $_[4],
    );
 }
-### ColConstraintElem_5: CHECK  ~ <C_LPAREN> ~  a_expr  ~ <C_RPAREN> ~  opt_no_inherit
 sub got_ColConstraintElem_5 {
    return SQL::Translator::Statement::Constraint->new(
       contype         => CONSTR_CHECK,
@@ -1376,7 +1125,6 @@ sub got_ColConstraintElem_5 {
       cooked_expr     => NULL,
    );
 }
-### ColConstraintElem_6: DEFAULT b_expr
 sub got_ColConstraintElem_6 {
    return SQL::Translator::Statement::Constraint->new(
       contype         => CONSTR_DEFAULT,
@@ -1385,7 +1133,6 @@ sub got_ColConstraintElem_6 {
       cooked_expr     => NULL,
    );
 }
-### ColConstraintElem_7: REFERENCES qualified_name opt_column_list key_match key_actions
 sub got_ColConstraintElem_7 {
    return SQL::Translator::Statement::Constraint->new(
       contype         => CONSTR_FOREIGN,
@@ -1400,66 +1147,50 @@ sub got_ColConstraintElem_7 {
       initially_valid => TRUE,
    );
 }
-### ConstraintAttr_1: DEFERRABLE
 sub got_ConstraintAttr_1 {
    return SQL::Translator::Statement::Constraint->new(
       contype  => CONSTR_ATTR_DEFERRABLE,
       location => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### ConstraintAttr_2: NOT DEFERRABLE
 sub got_ConstraintAttr_2 {
    return SQL::Translator::Statement::Constraint->new(
       contype  => CONSTR_ATTR_NOT_DEFERRABLE,
       location => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### ConstraintAttr_3: INITIALLY DEFERRED
 sub got_ConstraintAttr_3 {
    return SQL::Translator::Statement::Constraint->new(
       contype  => CONSTR_ATTR_DEFERRED,
       location => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### ConstraintAttr_4: INITIALLY IMMEDIATE
 sub got_ConstraintAttr_4 {
    return SQL::Translator::Statement::Constraint->new(
       contype  => CONSTR_ATTR_IMMEDIATE,
       location => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### TableLikeClause: LIKE qualified_name TableLikeOptionList
 sub got_TableLikeClause {
    return SQL::Translator::Statement::TableLikeClause->new(
       relation => $_[2],
       options  => $_[3],
    );
 }
-### TableLikeOptionList_1: TableLikeOption* % / ~ INCLUDING ~ /
 sub got_TableLikeOptionList_1 { $_[1] |  $_[3] }
-### TableLikeOptionList_2: <TableLikeOption>2+ % / ~ EXCLUDING ~ /
 sub got_TableLikeOptionList_2 { $_[1] & ~$_[3] }
-### TableLikeOption_1: DEFAULTS
 sub got_TableLikeOption_1 { CREATE_TABLE_LIKE_DEFAULTS    }
-### TableLikeOption_2: CONSTRAINTS
 sub got_TableLikeOption_2 { CREATE_TABLE_LIKE_CONSTRAINTS }
-### TableLikeOption_3: INDEXES
 sub got_TableLikeOption_3 { CREATE_TABLE_LIKE_INDEXES     }
-### TableLikeOption_4: STORAGE
 sub got_TableLikeOption_4 { CREATE_TABLE_LIKE_STORAGE     }
-### TableLikeOption_5: COMMENTS
 sub got_TableLikeOption_5 { CREATE_TABLE_LIKE_COMMENTS    }
-### TableLikeOption_6: ALL
 sub got_TableLikeOption_6 { CREATE_TABLE_LIKE_ALL         }
-### TableConstraint_1: CONSTRAINT name ConstraintElem
 sub got_TableConstraint_1 {
    $_[3]->conname($_[2]);
    $_[3]->_set_location($_[0]->YYLLoc($_[1], 1));
    return $_[3];
 }
-### TableConstraint_2: ConstraintElem
 sub got_TableConstraint_2 { $_[1] }
-### ConstraintElem_1: CHECK  ~ <C_LPAREN> ~  a_expr  ~ <C_RPAREN> ~  ConstraintAttributeSpec
 sub got_ConstraintElem_1 {
    my $n = SQL::Translator::Statement::Constraint->new(
       contype       => CONSTR_CHECK,
@@ -1471,7 +1202,6 @@ sub got_ConstraintElem_1 {
    $n->initially_valid( !$n->skip_validation );
    return $n;
 }
-### ConstraintElem_2: UNIQUE  ~ <C_LPAREN> ~  columnList  ~ <C_RPAREN> ~  opt_definition OptConsTableSpace ConstraintAttributeSpec
 sub got_ConstraintElem_2 {
    my $n = SQL::Translator::Statement::Constraint->new(
       contype       => CONSTR_UNIQUE,
@@ -1484,7 +1214,6 @@ sub got_ConstraintElem_2 {
    $_[0]->processCASbits($_[7], $_[0]->YYLLoc($_[7], 7), "UNIQUE", $n, 1,1,0,0);
    return $n;
 }
-### ConstraintElem_3: UNIQUE ExistingIndex ConstraintAttributeSpec
 sub got_ConstraintElem_3 {
    my $n = SQL::Translator::Statement::Constraint->new(
       contype       => CONSTR_UNIQUE,
@@ -1497,7 +1226,6 @@ sub got_ConstraintElem_3 {
    $_[0]->processCASbits($_[3], $_[0]->YYLLoc($_[3], 3), "UNIQUE", $n, 1,1,0,0);
    return $n;
 }
-### ConstraintElem_4: PRIMARY KEY  ~ <C_LPAREN> ~  columnList  ~ <C_RPAREN> ~  opt_definition OptConsTableSpace ConstraintAttributeSpec
 sub got_ConstraintElem_4 {
    my $n = SQL::Translator::Statement::Constraint->new(
       contype       => CONSTR_PRIMARY,
@@ -1510,7 +1238,6 @@ sub got_ConstraintElem_4 {
    $_[0]->processCASbits($_[8], $_[0]->YYLLoc($_[8], 8), "PRIMARY KEY", $n, 1,1,0,0);
    return $n;
 }
-### ConstraintElem_5: PRIMARY KEY ExistingIndex ConstraintAttributeSpec
 sub got_ConstraintElem_5 {
    my $n = SQL::Translator::Statement::Constraint->new(
       contype       => CONSTR_PRIMARY,
@@ -1523,7 +1250,6 @@ sub got_ConstraintElem_5 {
    $_[0]->processCASbits($_[4], $_[0]->YYLLoc($_[4], 4), "PRIMARY KEY", $n, 1,1,0,0);
    return $n;
 }
-### ConstraintElem_6: EXCLUDE access_method_clause  ~ <C_LPAREN> ~  ExclusionConstraintList  ~ <C_RPAREN> ~  opt_definition OptConsTableSpace ExclusionWhereClause ConstraintAttributeSpec
 sub got_ConstraintElem_6 {
    my $n = SQL::Translator::Statement::Constraint->new(
       contype       => CONSTR_EXCLUSION,
@@ -1538,7 +1264,6 @@ sub got_ConstraintElem_6 {
    $_[0]->processCASbits($_[9], $_[0]->YYLLoc($_[9], 9), "EXCLUDE", $n, 1,1,0,0);
    return $n;
 }
-### ConstraintElem_7: FOREIGN KEY  ~ <C_LPAREN> ~  columnList  ~ <C_RPAREN> ~  REFERENCES qualified_name opt_column_list key_match key_actions ConstraintAttributeSpec
 sub got_ConstraintElem_7 {
    my $n = SQL::Translator::Statement::Constraint->new(
       contype       => CONSTR_FOREIGN,
@@ -1554,72 +1279,39 @@ sub got_ConstraintElem_7 {
    $n->initially_valid( !$n->skip_validation );
    return $n;
 }
-### opt_no_inherit: NO INHERIT
 sub got_opt_no_inherit { TRUE  }
-### opt_column_list:  ~ <C_LPAREN> ~  columnList  ~ <C_RPAREN> ~ 
 sub got_opt_column_list { $_[2] }
-### columnList: columnElem+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_columnList { $_[0]->lappend($_[1], $_[3]) }
-### columnElem: ColId
 sub got_columnElem { $_[1] }
-### key_match_1: MATCH FULL
 sub got_key_match_1 { FKCONSTR_MATCH_FULL        }
-### key_match_2: MATCH PARTIAL
 sub got_key_match_2 { FKCONSTR_MATCH_PARTIAL     }
-### key_match_3: MATCH SIMPLE
 sub got_key_match_3 { FKCONSTR_MATCH_SIMPLE      }
-### ExclusionConstraintList: ExclusionConstraintElem+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_ExclusionConstraintList { $_[0]->lappend($_[1], $_[3]) }
 # allow OPERATOR() decoration for the benefit of ruleutils.c
-### ExclusionConstraintElem_1: index_elem WITH any_operator
 sub got_ExclusionConstraintElem_1 { $_[0]->lappend($_[1], $_[3]) }
-### ExclusionConstraintElem_2: index_elem WITH OPERATOR  ~ <C_LPAREN> ~  any_operator  ~ <C_RPAREN> ~ 
 sub got_ExclusionConstraintElem_2 { $_[0]->lappend($_[1], $_[5]) }
-### ExclusionWhereClause: WHERE  ~ <C_LPAREN> ~  a_expr  ~ <C_RPAREN> ~ 
 sub got_ExclusionWhereClause { $_[3] }
-### key_actions_1: key_update
 sub got_key_actions_1 { ($_[1] << 8) | (FKCONSTR_ACTION_NOACTION & 0xFF)                    }
-### key_actions_2: key_delete
 sub got_key_actions_2 { (FKCONSTR_ACTION_NOACTION << 8) | ($_[1] & 0xFF)                    }
-### key_actions_3: key_update key_delete
 sub got_key_actions_3 { ($_[1] << 8) | ($_[2] & 0xFF)                                       }
-### key_actions_4: key_delete key_update
 sub got_key_actions_4 { ($_[2] << 8) | ($_[1] & 0xFF)                                       }
-### key_update: ON UPDATE key_action
 sub got_key_update { $_[3] }
-### key_delete: ON DELETE key_action
 sub got_key_delete { $_[3] }
-### key_action_1: NO ACTION
 sub got_key_action_1 { FKCONSTR_ACTION_NOACTION   }
-### key_action_2: RESTRICT
 sub got_key_action_2 { FKCONSTR_ACTION_RESTRICT   }
-### key_action_3: CASCADE
 sub got_key_action_3 { FKCONSTR_ACTION_CASCADE    }
-### key_action_4: SET NULL
 sub got_key_action_4 { FKCONSTR_ACTION_SETNULL    }
-### key_action_5: SET DEFAULT
 sub got_key_action_5 { FKCONSTR_ACTION_SETDEFAULT }
-### OptInherit: INHERITS  ~ <C_LPAREN> ~  qualified_name_list  ~ <C_RPAREN> ~ 
 sub got_OptInherit { $_[3] }
-### OptWith_1: WITH reloptions
 sub got_OptWith_1 { $_[2] }
-### OptWith_2: WITH OIDS
 sub got_OptWith_2 { $_[0]->lappend(defWithOids(TRUE))  }
-### OptWith_3: WITHOUT OIDS
 sub got_OptWith_3 { $_[0]->lappend(defWithOids(FALSE)) }
-### OnCommitOption_1: ON COMMIT DROP
 sub got_OnCommitOption_1 { ONCOMMIT_DROP          }
-### OnCommitOption_2: ON COMMIT DELETE ROWS
 sub got_OnCommitOption_2 { ONCOMMIT_DELETE_ROWS   }
-### OnCommitOption_3: ON COMMIT PRESERVE ROWS
 sub got_OnCommitOption_3 { ONCOMMIT_PRESERVE_ROWS }
-### OptTableSpace: TABLESPACE name
 sub got_OptTableSpace { $_[2] }
-### OptConsTableSpace: USING INDEX TABLESPACE name
 sub got_OptConsTableSpace { $_[4] }
-### ExistingIndex: USING INDEX index_name
 sub got_ExistingIndex { $_[3] }
-### CreateAsStmt: CREATE OptTemp TABLE create_as_target AS SelectStmt opt_with_data
 sub got_CreateAsStmt {
    my $ctas = SQL::Translator::Statement::CreateTableAs->new(
       query          => $_[6],
@@ -1631,7 +1323,6 @@ sub got_CreateAsStmt {
    $_[4]->skipData(!$_[7]);
    return $ctas;
 }
-### create_as_target: qualified_name opt_column_list OptWith OnCommitOption OptTableSpace
 sub got_create_as_target {
    return SQL::Translator::Statement::IntoClause->new(
       rel            => $_[1],
@@ -1642,11 +1333,8 @@ sub got_create_as_target {
       skipData       => FALSE,  #* might get changed later
    );
 }
-### opt_with_data_1: WITH DATA
 sub got_opt_with_data_1 { TRUE  }
-### opt_with_data_2: WITH NO DATA
 sub got_opt_with_data_2 { FALSE }
-### CreateSeqStmt: CREATE OptTemp SEQUENCE qualified_name OptSeqOptList
 sub got_CreateSeqStmt {
    $_[4]->relpersistence($_[2]);
    return SQL::Translator::Statement::CreateSeq->new(
@@ -1655,7 +1343,6 @@ sub got_CreateSeqStmt {
       ownerId  => InvalidOid,
    );
 }
-### AlterSeqStmt_1: ALTER SEQUENCE qualified_name SeqOptList
 sub got_AlterSeqStmt_1 {
    return SQL::Translator::Statement::AlterSeq->new(
       sequence   => $_[3],
@@ -1663,7 +1350,6 @@ sub got_AlterSeqStmt_1 {
       missing_ok => FALSE,
    );
 }
-### AlterSeqStmt_2: ALTER SEQUENCE IF EXISTS qualified_name SeqOptList
 sub got_AlterSeqStmt_2 {
    return SQL::Translator::Statement::AlterSeq->new(
       sequence   => $_[5],
@@ -1671,45 +1357,25 @@ sub got_AlterSeqStmt_2 {
       missing_ok => TRUE,
    );
 }
-### OptSeqOptList: SeqOptList
 sub got_OptSeqOptList { $_[1] }
-### SeqOptList: SeqOptElem+ % ~
 sub got_SeqOptList { $_[0]->lappend($_[1], $_[2]) }
-### SeqOptElem_1 : CACHE NumericOnly
 sub got_SeqOptElem_1  { $_[0]->makeDefElem("cache",     $_[2]) }
-### SeqOptElem_2 : CYCLE
 sub got_SeqOptElem_2  { $_[0]->makeDefElem("cycle",     TRUE)  }
-### SeqOptElem_3 : NO CYCLE
 sub got_SeqOptElem_3  { $_[0]->makeDefElem("cycle",     FALSE) }
-### SeqOptElem_4 : INCREMENT opt_by NumericOnly
 sub got_SeqOptElem_4  { $_[0]->makeDefElem("increment", $_[3]) }
-### SeqOptElem_5 : MAXVALUE NumericOnly
 sub got_SeqOptElem_5  { $_[0]->makeDefElem("maxvalue",  $_[2]) }
-### SeqOptElem_6 : MINVALUE NumericOnly
 sub got_SeqOptElem_6  { $_[0]->makeDefElem("minvalue",  $_[2]) }
-### SeqOptElem_7 : NO MAXVALUE
 sub got_SeqOptElem_7  { $_[0]->makeDefElem("maxvalue",  NULL)  }
-### SeqOptElem_8 : NO MINVALUE
 sub got_SeqOptElem_8  { $_[0]->makeDefElem("minvalue",  NULL)  }
-### SeqOptElem_9 : OWNED BY any_name
 sub got_SeqOptElem_9  { $_[0]->makeDefElem("owned_by",  $_[3]) }
-### SeqOptElem_10: START opt_with NumericOnly
 sub got_SeqOptElem_10 { $_[0]->makeDefElem("start",     $_[3]) }
-### SeqOptElem_11: RESTART
 sub got_SeqOptElem_11 { $_[0]->makeDefElem("restart",   NULL)  }
-### SeqOptElem_12: RESTART opt_with NumericOnly
 sub got_SeqOptElem_12 { $_[0]->makeDefElem("restart",   $_[3]) }
-### opt_by: BY
 sub got_opt_by {}
-### NumericOnly_1: FCONST
 sub got_NumericOnly_1 { $_[1]+0 }
-### NumericOnly_2:  ~ <C_DASH> ~  FCONST
 sub got_NumericOnly_2 { -$_[2]  }
-### NumericOnly_3: SignedIconst
 sub got_NumericOnly_3 { $_[1]+0 }
-### NumericOnly_list: NumericOnly+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_NumericOnly_list { $_[0]->lappend($_[1], $_[3]) }
-### CreatePLangStmt_1: CREATE opt_or_replace opt_trusted opt_procedural LANGUAGE ColId_or_Sconst
 sub got_CreatePLangStmt_1 {
    return SQL::Translator::Statement::CreatePLang->new(
       replace     => $_[2],
@@ -1721,7 +1387,6 @@ sub got_CreatePLangStmt_1 {
       pltrusted   => FALSE,
    );
 }
-### CreatePLangStmt_2: CREATE opt_or_replace opt_trusted opt_procedural LANGUAGE ColId_or_Sconst HANDLER handler_name opt_inline_handler opt_validator
 sub got_CreatePLangStmt_2 {
    return SQL::Translator::Statement::CreatePLang->new(
       replace     => $_[2],
@@ -1732,21 +1397,13 @@ sub got_CreatePLangStmt_2 {
       pltrusted   => $_[3],
    );
 }
-### opt_trusted: TRUSTED
 sub got_opt_trusted { TRUE  }
-### handler_name_1: name
 sub got_handler_name_1 { $_[0]->lappend($_[1])        }
-### handler_name_2: name attrs
 sub got_handler_name_2 { $_[0]->lcons  ($_[1], $_[2]) }
-### opt_inline_handler: INLINE handler_name
 sub got_opt_inline_handler { $_[2] }
-### validator_clause_1: VALIDATOR handler_name
 sub got_validator_clause_1 { $_[2] }
-### validator_clause_2: NO VALIDATOR
 sub got_validator_clause_2 { NIL   }
-### opt_validator: validator_clause
 sub got_opt_validator { $_[1] }
-### DropPLangStmt_1: DROP opt_procedural LANGUAGE ColId_or_Sconst opt_drop_behavior
 sub got_DropPLangStmt_1 {
    return SQL::Translator::Statement::Drop->new(
       removeType => OBJECT_LANGUAGE,
@@ -1757,7 +1414,6 @@ sub got_DropPLangStmt_1 {
       concurrent => FALSE,
    );
 }
-### DropPLangStmt_2: DROP opt_procedural LANGUAGE IF EXISTS ColId_or_Sconst opt_drop_behavior
 sub got_DropPLangStmt_2 {
    return SQL::Translator::Statement::Drop->new(
       removeType => OBJECT_LANGUAGE,
@@ -1768,9 +1424,7 @@ sub got_DropPLangStmt_2 {
       concurrent => FALSE,
    );
 }
-### opt_procedural: PROCEDURAL
 sub got_opt_procedural {}
-### CreateTableSpaceStmt: CREATE TABLESPACE name OptTableSpaceOwner LOCATION Sconst
 sub got_CreateTableSpaceStmt {
    return SQL::Translator::Statement::CreateTableSpace->new(
       tablespacename => $_[3],
@@ -1778,23 +1432,19 @@ sub got_CreateTableSpaceStmt {
       location       => $_[6],
    );
 }
-### OptTableSpaceOwner: OWNER name
 sub got_OptTableSpaceOwner { $_[2] }
-### DropTableSpaceStmt_1: DROP TABLESPACE name
 sub got_DropTableSpaceStmt_1 {
    return SQL::Translator::Statement::DropTableSpace->new(
       tablespacename => $_[3],
       missing_ok     => FALSE,
    );
 }
-### DropTableSpaceStmt_2: DROP TABLESPACE IF EXISTS name
 sub got_DropTableSpaceStmt_2 {
    return SQL::Translator::Statement::DropTableSpace->new(
       tablespacename => $_[5],
       missing_ok     => TRUE,
    );
 }
-### CreateExtensionStmt_1: CREATE EXTENSION name opt_with create_extension_opt_list
 sub got_CreateExtensionStmt_1 {
    return SQL::Translator::Statement::CreateExtension->new(
       extname       => $_[3],
@@ -1802,7 +1452,6 @@ sub got_CreateExtensionStmt_1 {
       options       => $_[5],
    );
 }
-### CreateExtensionStmt_2: CREATE EXTENSION IF NOT EXISTS name opt_with create_extension_opt_list
 sub got_CreateExtensionStmt_2 {
    return SQL::Translator::Statement::CreateExtension->new(
       extname       => $_[6],
@@ -1810,26 +1459,18 @@ sub got_CreateExtensionStmt_2 {
       options       => $_[8],
    );
 }
-### create_extension_opt_list: create_extension_opt_item* % ~
 sub got_create_extension_opt_list { $_[0]->lappend($_[1], $_[2]) }
-### create_extension_opt_item_1: SCHEMA name
 sub got_create_extension_opt_item_1 { $_[0]->makeDefElem("schema",      $_[2]) }
-### create_extension_opt_item_2: VERSION ColId_or_Sconst
 sub got_create_extension_opt_item_2 { $_[0]->makeDefElem("new_version", $_[2]) }
-### create_extension_opt_item_3: FROM ColId_or_Sconst
 sub got_create_extension_opt_item_3 { $_[0]->makeDefElem("old_version", $_[2]) }
-### AlterExtensionStmt: ALTER EXTENSION name UPDATE alter_extension_opt_list
 sub got_AlterExtensionStmt {
    return SQL::Translator::Statement::AlterExtension->new(
       extname => $_[3],
       options => $_[5],
    );
 }
-### alter_extension_opt_list: alter_extension_opt_item* % ~
 sub got_alter_extension_opt_list { $_[0]->lappend($_[1], $_[2]) }
-### alter_extension_opt_item: TO ColId_or_Sconst
 sub got_alter_extension_opt_item { $_[0]->makeDefElem("new_version", $_[2]) }
-### AlterExtensionContentsStmt_1 : ALTER EXTENSION name add_drop AGGREGATE func_name aggr_args
 sub got_AlterExtensionContentsStmt_1  {
    return SQL::Translator::Statement::AlterExtensionContents->new(
       extname => $_[3],
@@ -1839,7 +1480,6 @@ sub got_AlterExtensionContentsStmt_1  {
       objargs => $_[7],
    );
 }
-### AlterExtensionContentsStmt_2 : ALTER EXTENSION name add_drop CAST  ~ <C_LPAREN> ~  Typename AS Typename  ~ <C_RPAREN> ~ 
 sub got_AlterExtensionContentsStmt_2  {
    return SQL::Translator::Statement::AlterExtensionContents->new(
       extname => $_[3],
@@ -1849,7 +1489,6 @@ sub got_AlterExtensionContentsStmt_2  {
       objargs => $_[0]->lappend($_[9]),
    );
 }
-### AlterExtensionContentsStmt_3 : ALTER EXTENSION name add_drop COLLATION any_name
 sub got_AlterExtensionContentsStmt_3  {
    return SQL::Translator::Statement::AlterExtensionContents->new(
       extname => $_[3],
@@ -1858,7 +1497,6 @@ sub got_AlterExtensionContentsStmt_3  {
       objname => $_[6],
    );
 }
-### AlterExtensionContentsStmt_4 : ALTER EXTENSION name add_drop CONVERSION any_name
 sub got_AlterExtensionContentsStmt_4  {
    return SQL::Translator::Statement::AlterExtensionContents->new(
       extname => $_[3],
@@ -1867,7 +1505,6 @@ sub got_AlterExtensionContentsStmt_4  {
       objname => $_[6],
    );
 }
-### AlterExtensionContentsStmt_5 : ALTER EXTENSION name add_drop DOMAIN any_name
 sub got_AlterExtensionContentsStmt_5  {
    return SQL::Translator::Statement::AlterExtensionContents->new(
       extname => $_[3],
@@ -1876,7 +1513,6 @@ sub got_AlterExtensionContentsStmt_5  {
       objname => $_[6],
    );
 }
-### AlterExtensionContentsStmt_6 : ALTER EXTENSION name add_drop FUNCTION function_with_argtypes
 sub got_AlterExtensionContentsStmt_6  {
    return SQL::Translator::Statement::AlterExtensionContents->new(
       extname => $_[3],
@@ -1886,7 +1522,6 @@ sub got_AlterExtensionContentsStmt_6  {
       objargs => $_[6]->funcargs,
    );
 }
-### AlterExtensionContentsStmt_7 : ALTER EXTENSION name add_drop opt_procedural LANGUAGE name
 sub got_AlterExtensionContentsStmt_7  {
    return SQL::Translator::Statement::AlterExtensionContents->new(
       extname => $_[3],
@@ -1895,7 +1530,6 @@ sub got_AlterExtensionContentsStmt_7  {
       objname => $_[0]->lappend($_[7]),
    );
 }
-### AlterExtensionContentsStmt_8 : ALTER EXTENSION name add_drop OPERATOR any_operator oper_argtypes
 sub got_AlterExtensionContentsStmt_8  {
    return SQL::Translator::Statement::AlterExtensionContents->new(
       extname => $_[3],
@@ -1905,7 +1539,6 @@ sub got_AlterExtensionContentsStmt_8  {
       objargs => $_[7],
    );
 }
-### AlterExtensionContentsStmt_9 : ALTER EXTENSION name add_drop OPERATOR CLASS any_name USING access_method
 sub got_AlterExtensionContentsStmt_9  {
    return SQL::Translator::Statement::AlterExtensionContents->new(
       extname => $_[3],
@@ -1915,7 +1548,6 @@ sub got_AlterExtensionContentsStmt_9  {
       objargs => $_[0]->lappend($_[9]),
    );
 }
-### AlterExtensionContentsStmt_10: ALTER EXTENSION name add_drop OPERATOR FAMILY any_name USING access_method
 sub got_AlterExtensionContentsStmt_10 {
    return SQL::Translator::Statement::AlterExtensionContents->new(
       extname => $_[3],
@@ -1925,7 +1557,6 @@ sub got_AlterExtensionContentsStmt_10 {
       objargs => $_[0]->lappend($_[9]),
    );
 }
-### AlterExtensionContentsStmt_11: ALTER EXTENSION name add_drop SCHEMA name
 sub got_AlterExtensionContentsStmt_11 {
    return SQL::Translator::Statement::AlterExtensionContents->new(
       extname => $_[3],
@@ -1934,7 +1565,6 @@ sub got_AlterExtensionContentsStmt_11 {
       objname => $_[0]->lappend($_[6]),
    );
 }
-### AlterExtensionContentsStmt_12: ALTER EXTENSION name add_drop TABLE any_name
 sub got_AlterExtensionContentsStmt_12 {
    return SQL::Translator::Statement::AlterExtensionContents->new(
       extname => $_[3],
@@ -1943,7 +1573,6 @@ sub got_AlterExtensionContentsStmt_12 {
       objname => $_[6],
    );
 }
-### AlterExtensionContentsStmt_13: ALTER EXTENSION name add_drop EVENT TRIGGER name
 sub got_AlterExtensionContentsStmt_13 {
    return SQL::Translator::Statement::AlterExtensionContents->new(
       extname => $_[3],
@@ -1952,7 +1581,6 @@ sub got_AlterExtensionContentsStmt_13 {
       objname => $_[0]->lappend($_[7]),
    );
 }
-### AlterExtensionContentsStmt_14: ALTER EXTENSION name add_drop TEXT SEARCH PARSER any_name
 sub got_AlterExtensionContentsStmt_14 {
    return SQL::Translator::Statement::AlterExtensionContents->new(
       extname => $_[3],
@@ -1961,7 +1589,6 @@ sub got_AlterExtensionContentsStmt_14 {
       objname => $_[8],
    );
 }
-### AlterExtensionContentsStmt_15: ALTER EXTENSION name add_drop TEXT SEARCH DICTIONARY any_name
 sub got_AlterExtensionContentsStmt_15 {
    return SQL::Translator::Statement::AlterExtensionContents->new(
       extname => $_[3],
@@ -1970,7 +1597,6 @@ sub got_AlterExtensionContentsStmt_15 {
       objname => $_[8],
    );
 }
-### AlterExtensionContentsStmt_16: ALTER EXTENSION name add_drop TEXT SEARCH TEMPLATE any_name
 sub got_AlterExtensionContentsStmt_16 {
    return SQL::Translator::Statement::AlterExtensionContents->new(
       extname => $_[3],
@@ -1979,7 +1605,6 @@ sub got_AlterExtensionContentsStmt_16 {
       objname => $_[8],
    );
 }
-### AlterExtensionContentsStmt_17: ALTER EXTENSION name add_drop TEXT SEARCH CONFIGURATION any_name
 sub got_AlterExtensionContentsStmt_17 {
    return SQL::Translator::Statement::AlterExtensionContents->new(
       extname => $_[3],
@@ -1988,7 +1613,6 @@ sub got_AlterExtensionContentsStmt_17 {
       objname => $_[8],
    );
 }
-### AlterExtensionContentsStmt_18: ALTER EXTENSION name add_drop SEQUENCE any_name
 sub got_AlterExtensionContentsStmt_18 {
    return SQL::Translator::Statement::AlterExtensionContents->new(
       extname => $_[3],
@@ -1997,7 +1621,6 @@ sub got_AlterExtensionContentsStmt_18 {
       objname => $_[6],
    );
 }
-### AlterExtensionContentsStmt_19: ALTER EXTENSION name add_drop VIEW any_name
 sub got_AlterExtensionContentsStmt_19 {
    return SQL::Translator::Statement::AlterExtensionContents->new(
       extname => $_[3],
@@ -2006,7 +1629,6 @@ sub got_AlterExtensionContentsStmt_19 {
       objname => $_[6],
    );
 }
-### AlterExtensionContentsStmt_20: ALTER EXTENSION name add_drop FOREIGN TABLE any_name
 sub got_AlterExtensionContentsStmt_20 {
    return SQL::Translator::Statement::AlterExtensionContents->new(
       extname => $_[3],
@@ -2015,7 +1637,6 @@ sub got_AlterExtensionContentsStmt_20 {
       objname => $_[7],
    );
 }
-### AlterExtensionContentsStmt_21: ALTER EXTENSION name add_drop FOREIGN DATA WRAPPER name
 sub got_AlterExtensionContentsStmt_21 {
    return SQL::Translator::Statement::AlterExtensionContents->new(
       extname => $_[3],
@@ -2024,7 +1645,6 @@ sub got_AlterExtensionContentsStmt_21 {
       objname => $_[0]->lappend($_[8]),
    );
 }
-### AlterExtensionContentsStmt_22: ALTER EXTENSION name add_drop SERVER name
 sub got_AlterExtensionContentsStmt_22 {
    return SQL::Translator::Statement::AlterExtensionContents->new(
       extname => $_[3],
@@ -2033,7 +1653,6 @@ sub got_AlterExtensionContentsStmt_22 {
       objname => $_[0]->lappend($_[6]),
    );
 }
-### AlterExtensionContentsStmt_23: ALTER EXTENSION name add_drop TYPE any_name
 sub got_AlterExtensionContentsStmt_23 {
    return SQL::Translator::Statement::AlterExtensionContents->new(
       extname => $_[3],
@@ -2042,7 +1661,6 @@ sub got_AlterExtensionContentsStmt_23 {
       objname => $_[6],
    );
 }
-### CreateFdwStmt: CREATE FOREIGN DATA WRAPPER name opt_fdw_options create_generic_options
 sub got_CreateFdwStmt {
    return SQL::Translator::Statement::CreateFdw->new(
       fdwname      => $_[5],
@@ -2050,19 +1668,12 @@ sub got_CreateFdwStmt {
       options      => $_[7],
    );
 }
-### fdw_option_1: HANDLER handler_name
 sub got_fdw_option_1 { $_[0]->makeDefElem("handler",   $_[2]) }
-### fdw_option_2: NO HANDLER
 sub got_fdw_option_2 { $_[0]->makeDefElem("handler",   NULL)  }
-### fdw_option_3: VALIDATOR handler_name
 sub got_fdw_option_3 { $_[0]->makeDefElem("validator", $_[2]) }
-### fdw_option_4: NO VALIDATOR
 sub got_fdw_option_4 { $_[0]->makeDefElem("validator", NULL)  }
-### fdw_options: fdw_option+ % ~
 sub got_fdw_options { $_[0]->lappend($_[1], $_[2]) }
-### opt_fdw_options: fdw_options
 sub got_opt_fdw_options { $_[1] }
-### DropFdwStmt_1: DROP FOREIGN DATA WRAPPER name opt_drop_behavior
 sub got_DropFdwStmt_1 {
    return SQL::Translator::Statement::Drop->new(
       removeType => OBJECT_FDW,
@@ -2073,7 +1684,6 @@ sub got_DropFdwStmt_1 {
       concurrent => FALSE,
    );
 }
-### DropFdwStmt_2: DROP FOREIGN DATA WRAPPER IF EXISTS name opt_drop_behavior
 sub got_DropFdwStmt_2 {
    return SQL::Translator::Statement::Drop->new(
       removeType => OBJECT_FDW,
@@ -2084,7 +1694,6 @@ sub got_DropFdwStmt_2 {
       concurrent => FALSE,
    );
 }
-### AlterFdwStmt_1: ALTER FOREIGN DATA WRAPPER name opt_fdw_options alter_generic_options
 sub got_AlterFdwStmt_1 {
    return SQL::Translator::Statement::AlterFdw->new(
       fdwname      => $_[5],
@@ -2092,7 +1701,6 @@ sub got_AlterFdwStmt_1 {
       options      => $_[7],
    );
 }
-### AlterFdwStmt_2: ALTER FOREIGN DATA WRAPPER name fdw_options
 sub got_AlterFdwStmt_2 {
    return SQL::Translator::Statement::AlterFdw->new(
       fdwname      => $_[5],
@@ -2100,29 +1708,17 @@ sub got_AlterFdwStmt_2 {
       options      => NIL,
    );
 }
-### create_generic_options: OPTIONS  ~ <C_LPAREN> ~  generic_option_list  ~ <C_RPAREN> ~ 
 sub got_create_generic_options { $_[3] }
-### generic_option_list: generic_option_elem+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_generic_option_list { $_[0]->lappend($_[1], $_[3]) }
-### alter_generic_options: OPTIONS  ~ <C_LPAREN> ~  alter_generic_option_list  ~ <C_RPAREN> ~ 
 sub got_alter_generic_options { $_[3] }
-### alter_generic_option_list: alter_generic_option_elem+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_alter_generic_option_list { $_[0]->lappend($_[1], $_[3]) }
-### alter_generic_option_elem_1: generic_option_elem
 sub got_alter_generic_option_elem_1 { $_[1] }
-### alter_generic_option_elem_2: SET generic_option_elem
 sub got_alter_generic_option_elem_2 { $_[2]->defaction(DEFELEM_SET); $_[2]; }
-### alter_generic_option_elem_3: ADD generic_option_elem
 sub got_alter_generic_option_elem_3 { $_[2]->defaction(DEFELEM_ADD); $_[2]; }
-### alter_generic_option_elem_4: DROP generic_option_name
 sub got_alter_generic_option_elem_4 { $_[0]->makeDefElemExtended(NULL, $_[2], NULL, DEFELEM_DROP) }
-### generic_option_elem: generic_option_name generic_option_arg
 sub got_generic_option_elem { $_[0]->makeDefElem($_[1], $_[2]) }
-### generic_option_name: ColLabel
 sub got_generic_option_name { $_[1] }
-### generic_option_arg: Sconst
 sub got_generic_option_arg { $_[1] }
-### CreateForeignServerStmt: CREATE SERVER name opt_type opt_foreign_server_version FOREIGN DATA WRAPPER name create_generic_options
 sub got_CreateForeignServerStmt {
    return SQL::Translator::Statement::CreateForeignServer->new(
       servername => $_[3],
@@ -2132,15 +1728,10 @@ sub got_CreateForeignServerStmt {
       options    => $_[10],
    );
 }
-### opt_type: TYPE Sconst
 sub got_opt_type { $_[2] }
-### foreign_server_version_1: VERSION Sconst
 sub got_foreign_server_version_1 { $_[2] }
-### foreign_server_version_2: VERSION NULL
 sub got_foreign_server_version_2 { NULL  }
-### opt_foreign_server_version: foreign_server_version
 sub got_opt_foreign_server_version { $_[1] }
-### DropForeignServerStmt_1: DROP SERVER name opt_drop_behavior
 sub got_DropForeignServerStmt_1 {
    return SQL::Translator::Statement::Drop->new(
       removeType => OBJECT_FOREIGN_SERVER,
@@ -2151,7 +1742,6 @@ sub got_DropForeignServerStmt_1 {
       concurrent => FALSE,
    );
 }
-### DropForeignServerStmt_2: DROP SERVER IF EXISTS name opt_drop_behavior
 sub got_DropForeignServerStmt_2 {
    return SQL::Translator::Statement::Drop->new(
       removeType => OBJECT_FOREIGN_SERVER,
@@ -2162,7 +1752,6 @@ sub got_DropForeignServerStmt_2 {
       concurrent => FALSE,
    );
 }
-### AlterForeignServerStmt_1: ALTER SERVER name foreign_server_version alter_generic_options
 sub got_AlterForeignServerStmt_1 {
    return SQL::Translator::Statement::AlterForeignServer->new(
       servername  => $_[3],
@@ -2171,7 +1760,6 @@ sub got_AlterForeignServerStmt_1 {
       has_version => TRUE,
    );
 }
-### AlterForeignServerStmt_2: ALTER SERVER name foreign_server_version
 sub got_AlterForeignServerStmt_2 {
    return SQL::Translator::Statement::AlterForeignServer->new(
       servername  => $_[3],
@@ -2179,14 +1767,12 @@ sub got_AlterForeignServerStmt_2 {
       has_version => TRUE,
    );
 }
-### AlterForeignServerStmt_3: ALTER SERVER name alter_generic_options
 sub got_AlterForeignServerStmt_3 {
    return SQL::Translator::Statement::AlterForeignServer->new(
       servername => $_[3],
       options    => $_[4],
    );
 }
-### CreateForeignTableStmt_1: CREATE FOREIGN TABLE qualified_name OptForeignTableElementList SERVER name create_generic_options
 sub got_CreateForeignTableStmt_1 {
    $_[4]->relpersistence(RELPERSISTENCE_PERMANENT);
    return SQL::Translator::Statement::CreateForeignTable->new(
@@ -2199,7 +1785,6 @@ sub got_CreateForeignTableStmt_1 {
       options            => $_[8],
    );
 }
-### CreateForeignTableStmt_2: CREATE FOREIGN TABLE IF NOT EXISTS qualified_name OptForeignTableElementList SERVER name create_generic_options
 sub got_CreateForeignTableStmt_2 {
    $_[7]->relpersistence(RELPERSISTENCE_PERMANENT);
    return SQL::Translator::Statement::CreateForeignTable->new(
@@ -2212,15 +1797,10 @@ sub got_CreateForeignTableStmt_2 {
       options            => $_[11],
    );
 }
-### OptForeignTableElementList_1:  ~ <C_LPAREN> ~  ForeignTableElementList  ~ <C_RPAREN> ~ 
 sub got_OptForeignTableElementList_1 { $_[2] }
-### OptForeignTableElementList_2:  ~ <C_LPAREN> ~   ~ <C_RPAREN> ~ 
 sub got_OptForeignTableElementList_2 { NIL   }
-### ForeignTableElementList: ForeignTableElement+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_ForeignTableElementList { $_[0]->lappend($_[1], $_[3]) }
-### ForeignTableElement: columnDef
 sub got_ForeignTableElement { $_[1] }
-### AlterForeignTableStmt_1: ALTER FOREIGN TABLE relation_expr alter_table_cmds
 sub got_AlterForeignTableStmt_1 {
    return SQL::Translator::Statement::AlterTable->new(
       relation   => $_[4],
@@ -2229,7 +1809,6 @@ sub got_AlterForeignTableStmt_1 {
       missing_ok => FALSE,
    );
 }
-### AlterForeignTableStmt_2: ALTER FOREIGN TABLE IF EXISTS relation_expr alter_table_cmds
 sub got_AlterForeignTableStmt_2 {
    return SQL::Translator::Statement::AlterTable->new(
       relation   => $_[6],
@@ -2238,7 +1817,6 @@ sub got_AlterForeignTableStmt_2 {
       missing_ok => TRUE,
    );
 }
-### CreateUserMappingStmt: CREATE USER MAPPING FOR auth_ident SERVER name create_generic_options
 sub got_CreateUserMappingStmt {
    return SQL::Translator::Statement::CreateUserMapping->new(
       username   => $_[5],
@@ -2246,13 +1824,9 @@ sub got_CreateUserMappingStmt {
       options    => $_[8],
    );
 }
-### auth_ident_1: CURRENT_USER
 sub got_auth_ident_1 { "current_user" }
-### auth_ident_2: USER
 sub got_auth_ident_2 { "current_user" }
-### auth_ident_3: RoleId
 sub got_auth_ident_3 { ($_[1] eq "public") ? NULL : $_[1] }
-### DropUserMappingStmt_1: DROP USER MAPPING FOR auth_ident SERVER name
 sub got_DropUserMappingStmt_1 {
    return SQL::Translator::Statement::DropUserMapping->new(
       username   => $_[5],
@@ -2260,7 +1834,6 @@ sub got_DropUserMappingStmt_1 {
       missing_ok => FALSE,
    );
 }
-### DropUserMappingStmt_2: DROP USER MAPPING IF EXISTS FOR auth_ident SERVER name
 sub got_DropUserMappingStmt_2 {
    return SQL::Translator::Statement::DropUserMapping->new(
       username   => $_[7],
@@ -2268,7 +1841,6 @@ sub got_DropUserMappingStmt_2 {
       missing_ok => TRUE,
    );
 }
-### AlterUserMappingStmt: ALTER USER MAPPING FOR auth_ident SERVER name alter_generic_options
 sub got_AlterUserMappingStmt {
    return SQL::Translator::Statement::AlterUserMapping->new(
       username   => $_[5],
@@ -2276,7 +1848,6 @@ sub got_AlterUserMappingStmt {
       options    => $_[8],
    );
 }
-### CreateTrigStmt_1: CREATE TRIGGER name TriggerActionTime TriggerEvents ON qualified_name TriggerForSpec TriggerWhen EXECUTE PROCEDURE func_name  ~ <C_LPAREN> ~  TriggerFuncArgs  ~ <C_RPAREN> ~ 
 sub got_CreateTrigStmt_1 {
    return SQL::Translator::Statement::CreateTrig->new(
       trigname      => $_[3],
@@ -2294,7 +1865,6 @@ sub got_CreateTrigStmt_1 {
       constrrel     => NULL,
    );
 }
-### CreateTrigStmt_2: CREATE CONSTRAINT TRIGGER name AFTER TriggerEvents ON qualified_name OptConstrFromTable ConstraintAttributeSpec FOR EACH ROW TriggerWhen EXECUTE PROCEDURE func_name  ~ <C_LPAREN> ~  TriggerFuncArgs  ~ <C_RPAREN> ~ 
 sub got_CreateTrigStmt_2 {
    my $n = SQL::Translator::Statement::CreateTrig->new(
       trigname      => $_[4],
@@ -2312,13 +1882,9 @@ sub got_CreateTrigStmt_2 {
    $_[0]->processCASbits($_[10], $_[0]->YYLLoc($_[10], 10), "TRIGGER", $n, 1,1,0,0);
    return $n;
 }
-### TriggerActionTime_1: BEFORE
 sub got_TriggerActionTime_1 { TRIGGER_TYPE_BEFORE }
-### TriggerActionTime_2: AFTER
 sub got_TriggerActionTime_2 { TRIGGER_TYPE_AFTER }
-### TriggerActionTime_3: INSTEAD OF
 sub got_TriggerActionTime_3 { TRIGGER_TYPE_INSTEAD }
-### TriggerEvents: TriggerOneEvent+ % / ~ OR ~ /
 sub got_TriggerEvents {
    my $events1 = $_[1]->[0];
    my $events2 = $_[3]->[0];
@@ -2334,41 +1900,23 @@ sub got_TriggerEvents {
    #* should just ignore the columns for non-UPDATE events.
    return [ ($events1 | $events2), @columns1, @columns2 ];
 }
-### TriggerOneEvent_1: INSERT
 sub got_TriggerOneEvent_1 { $_[0]->lappend(TRIGGER_TYPE_INSERT,   NIL)   }
-### TriggerOneEvent_2: DELETE
 sub got_TriggerOneEvent_2 { $_[0]->lappend(TRIGGER_TYPE_DELETE,   NIL)   }
-### TriggerOneEvent_3: UPDATE
 sub got_TriggerOneEvent_3 { $_[0]->lappend(TRIGGER_TYPE_UPDATE,   NIL)   }
-### TriggerOneEvent_4: UPDATE OF columnList
 sub got_TriggerOneEvent_4 { $_[0]->lappend(TRIGGER_TYPE_UPDATE,   $_[3]) }
-### TriggerOneEvent_5: TRUNCATE
 sub got_TriggerOneEvent_5 { $_[0]->lappend(TRIGGER_TYPE_TRUNCATE, NIL)   }
-### TriggerForSpec: FOR TriggerForOptEach TriggerForType
 sub got_TriggerForSpec { $_[3] }
-### TriggerForOptEach: EACH
 sub got_TriggerForOptEach {}
-### TriggerForType_1: ROW
 sub got_TriggerForType_1 { TRUE  }
-### TriggerForType_2: STATEMENT
 sub got_TriggerForType_2 { FALSE }
-### TriggerWhen: WHEN  ~ <C_LPAREN> ~  a_expr  ~ <C_RPAREN> ~ 
 sub got_TriggerWhen { $_[3] }
-### TriggerFuncArgs_1: TriggerFuncArg
 sub got_TriggerFuncArgs_1 { $_[0]->lappend($_[1])        }
-### TriggerFuncArgs_2: TriggerFuncArg* % / ~  ~ <C_COMMA> ~  ~ /
 sub got_TriggerFuncArgs_2 { $_[0]->lappend($_[1], $_[3]) }
-### TriggerFuncArg_1: Iconst
 sub got_TriggerFuncArg_1 { $_[1] }
-### TriggerFuncArg_2: FCONST
 sub got_TriggerFuncArg_2 { $_[1] }
-### TriggerFuncArg_3: Sconst
 sub got_TriggerFuncArg_3 { $_[1] }
-### TriggerFuncArg_4: ColLabel
 sub got_TriggerFuncArg_4 { $_[1] }
-### OptConstrFromTable: FROM qualified_name
 sub got_OptConstrFromTable { $_[2] }
-### ConstraintAttributeSpec: ConstraintAttributeElem* % ~
 sub got_ConstraintAttributeSpec {
    #* We must complain about conflicting options.
    #* We could, but choose not to, complain about redundant
@@ -2390,19 +1938,12 @@ sub got_ConstraintAttributeSpec {
              $_[0]->YYLLoc($_[2], 2));
    return $newspec;
 }
-### ConstraintAttributeElem_1: NOT DEFERRABLE
 sub got_ConstraintAttributeElem_1 { CAS_NOT_DEFERRABLE      }
-### ConstraintAttributeElem_2: DEFERRABLE
 sub got_ConstraintAttributeElem_2 { CAS_DEFERRABLE          }
-### ConstraintAttributeElem_3: INITIALLY IMMEDIATE
 sub got_ConstraintAttributeElem_3 { CAS_INITIALLY_IMMEDIATE }
-### ConstraintAttributeElem_4: INITIALLY DEFERRED
 sub got_ConstraintAttributeElem_4 { CAS_INITIALLY_DEFERRED  }
-### ConstraintAttributeElem_5: NOT VALID
 sub got_ConstraintAttributeElem_5 { CAS_NOT_VALID           }
-### ConstraintAttributeElem_6: NO INHERIT
 sub got_ConstraintAttributeElem_6 { CAS_NO_INHERIT          }
-### DropTrigStmt_1: DROP TRIGGER name ON qualified_name opt_drop_behavior
 sub got_DropTrigStmt_1 {
    return SQL::Translator::Statement::Drop->new(
       removeType => OBJECT_TRIGGER,
@@ -2413,7 +1954,6 @@ sub got_DropTrigStmt_1 {
       concurrent => FALSE,
    );
 }
-### DropTrigStmt_2: DROP TRIGGER IF EXISTS name ON qualified_name opt_drop_behavior
 sub got_DropTrigStmt_2 {
    return SQL::Translator::Statement::Drop->new(
       removeType => OBJECT_TRIGGER,
@@ -2424,7 +1964,6 @@ sub got_DropTrigStmt_2 {
       concurrent => FALSE,
    );
 }
-### CreateEventTrigStmt_1: CREATE EVENT TRIGGER name ON ColLabel EXECUTE PROCEDURE func_name  ~ <C_LPAREN> ~   ~ <C_RPAREN> ~ 
 sub got_CreateEventTrigStmt_1 {
    return SQL::Translator::Statement::CreateEventTrig->new(
       trigname   => $_[4],
@@ -2433,7 +1972,6 @@ sub got_CreateEventTrigStmt_1 {
       funcname   => $_[9],
    );
 }
-### CreateEventTrigStmt_2: CREATE EVENT TRIGGER name ON ColLabel WHEN event_trigger_when_list EXECUTE PROCEDURE func_name  ~ <C_LPAREN> ~   ~ <C_RPAREN> ~ 
 sub got_CreateEventTrigStmt_2 {
    return SQL::Translator::Statement::CreateEventTrig->new(
       trigname   => $_[4],
@@ -2442,28 +1980,19 @@ sub got_CreateEventTrigStmt_2 {
       funcname   => $_[11],
    );
 }
-### event_trigger_when_list: event_trigger_when_item+ % / ~ AND ~ /
 sub got_event_trigger_when_list { $_[0]->lappend($_[1], $_[3]) }
-### event_trigger_when_item: ColId IN  ~ <C_LPAREN> ~  event_trigger_value_list  ~ <C_RPAREN> ~ 
 sub got_event_trigger_when_item { $_[0]->makeDefElem($_[1], $_[4]) }
-### event_trigger_value_list: SCONST+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_event_trigger_value_list { $_[0]->lappend($_[1], $_[3]) }
-### AlterEventTrigStmt: ALTER EVENT TRIGGER name enable_trigger
 sub got_AlterEventTrigStmt {
    return SQL::Translator::Statement::AlterEventTrig->new(
       trigname   => $_[4],
       tgenabled  => $_[5],
    );
 }
-### enable_trigger_1: ENABLE
 sub got_enable_trigger_1 { TRIGGER_FIRES_ON_ORIGIN }
-### enable_trigger_2: ENABLE REPLICA
 sub got_enable_trigger_2 { TRIGGER_FIRES_ON_REPLICA }
-### enable_trigger_3: ENABLE ALWAYS
 sub got_enable_trigger_3 { TRIGGER_FIRES_ALWAYS }
-### enable_trigger_4: DISABLE
 sub got_enable_trigger_4 { TRIGGER_DISABLED }
-### CreateAssertStmt: CREATE ASSERTION name CHECK  ~ <C_LPAREN> ~  a_expr  ~ <C_RPAREN> ~  ConstraintAttributeSpec
 sub got_CreateAssertStmt {
    my $n = SQL::Translator::Statement::CreateTrig->new(
       trigname     => $_[3],
@@ -2473,7 +2002,6 @@ sub got_CreateAssertStmt {
    $_[0]->processCASbits($_[8], $_[0]->YYLLoc($_[8], 8), "ASSERTION", $n, 1,1,0,0);
    return $n;
 }
-### DropAssertStmt: DROP ASSERTION name opt_drop_behavior
 sub got_DropAssertStmt {
    return SQL::Translator::Statement::Drop->new(
       objects    => [ [ $_[3] ] ],
@@ -2482,7 +2010,6 @@ sub got_DropAssertStmt {
       removeType => OBJECT_TRIGGER,  #* XXX
    );
 }
-### DefineStmt_1 : CREATE AGGREGATE func_name aggr_args definition
 sub got_DefineStmt_1  {
    return SQL::Translator::Statement::Define->new(
       kind       => OBJECT_AGGREGATE,
@@ -2493,7 +2020,6 @@ sub got_DefineStmt_1  {
    );
 }
 # old-style (pre-8.2) syntax for CREATE AGGREGATE
-### DefineStmt_2 : CREATE AGGREGATE func_name old_aggr_definition
 sub got_DefineStmt_2  {
    return SQL::Translator::Statement::Define->new(
       kind       => OBJECT_AGGREGATE,
@@ -2503,7 +2029,6 @@ sub got_DefineStmt_2  {
       definition => $_[4],
    );
 }
-### DefineStmt_3 : CREATE OPERATOR any_operator definition
 sub got_DefineStmt_3  {
    return SQL::Translator::Statement::Define->new(
       kind       => OBJECT_OPERATOR,
@@ -2513,7 +2038,6 @@ sub got_DefineStmt_3  {
       definition => $_[4],
    );
 }
-### DefineStmt_4 : CREATE TYPE any_name definition
 sub got_DefineStmt_4  {
    return SQL::Translator::Statement::Define->new(
       kind       => OBJECT_TYPE,
@@ -2524,7 +2048,6 @@ sub got_DefineStmt_4  {
    );
 }
 # Shell type (identified by lack of definition)
-### DefineStmt_5 : CREATE TYPE any_name
 sub got_DefineStmt_5  {
    return SQL::Translator::Statement::Define->new(
       kind       => OBJECT_TYPE,
@@ -2534,7 +2057,6 @@ sub got_DefineStmt_5  {
       definition => NIL,
    );
 }
-### DefineStmt_6 : CREATE TYPE any_name AS  ~ <C_LPAREN> ~  OptTableFuncElementList  ~ <C_RPAREN> ~ 
 sub got_DefineStmt_6  {
    return SQL::Translator::Statement::CompositeType->new(
       #* can't use qualified_name, sigh
@@ -2542,21 +2064,18 @@ sub got_DefineStmt_6  {
       coldeflist => $_[6],
    );
 }
-### DefineStmt_7 : CREATE TYPE any_name AS ENUM  ~ <C_LPAREN> ~  opt_enum_val_list  ~ <C_RPAREN> ~ 
 sub got_DefineStmt_7  {
    return SQL::Translator::Statement::CreateEnum->new(
       typeName => $_[3],
       vals     => $_[7],
    );
 }
-### DefineStmt_8 : CREATE TYPE any_name AS RANGE definition
 sub got_DefineStmt_8  {
    return SQL::Translator::Statement::CreateRange->new(
       typeName => $_[3],
       params   => $_[6],
    );
 }
-### DefineStmt_9 : CREATE TEXT SEARCH PARSER any_name definition
 sub got_DefineStmt_9  {
    return SQL::Translator::Statement::Define->new(
       kind       => OBJECT_TSPARSER,
@@ -2565,7 +2084,6 @@ sub got_DefineStmt_9  {
       definition => $_[6],
    );
 }
-### DefineStmt_10: CREATE TEXT SEARCH DICTIONARY any_name definition
 sub got_DefineStmt_10 {
    return SQL::Translator::Statement::Define->new(
       kind       => OBJECT_TSDICTIONARY,
@@ -2574,7 +2092,6 @@ sub got_DefineStmt_10 {
       definition => $_[6],
    );
 }
-### DefineStmt_11: CREATE TEXT SEARCH TEMPLATE any_name definition
 sub got_DefineStmt_11 {
    return SQL::Translator::Statement::Define->new(
       kind       => OBJECT_TSTEMPLATE,
@@ -2583,7 +2100,6 @@ sub got_DefineStmt_11 {
       definition => $_[6],
    );
 }
-### DefineStmt_12: CREATE TEXT SEARCH CONFIGURATION any_name definition
 sub got_DefineStmt_12 {
    return SQL::Translator::Statement::Define->new(
       kind       => OBJECT_TSCONFIGURATION,
@@ -2592,7 +2108,6 @@ sub got_DefineStmt_12 {
       definition => $_[6],
    );
 }
-### DefineStmt_13: CREATE COLLATION any_name definition
 sub got_DefineStmt_13 {
    return SQL::Translator::Statement::Define->new(
       kind       => OBJECT_COLLATION,
@@ -2601,7 +2116,6 @@ sub got_DefineStmt_13 {
       definition => $_[4],
    );
 }
-### DefineStmt_14: CREATE COLLATION any_name FROM any_name
 sub got_DefineStmt_14 {
    return SQL::Translator::Statement::Define->new(
       kind       => OBJECT_COLLATION,
@@ -2610,39 +2124,22 @@ sub got_DefineStmt_14 {
       definition => $_[0]->lappend($_[0]->makeDefElem("from",  $_[5])),
    );
 }
-### definition:  ~ <C_LPAREN> ~  def_list  ~ <C_RPAREN> ~ 
 sub got_definition { $_[2] }
-### def_list: def_elem+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_def_list { $_[0]->lappend($_[1], $_[3]) }
-### def_elem_1: ColLabel  ~ <C_EQUAL> ~  def_arg
 sub got_def_elem_1 { $_[0]->makeDefElem($_[1],  $_[3]) }
-### def_elem_2: ColLabel
 sub got_def_elem_2 { $_[0]->makeDefElem($_[1], NULL)   }
-### def_arg_1: func_type
 sub got_def_arg_1 { $_[1] }
-### def_arg_2: reserved_keyword
 sub got_def_arg_2 { $_[1] }
-### def_arg_3: qual_all_Op
 sub got_def_arg_3 { $_[1] }
-### def_arg_4: NumericOnly
 sub got_def_arg_4 { $_[1] }
-### def_arg_5: Sconst
 sub got_def_arg_5 { $_[1] }
-### aggr_args_1:  ~ <C_LPAREN> ~  type_list  ~ <C_RPAREN> ~ 
 sub got_aggr_args_1 { $_[2] }
-### aggr_args_2:  ~ <C_LPAREN> ~   ~ <C_STAR> ~   ~ <C_RPAREN> ~ 
 sub got_aggr_args_2 { NIL   }
-### old_aggr_definition:  ~ <C_LPAREN> ~  old_aggr_list  ~ <C_RPAREN> ~ 
 sub got_old_aggr_definition { $_[2] }
-### old_aggr_list: old_aggr_elem+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_old_aggr_list { $_[0]->lappend($_[1], $_[3]) }
-### old_aggr_elem: IDENT  ~ <C_EQUAL> ~  def_arg
 sub got_old_aggr_elem { $_[0]->makeDefElem($_[1], $_[3]) }
-### opt_enum_val_list: enum_val_list
 sub got_opt_enum_val_list { $_[1] }
-### enum_val_list: Sconst+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_enum_val_list { $_[0]->lappend($_[1], $_[3]) }
-### AlterEnumStmt_1: ALTER TYPE any_name ADD VALUE Sconst
 sub got_AlterEnumStmt_1 {
    return SQL::Translator::Statement::AlterEnum->new(
       typeName       => $_[3],
@@ -2651,7 +2148,6 @@ sub got_AlterEnumStmt_1 {
       newValIsAfter  => TRUE,
    );
 }
-### AlterEnumStmt_2: ALTER TYPE any_name ADD VALUE Sconst BEFORE Sconst
 sub got_AlterEnumStmt_2 {
    return SQL::Translator::Statement::AlterEnum->new(
       typeName       => $_[3],
@@ -2660,7 +2156,6 @@ sub got_AlterEnumStmt_2 {
       newValIsAfter  => FALSE,
    );
 }
-### AlterEnumStmt_3: ALTER TYPE any_name ADD VALUE Sconst AFTER Sconst
 sub got_AlterEnumStmt_3 {
    return SQL::Translator::Statement::AlterEnum->new(
       typeName       => $_[3],
@@ -2669,7 +2164,6 @@ sub got_AlterEnumStmt_3 {
       newValIsAfter  => TRUE,
    );
 }
-### CreateOpClassStmt: CREATE OPERATOR CLASS any_name opt_default FOR TYPE Typename USING access_method opt_opfamily AS opclass_item_list
 sub got_CreateOpClassStmt {
    return SQL::Translator::Statement::CreateOpClass->new(
       opclassname  => $_[4],
@@ -2680,9 +2174,7 @@ sub got_CreateOpClassStmt {
       items        => $_[13],
    );
 }
-### opclass_item_list: opclass_item+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_opclass_item_list { $_[0]->lappend($_[1], $_[3]) }
-### opclass_item_1: OPERATOR Iconst any_operator opclass_purpose opt_recheck
 sub got_opclass_item_1 {
    return SQL::Translator::Statement::CreateOpClass::Item->new(
       itemtype     => OPCLASS_ITEM_OPERATOR,
@@ -2692,7 +2184,6 @@ sub got_opclass_item_1 {
       order_family => $_[4],
    );
 }
-### opclass_item_2: OPERATOR Iconst any_operator oper_argtypes opclass_purpose opt_recheck
 sub got_opclass_item_2 {
    return SQL::Translator::Statement::CreateOpClass::Item->new(
       itemtype     => OPCLASS_ITEM_OPERATOR,
@@ -2702,7 +2193,6 @@ sub got_opclass_item_2 {
       order_family => $_[5],
    );
 }
-### opclass_item_3: FUNCTION Iconst func_name func_args
 sub got_opclass_item_3 {
    return SQL::Translator::Statement::CreateOpClass::Item->new(
       itemtype     => OPCLASS_ITEM_FUNCTION,
@@ -2711,7 +2201,6 @@ sub got_opclass_item_3 {
       number       => $_[2],
    );
 }
-### opclass_item_4: FUNCTION Iconst  ~ <C_LPAREN> ~  type_list  ~ <C_RPAREN> ~  func_name func_args
 sub got_opclass_item_4 {
    return SQL::Translator::Statement::CreateOpClass::Item->new(
       itemtype     => OPCLASS_ITEM_FUNCTION,
@@ -2721,31 +2210,23 @@ sub got_opclass_item_4 {
       class_args   => $_[4],
    );
 }
-### opclass_item_5: STORAGE Typename
 sub got_opclass_item_5 {
    return SQL::Translator::Statement::CreateOpClass::Item->new(
       itemtype     => OPCLASS_ITEM_STORAGETYPE,
       storedtype   => $_[2],
    );
 }
-### opt_default: DEFAULT
 sub got_opt_default { TRUE  }
-### opt_opfamily: FAMILY any_name
 sub got_opt_opfamily { $_[2] }
-### opclass_purpose_1: FOR SEARCH
 sub got_opclass_purpose_1 { NULL  }
-### opclass_purpose_2: FOR ORDER BY any_name
 sub got_opclass_purpose_2 { $_[4] }
-### opt_recheck: RECHECK
 sub got_opt_recheck { TRUE  }
-### CreateOpFamilyStmt: CREATE OPERATOR FAMILY any_name USING access_method
 sub got_CreateOpFamilyStmt {
    return SQL::Translator::Statement::CreateOpFamily->new(
       opfamilyname => $_[4],
       amname       => $_[6],
    );
 }
-### AlterOpFamilyStmt_1: ALTER OPERATOR FAMILY any_name USING access_method ADD opclass_item_list
 sub got_AlterOpFamilyStmt_1 {
    return SQL::Translator::Statement::AlterOpFamily->new(
       opfamilyname => $_[4],
@@ -2754,7 +2235,6 @@ sub got_AlterOpFamilyStmt_1 {
       items        => $_[8],
    );
 }
-### AlterOpFamilyStmt_2: ALTER OPERATOR FAMILY any_name USING access_method DROP opclass_drop_list
 sub got_AlterOpFamilyStmt_2 {
    return SQL::Translator::Statement::AlterOpFamily->new(
       opfamilyname => $_[4],
@@ -2763,9 +2243,7 @@ sub got_AlterOpFamilyStmt_2 {
       items        => $_[8],
    );
 }
-### opclass_drop_list: opclass_drop+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_opclass_drop_list { $_[0]->lappend($_[1], $_[3]) }
-### opclass_drop_1: OPERATOR Iconst  ~ <C_LPAREN> ~  type_list  ~ <C_RPAREN> ~ 
 sub got_opclass_drop_1 {
    return SQL::Translator::Statement::CreateOpClass::Item->new(
       itemtype => OPCLASS_ITEM_OPERATOR,
@@ -2773,7 +2251,6 @@ sub got_opclass_drop_1 {
       args     => $_[4],
    );
 }
-### opclass_drop_2: FUNCTION Iconst  ~ <C_LPAREN> ~  type_list  ~ <C_RPAREN> ~ 
 sub got_opclass_drop_2 {
    return SQL::Translator::Statement::CreateOpClass::Item->new(
       itemtype => OPCLASS_ITEM_FUNCTION,
@@ -2781,7 +2258,6 @@ sub got_opclass_drop_2 {
       args     => $_[4],
    );
 }
-### DropOpClassStmt_1: DROP OPERATOR CLASS any_name USING access_method opt_drop_behavior
 sub got_DropOpClassStmt_1 {
    return SQL::Translator::Statement::Drop->new(
       objects    => [ $_[4] ],
@@ -2792,7 +2268,6 @@ sub got_DropOpClassStmt_1 {
       concurrent => FALSE,
    );
 }
-### DropOpClassStmt_2: DROP OPERATOR CLASS IF EXISTS any_name USING access_method opt_drop_behavior
 sub got_DropOpClassStmt_2 {
    return SQL::Translator::Statement::Drop->new(
       objects    => [ $_[6] ],
@@ -2803,7 +2278,6 @@ sub got_DropOpClassStmt_2 {
       concurrent => FALSE,
    );
 }
-### DropOpFamilyStmt_1: DROP OPERATOR FAMILY any_name USING access_method opt_drop_behavior
 sub got_DropOpFamilyStmt_1 {
    return SQL::Translator::Statement::Drop->new(
       objects    => [ $_[4] ],
@@ -2814,7 +2288,6 @@ sub got_DropOpFamilyStmt_1 {
       concurrent => FALSE,
    );
 }
-### DropOpFamilyStmt_2: DROP OPERATOR FAMILY IF EXISTS any_name USING access_method opt_drop_behavior
 sub got_DropOpFamilyStmt_2 {
    return SQL::Translator::Statement::Drop->new(
       objects    => [ $_[6] ],
@@ -2825,21 +2298,18 @@ sub got_DropOpFamilyStmt_2 {
       concurrent => FALSE,
    );
 }
-### DropOwnedStmt: DROP OWNED BY name_list opt_drop_behavior
 sub got_DropOwnedStmt {
    return SQL::Translator::Statement::DropOwned->new(
       roles    => $_[4],
       behavior => $_[5],
    );
 }
-### ReassignOwnedStmt: REASSIGN OWNED BY name_list TO name
 sub got_ReassignOwnedStmt {
    return SQL::Translator::Statement::ReassignOwned->new(
       roles    => $_[4],
       newrole  => $_[6],
    );
 }
-### DropStmt_1: DROP drop_type IF EXISTS any_name_list opt_drop_behavior
 sub got_DropStmt_1 {
    return SQL::Translator::Statement::Drop->new(
       removeType => $_[2],
@@ -2850,7 +2320,6 @@ sub got_DropStmt_1 {
       concurrent => FALSE,
    );
 }
-### DropStmt_2: DROP drop_type any_name_list opt_drop_behavior
 sub got_DropStmt_2 {
    return SQL::Translator::Statement::Drop->new(
       removeType => $_[2],
@@ -2861,7 +2330,6 @@ sub got_DropStmt_2 {
       concurrent => FALSE,
    );
 }
-### DropStmt_3: DROP INDEX CONCURRENTLY any_name_list opt_drop_behavior
 sub got_DropStmt_3 {
    return SQL::Translator::Statement::Drop->new(
       removeType => OBJECT_INDEX,
@@ -2872,7 +2340,6 @@ sub got_DropStmt_3 {
       concurrent => TRUE,
    );
 }
-### DropStmt_4: DROP INDEX CONCURRENTLY IF EXISTS any_name_list opt_drop_behavior
 sub got_DropStmt_4 {
    return SQL::Translator::Statement::Drop->new(
       removeType => OBJECT_INDEX,
@@ -2883,49 +2350,27 @@ sub got_DropStmt_4 {
       concurrent => TRUE,
    );
 }
-### drop_type_1 : TABLE
 sub got_drop_type_1  { OBJECT_TABLE           }
-### drop_type_2 : SEQUENCE
 sub got_drop_type_2  { OBJECT_SEQUENCE        }
-### drop_type_3 : VIEW
 sub got_drop_type_3  { OBJECT_VIEW            }
-### drop_type_4 : INDEX
 sub got_drop_type_4  { OBJECT_INDEX           }
-### drop_type_5 : FOREIGN TABLE
 sub got_drop_type_5  { OBJECT_FOREIGN_TABLE   }
-### drop_type_6 : EVENT_TRIGGER
 sub got_drop_type_6  { OBJECT_EVENT_TRIGGER   }
-### drop_type_7 : TYPE
 sub got_drop_type_7  { OBJECT_TYPE            }
-### drop_type_8 : DOMAIN
 sub got_drop_type_8  { OBJECT_DOMAIN          }
-### drop_type_9 : COLLATION
 sub got_drop_type_9  { OBJECT_COLLATION       }
-### drop_type_10: CONVERSION
 sub got_drop_type_10 { OBJECT_CONVERSION      }
-### drop_type_11: SCHEMA
 sub got_drop_type_11 { OBJECT_SCHEMA          }
-### drop_type_12: EXTENSION
 sub got_drop_type_12 { OBJECT_EXTENSION       }
-### drop_type_13: TEXT SEARCH PARSER
 sub got_drop_type_13 { OBJECT_TSPARSER        }
-### drop_type_14: TEXT SEARCH DICTIONARY
 sub got_drop_type_14 { OBJECT_TSDICTIONARY    }
-### drop_type_15: TEXT SEARCH TEMPLATE
 sub got_drop_type_15 { OBJECT_TSTEMPLATE      }
-### drop_type_16: TEXT SEARCH CONFIGURATION
 sub got_drop_type_16 { OBJECT_TSCONFIGURATION }
-### any_name_list: any_name+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_any_name_list { $_[0]->lappend($_[1], $_[3]) }
-### any_name_1: ColId
 sub got_any_name_1 { $_[0]->lappend($_[1])      }
-### any_name_2: ColId attrs
 sub got_any_name_2 { $_[0]->lcons($_[1], $_[2]) }
-### attrs_1:  ~ <C_DOT> ~  attr_name
 sub got_attrs_1 { $_[0]->lappend($_[2])        }
-### attrs_2: <attr_name>2+ % / ~  ~ <C_DOT> ~  ~ /
 sub got_attrs_2 { $_[0]->lappend($_[1], $_[3]) }
-### TruncateStmt: TRUNCATE opt_table relation_expr_list opt_restart_seqs opt_drop_behavior
 sub got_TruncateStmt {
    return SQL::Translator::Statement::Truncate->new(
       relations    => $_[3],
@@ -2933,11 +2378,8 @@ sub got_TruncateStmt {
       behavior     => $_[5],
    );
 }
-### opt_restart_seqs_1: CONTINUE IDENTITY
 sub got_opt_restart_seqs_1 { FALSE }
-### opt_restart_seqs_2: RESTART IDENTITY
 sub got_opt_restart_seqs_2 { TRUE  }
-### CommentStmt_1 : COMMENT ON comment_type any_name IS comment_text
 sub got_CommentStmt_1  {
    return SQL::Translator::Statement::Comment->new(
       objtype => $_[3],
@@ -2946,7 +2388,6 @@ sub got_CommentStmt_1  {
       comment => $_[6],
    );
 }
-### CommentStmt_2 : COMMENT ON AGGREGATE func_name aggr_args IS comment_text
 sub got_CommentStmt_2  {
    return SQL::Translator::Statement::Comment->new(
       objtype => OBJECT_AGGREGATE,
@@ -2955,7 +2396,6 @@ sub got_CommentStmt_2  {
       comment => $_[7],
    );
 }
-### CommentStmt_3 : COMMENT ON FUNCTION func_name func_args IS comment_text
 sub got_CommentStmt_3  {
    return SQL::Translator::Statement::Comment->new(
       objtype => OBJECT_FUNCTION,
@@ -2964,7 +2404,6 @@ sub got_CommentStmt_3  {
       comment => $_[7],
    );
 }
-### CommentStmt_4 : COMMENT ON OPERATOR any_operator oper_argtypes IS comment_text
 sub got_CommentStmt_4  {
    return SQL::Translator::Statement::Comment->new(
       objtype => OBJECT_OPERATOR,
@@ -2973,7 +2412,6 @@ sub got_CommentStmt_4  {
       comment => $_[7],
    );
 }
-### CommentStmt_5 : COMMENT ON CONSTRAINT name ON any_name IS comment_text
 sub got_CommentStmt_5  {
    return SQL::Translator::Statement::Comment->new(
       objtype => OBJECT_CONSTRAINT,
@@ -2982,7 +2420,6 @@ sub got_CommentStmt_5  {
       comment => $_[8],
    );
 }
-### CommentStmt_6 : COMMENT ON RULE name ON any_name IS comment_text
 sub got_CommentStmt_6  {
    return SQL::Translator::Statement::Comment->new(
       objtype => OBJECT_RULE,
@@ -2992,7 +2429,6 @@ sub got_CommentStmt_6  {
    );
 }
 # Obsolete syntax supported for awhile for compatibility
-### CommentStmt_7 : COMMENT ON RULE name IS comment_text
 sub got_CommentStmt_7  {
    return SQL::Translator::Statement::Comment->new(
       objtype => OBJECT_RULE,
@@ -3001,7 +2437,6 @@ sub got_CommentStmt_7  {
       comment => $_[6],
    );
 }
-### CommentStmt_8 : COMMENT ON TRIGGER name ON any_name IS comment_text
 sub got_CommentStmt_8  {
    return SQL::Translator::Statement::Comment->new(
       objtype => OBJECT_TRIGGER,
@@ -3010,7 +2445,6 @@ sub got_CommentStmt_8  {
       comment => $_[8],
    );
 }
-### CommentStmt_9 : COMMENT ON OPERATOR CLASS any_name USING access_method IS comment_text
 sub got_CommentStmt_9  {
    return SQL::Translator::Statement::Comment->new(
       objtype => OBJECT_OPCLASS,
@@ -3019,7 +2453,6 @@ sub got_CommentStmt_9  {
       comment => $_[9],
    );
 }
-### CommentStmt_10: COMMENT ON OPERATOR FAMILY any_name USING access_method IS comment_text
 sub got_CommentStmt_10 {
    return SQL::Translator::Statement::Comment->new(
       objtype => OBJECT_OPFAMILY,
@@ -3028,7 +2461,6 @@ sub got_CommentStmt_10 {
       comment => $_[9],
    );
 }
-### CommentStmt_11: COMMENT ON LARGE OBJECT NumericOnly IS comment_text
 sub got_CommentStmt_11 {
    return SQL::Translator::Statement::Comment->new(
       objtype => OBJECT_LARGEOBJECT,
@@ -3037,7 +2469,6 @@ sub got_CommentStmt_11 {
       comment => $_[7],
    );
 }
-### CommentStmt_12: COMMENT ON CAST  ~ <C_LPAREN> ~  Typename AS Typename  ~ <C_RPAREN> ~  IS comment_text
 sub got_CommentStmt_12 {
    return SQL::Translator::Statement::Comment->new(
       objtype => OBJECT_CAST,
@@ -3046,7 +2477,6 @@ sub got_CommentStmt_12 {
       comment => $_[10],
    );
 }
-### CommentStmt_13: COMMENT ON opt_procedural LANGUAGE any_name IS comment_text
 sub got_CommentStmt_13 {
    return SQL::Translator::Statement::Comment->new(
       objtype => OBJECT_LANGUAGE,
@@ -3055,7 +2485,6 @@ sub got_CommentStmt_13 {
       comment => $_[7],
    );
 }
-### CommentStmt_14: COMMENT ON TEXT SEARCH PARSER any_name IS comment_text
 sub got_CommentStmt_14 {
    return SQL::Translator::Statement::Comment->new(
       objtype => OBJECT_TSPARSER,
@@ -3063,7 +2492,6 @@ sub got_CommentStmt_14 {
       comment => $_[8],
    );
 }
-### CommentStmt_15: COMMENT ON TEXT SEARCH DICTIONARY any_name IS comment_text
 sub got_CommentStmt_15 {
    return SQL::Translator::Statement::Comment->new(
       objtype => OBJECT_TSDICTIONARY,
@@ -3071,7 +2499,6 @@ sub got_CommentStmt_15 {
       comment => $_[8],
    );
 }
-### CommentStmt_16: COMMENT ON TEXT SEARCH TEMPLATE any_name IS comment_text
 sub got_CommentStmt_16 {
    return SQL::Translator::Statement::Comment->new(
       objtype => OBJECT_TSTEMPLATE,
@@ -3079,7 +2506,6 @@ sub got_CommentStmt_16 {
       comment => $_[8],
    );
 }
-### CommentStmt_17: COMMENT ON TEXT SEARCH CONFIGURATION any_name IS comment_text
 sub got_CommentStmt_17 {
    return SQL::Translator::Statement::Comment->new(
       objtype => OBJECT_TSCONFIGURATION,
@@ -3087,47 +2513,26 @@ sub got_CommentStmt_17 {
       comment => $_[8],
    );
 }
-### comment_type_1 : COLUMN
 sub got_comment_type_1  { OBJECT_COLUMN         }
-### comment_type_2 : DATABASE
 sub got_comment_type_2  { OBJECT_DATABASE       }
-### comment_type_3 : SCHEMA
 sub got_comment_type_3  { OBJECT_SCHEMA         }
-### comment_type_4 : INDEX
 sub got_comment_type_4  { OBJECT_INDEX          }
-### comment_type_5 : SEQUENCE
 sub got_comment_type_5  { OBJECT_SEQUENCE       }
-### comment_type_6 : TABLE
 sub got_comment_type_6  { OBJECT_TABLE          }
-### comment_type_7 : DOMAIN
 sub got_comment_type_7  { OBJECT_DOMAIN         }
-### comment_type_8 : TYPE
 sub got_comment_type_8  { OBJECT_TYPE           }
-### comment_type_9 : VIEW
 sub got_comment_type_9  { OBJECT_VIEW           }
-### comment_type_10: COLLATION
 sub got_comment_type_10 { OBJECT_COLLATION      }
-### comment_type_11: CONVERSION
 sub got_comment_type_11 { OBJECT_CONVERSION     }
-### comment_type_12: TABLESPACE
 sub got_comment_type_12 { OBJECT_TABLESPACE     }
-### comment_type_13: EXTENSION
 sub got_comment_type_13 { OBJECT_EXTENSION      }
-### comment_type_14: ROLE
 sub got_comment_type_14 { OBJECT_ROLE           }
-### comment_type_15: FOREIGN TABLE
 sub got_comment_type_15 { OBJECT_FOREIGN_TABLE  }
-### comment_type_16: SERVER
 sub got_comment_type_16 { OBJECT_FOREIGN_SERVER }
-### comment_type_17: FOREIGN DATA WRAPPER
 sub got_comment_type_17 { OBJECT_FDW            }
-### comment_type_18: EVENT TRIGGER
 sub got_comment_type_18 { OBJECT_EVENT_TRIGGER  }
-### comment_text_1: Sconst
 sub got_comment_text_1 { $_[1] }
-### comment_text_2: NULL
 sub got_comment_text_2 { NULL  }
-### SecLabelStmt_1: SECURITY LABEL opt_provider ON security_label_type any_name IS security_label
 sub got_SecLabelStmt_1 {
    return SQL::Translator::Statement::SecLabel->new(
       provider => $_[3],
@@ -3137,7 +2542,6 @@ sub got_SecLabelStmt_1 {
       label    => $_[8],
    );
 }
-### SecLabelStmt_2: SECURITY LABEL opt_provider ON AGGREGATE func_name aggr_args IS security_label
 sub got_SecLabelStmt_2 {
    return SQL::Translator::Statement::SecLabel->new(
       provider => $_[3],
@@ -3147,7 +2551,6 @@ sub got_SecLabelStmt_2 {
       label    => $_[9],
    );
 }
-### SecLabelStmt_3: SECURITY LABEL opt_provider ON FUNCTION func_name func_args IS security_label
 sub got_SecLabelStmt_3 {
    return SQL::Translator::Statement::SecLabel->new(
       provider => $_[3],
@@ -3157,7 +2560,6 @@ sub got_SecLabelStmt_3 {
       label    => $_[9],
    );
 }
-### SecLabelStmt_4: SECURITY LABEL opt_provider ON LARGE OBJECT NumericOnly IS security_label
 sub got_SecLabelStmt_4 {
    return SQL::Translator::Statement::SecLabel->new(
       provider => $_[3],
@@ -3167,7 +2569,6 @@ sub got_SecLabelStmt_4 {
       label    => $_[9],
    );
 }
-### SecLabelStmt_5: SECURITY LABEL opt_provider ON opt_procedural LANGUAGE any_name IS security_label
 sub got_SecLabelStmt_5 {
    return SQL::Translator::Statement::SecLabel->new(
       provider => $_[3],
@@ -3177,49 +2578,30 @@ sub got_SecLabelStmt_5 {
       label    => $_[9],
    );
 }
-### opt_provider: FOR ColId_or_Sconst
 sub got_opt_provider { $_[2] }
-### security_label_type_1 : COLUMN
 sub got_security_label_type_1  { OBJECT_COLUMN        }
-### security_label_type_2 : DATABASE
 sub got_security_label_type_2  { OBJECT_DATABASE      }
-### security_label_type_3 : EVENT TRIGGER
 sub got_security_label_type_3  { OBJECT_EVENT_TRIGGER }
-### security_label_type_4 : SCHEMA
 sub got_security_label_type_4  { OBJECT_SCHEMA        }
-### security_label_type_5 : FOREIGN TABLE
 sub got_security_label_type_5  { OBJECT_FOREIGN_TABLE }
-### security_label_type_6 : SCHEMA
 sub got_security_label_type_6  { OBJECT_SCHEMA        }
-### security_label_type_7 : SEQUENCE
 sub got_security_label_type_7  { OBJECT_SEQUENCE      }
-### security_label_type_8 : TABLE
 sub got_security_label_type_8  { OBJECT_TABLE         }
-### security_label_type_9 : DOMAIN
 sub got_security_label_type_9  { OBJECT_TYPE          }
-### security_label_type_10: ROLE
 sub got_security_label_type_10 { OBJECT_ROLE          }
-### security_label_type_11: TABLESPACE
 sub got_security_label_type_11 { OBJECT_TABLESPACE    }
-### security_label_type_12: TYPE
 sub got_security_label_type_12 { OBJECT_TYPE          }
-### security_label_type_13: VIEW
 sub got_security_label_type_13 { OBJECT_VIEW          }
-### security_label_1: Sconst
 sub got_security_label_1 { $_[1] }
-### security_label_2: NULL
 sub got_security_label_2 { NULL  }
-### FetchStmt_1: FETCH fetch_args
 sub got_FetchStmt_1 {
    $_[2]->ismove(FALSE);
    return $_[2];
 }
-### FetchStmt_2: MOVE fetch_args
 sub got_FetchStmt_2 {
    $_[2]->ismove(TRUE);
    return $_[2];
 }
-### fetch_args_1 : cursor_name
 sub got_fetch_args_1  {
    return SQL::Translator::Statement::Fetch->new(
       portalname => $_[1],
@@ -3227,7 +2609,6 @@ sub got_fetch_args_1  {
       howMany    => 1,
    );
 }
-### fetch_args_2 : from_in cursor_name
 sub got_fetch_args_2  {
    return SQL::Translator::Statement::Fetch->new(
       portalname => $_[2],
@@ -3235,7 +2616,6 @@ sub got_fetch_args_2  {
       howMany    => 1,
    );
 }
-### fetch_args_3 : NEXT opt_from_in cursor_name
 sub got_fetch_args_3  {
    return SQL::Translator::Statement::Fetch->new(
       portalname => $_[3],
@@ -3243,7 +2623,6 @@ sub got_fetch_args_3  {
       howMany    => 1,
    );
 }
-### fetch_args_4 : PRIOR opt_from_in cursor_name
 sub got_fetch_args_4  {
    return SQL::Translator::Statement::Fetch->new(
       portalname => $_[3],
@@ -3251,7 +2630,6 @@ sub got_fetch_args_4  {
       howMany    => 1,
    );
 }
-### fetch_args_5 : FIRST opt_from_in cursor_name
 sub got_fetch_args_5  {
    return SQL::Translator::Statement::Fetch->new(
       portalname => $_[3],
@@ -3259,7 +2637,6 @@ sub got_fetch_args_5  {
       howMany    => 1,
    );
 }
-### fetch_args_6 : LAST opt_from_in cursor_name
 sub got_fetch_args_6  {
    return SQL::Translator::Statement::Fetch->new(
       portalname => $_[3],
@@ -3267,7 +2644,6 @@ sub got_fetch_args_6  {
       howMany    => -1,
    );
 }
-### fetch_args_7 : ABSOLUTE SignedIconst opt_from_in cursor_name
 sub got_fetch_args_7  {
    return SQL::Translator::Statement::Fetch->new(
       portalname => $_[4],
@@ -3275,7 +2651,6 @@ sub got_fetch_args_7  {
       howMany    => $_[2],
    );
 }
-### fetch_args_8 : RELATIVE SignedIconst opt_from_in cursor_name
 sub got_fetch_args_8  {
    return SQL::Translator::Statement::Fetch->new(
       portalname => $_[4],
@@ -3283,7 +2658,6 @@ sub got_fetch_args_8  {
       howMany    => $_[2],
    );
 }
-### fetch_args_9 : SignedIconst opt_from_in cursor_name
 sub got_fetch_args_9  {
    return SQL::Translator::Statement::Fetch->new(
       portalname => $_[3],
@@ -3291,7 +2665,6 @@ sub got_fetch_args_9  {
       howMany    => $_[1],
    );
 }
-### fetch_args_10: ALL opt_from_in cursor_name
 sub got_fetch_args_10 {
    return SQL::Translator::Statement::Fetch->new(
       portalname => $_[3],
@@ -3299,7 +2672,6 @@ sub got_fetch_args_10 {
       howMany    => FETCH_ALL,
    );
 }
-### fetch_args_11: FORWARD opt_from_in cursor_name
 sub got_fetch_args_11 {
    return SQL::Translator::Statement::Fetch->new(
       portalname => $_[3],
@@ -3307,7 +2679,6 @@ sub got_fetch_args_11 {
       howMany    => 1,
    );
 }
-### fetch_args_12: FORWARD SignedIconst opt_from_in cursor_name
 sub got_fetch_args_12 {
    return SQL::Translator::Statement::Fetch->new(
       portalname => $_[4],
@@ -3315,7 +2686,6 @@ sub got_fetch_args_12 {
       howMany    => $_[2],
    );
 }
-### fetch_args_13: FORWARD ALL opt_from_in cursor_name
 sub got_fetch_args_13 {
    return SQL::Translator::Statement::Fetch->new(
       portalname => $_[4],
@@ -3323,7 +2693,6 @@ sub got_fetch_args_13 {
       howMany    => FETCH_ALL,
    );
 }
-### fetch_args_14: BACKWARD opt_from_in cursor_name
 sub got_fetch_args_14 {
    return SQL::Translator::Statement::Fetch->new(
       portalname => $_[3],
@@ -3331,7 +2700,6 @@ sub got_fetch_args_14 {
       howMany    => 1,
    );
 }
-### fetch_args_15: BACKWARD SignedIconst opt_from_in cursor_name
 sub got_fetch_args_15 {
    return SQL::Translator::Statement::Fetch->new(
       portalname => $_[4],
@@ -3339,7 +2707,6 @@ sub got_fetch_args_15 {
       howMany    => $_[2],
    );
 }
-### fetch_args_16: BACKWARD ALL opt_from_in cursor_name
 sub got_fetch_args_16 {
    return SQL::Translator::Statement::Fetch->new(
       portalname => $_[4],
@@ -3347,13 +2714,9 @@ sub got_fetch_args_16 {
       howMany    => FETCH_ALL,
    );
 }
-### from_in_1: FROM
 sub got_from_in_1 {}
-### from_in_2: IN
 sub got_from_in_2 {}
-### opt_from_in: from_in
 sub got_opt_from_in {}
-### GrantStmt: GRANT privileges ON privilege_target TO grantee_list opt_grant_grant_option
 sub got_GrantStmt {
    return SQL::Translator::Statement::Grant->new(
       is_grant     => TRUE,
@@ -3365,7 +2728,6 @@ sub got_GrantStmt {
       grant_option => $_[7],
    );
 }
-### RevokeStmt_1: REVOKE privileges ON privilege_target FROM grantee_list opt_drop_behavior
 sub got_RevokeStmt_1 {
    return SQL::Translator::Statement::Grant->new(
       is_grant     => FALSE,
@@ -3378,7 +2740,6 @@ sub got_RevokeStmt_1 {
       behavior     => $_[7],
    );
 }
-### RevokeStmt_2: REVOKE GRANT OPTION FOR privileges ON privilege_target FROM grantee_list opt_drop_behavior
 sub got_RevokeStmt_2 {
    return SQL::Translator::Statement::Grant->new(
       is_grant     => FALSE,
@@ -3391,57 +2752,46 @@ sub got_RevokeStmt_2 {
       behavior     => $_[10],
    );
 }
-### privileges_1: privilege_list
 sub got_privileges_1 { $_[1] }
-### privileges_2: ALL
 sub got_privileges_2 { NULL }
-### privileges_3: ALL PRIVILEGES
 sub got_privileges_3 { NULL }
-### privileges_4: ALL  ~ <C_LPAREN> ~  columnList  ~ <C_RPAREN> ~ 
 sub got_privileges_4 {
    return [ SQL::Translator::Statement::AccessPriv->new(
       priv_name => NULL,
       cols      => $_[3],
    ) ];
 }
-### privileges_5: ALL PRIVILEGES  ~ <C_LPAREN> ~  columnList  ~ <C_RPAREN> ~ 
 sub got_privileges_5 {
    return [ SQL::Translator::Statement::AccessPriv->new(
       priv_name => NULL,
       cols      => $_[4],
    ) ];
 }
-### privilege_list: privilege+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_privilege_list { $_[0]->lappend($_[1], $_[3]) }
-### privilege_1: SELECT opt_column_list
 sub got_privilege_1 {
    return SQL::Translator::Statement::AccessPriv->new(
       priv_name => $_[1],
       cols      => $_[2],
    );
 }
-### privilege_2: REFERENCES opt_column_list
 sub got_privilege_2 {
    return SQL::Translator::Statement::AccessPriv->new(
       priv_name => $_[1],
       cols      => $_[2],
    );
 }
-### privilege_3: CREATE opt_column_list
 sub got_privilege_3 {
    return SQL::Translator::Statement::AccessPriv->new(
       priv_name => $_[1],
       cols      => $_[2],
    );
 }
-### privilege_4: ColId opt_column_list
 sub got_privilege_4 {
    return SQL::Translator::Statement::AccessPriv->new(
       priv_name => $_[1],
       cols      => $_[2],
    );
 }
-### privilege_target_1 : qualified_name_list
 sub got_privilege_target_1  {
    return SQL::Translator::Statement::PrivTarget->new(
       targtype => ACL_TARGET_OBJECT,
@@ -3449,7 +2799,6 @@ sub got_privilege_target_1  {
       objs     => $_[1],
    );
 }
-### privilege_target_2 : TABLE qualified_name_list
 sub got_privilege_target_2  {
    return SQL::Translator::Statement::PrivTarget->new(
       targtype => ACL_TARGET_OBJECT,
@@ -3457,7 +2806,6 @@ sub got_privilege_target_2  {
       objs     => $_[2],
    );
 }
-### privilege_target_3 : SEQUENCE qualified_name_list
 sub got_privilege_target_3  {
    return SQL::Translator::Statement::PrivTarget->new(
       targtype => ACL_TARGET_OBJECT,
@@ -3465,7 +2813,6 @@ sub got_privilege_target_3  {
       objs     => $_[2],
    );
 }
-### privilege_target_4 : FOREIGN DATA WRAPPER name_list
 sub got_privilege_target_4  {
    return SQL::Translator::Statement::PrivTarget->new(
       targtype => ACL_TARGET_OBJECT,
@@ -3473,7 +2820,6 @@ sub got_privilege_target_4  {
       objs     => $_[4],
    );
 }
-### privilege_target_5 : FOREIGN SERVER name_list
 sub got_privilege_target_5  {
    return SQL::Translator::Statement::PrivTarget->new(
       targtype => ACL_TARGET_OBJECT,
@@ -3481,7 +2827,6 @@ sub got_privilege_target_5  {
       objs     => $_[3],
    );
 }
-### privilege_target_6 : FUNCTION function_with_argtypes_list
 sub got_privilege_target_6  {
    return SQL::Translator::Statement::PrivTarget->new(
       targtype => ACL_TARGET_OBJECT,
@@ -3489,7 +2834,6 @@ sub got_privilege_target_6  {
       objs     => $_[2],
    );
 }
-### privilege_target_7 : DATABASE name_list
 sub got_privilege_target_7  {
    return SQL::Translator::Statement::PrivTarget->new(
       targtype => ACL_TARGET_OBJECT,
@@ -3497,7 +2841,6 @@ sub got_privilege_target_7  {
       objs     => $_[2],
    );
 }
-### privilege_target_8 : DOMAIN any_name_list
 sub got_privilege_target_8  {
    return SQL::Translator::Statement::PrivTarget->new(
       targtype => ACL_TARGET_OBJECT,
@@ -3505,7 +2848,6 @@ sub got_privilege_target_8  {
       objs     => $_[2],
    );
 }
-### privilege_target_9 : LANGUAGE name_list
 sub got_privilege_target_9  {
    return SQL::Translator::Statement::PrivTarget->new(
       targtype => ACL_TARGET_OBJECT,
@@ -3513,7 +2855,6 @@ sub got_privilege_target_9  {
       objs     => $_[2],
    );
 }
-### privilege_target_10: LARGE OBJECT NumericOnly_list
 sub got_privilege_target_10 {
    return SQL::Translator::Statement::PrivTarget->new(
       targtype => ACL_TARGET_OBJECT,
@@ -3521,7 +2862,6 @@ sub got_privilege_target_10 {
       objs     => $_[3],
    );
 }
-### privilege_target_11: SCHEMA name_list
 sub got_privilege_target_11 {
    return SQL::Translator::Statement::PrivTarget->new(
       targtype => ACL_TARGET_OBJECT,
@@ -3529,7 +2869,6 @@ sub got_privilege_target_11 {
       objs     => $_[2],
    );
 }
-### privilege_target_12: TABLESPACE name_list
 sub got_privilege_target_12 {
    return SQL::Translator::Statement::PrivTarget->new(
       targtype => ACL_TARGET_OBJECT,
@@ -3537,7 +2876,6 @@ sub got_privilege_target_12 {
       objs     => $_[2],
    );
 }
-### privilege_target_13: TYPE any_name_list
 sub got_privilege_target_13 {
    return SQL::Translator::Statement::PrivTarget->new(
       targtype => ACL_TARGET_OBJECT,
@@ -3545,7 +2883,6 @@ sub got_privilege_target_13 {
       objs     => $_[2],
    );
 }
-### privilege_target_14: ALL TABLES IN SCHEMA name_list
 sub got_privilege_target_14 {
    return SQL::Translator::Statement::PrivTarget->new(
       targtype => ACL_TARGET_ALL_IN_SCHEMA,
@@ -3553,7 +2890,6 @@ sub got_privilege_target_14 {
       objs     => $_[5],
    );
 }
-### privilege_target_15: ALL SEQUENCES IN SCHEMA name_list
 sub got_privilege_target_15 {
    return SQL::Translator::Statement::PrivTarget->new(
       targtype => ACL_TARGET_ALL_IN_SCHEMA,
@@ -3561,7 +2897,6 @@ sub got_privilege_target_15 {
       objs     => $_[5],
    );
 }
-### privilege_target_16: ALL FUNCTIONS IN SCHEMA name_list
 sub got_privilege_target_16 {
    return SQL::Translator::Statement::PrivTarget->new(
       targtype => ACL_TARGET_ALL_IN_SCHEMA,
@@ -3569,34 +2904,27 @@ sub got_privilege_target_16 {
       objs     => $_[5],
    );
 }
-### grantee_list: grantee+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_grantee_list { $_[0]->lappend($_[1], $_[3]) }
-### grantee_1: RoleId
 sub got_grantee_1 {
    return SQL::Translator::Statement::PrivGrantee->new(
       #* This hack lets us avoid reserving PUBLIC as a keyword
       rolname => ($_[1] eq "public") ? NULL : $_[1],
    );
 }
-### grantee_2: GROUP RoleId
 sub got_grantee_2 {
    return SQL::Translator::Statement::PrivGrantee->new(
       #* Treat GROUP PUBLIC as a synonym for PUBLIC
       rolname => ($_[2] eq "public") ? NULL : $_[2],
    );
 }
-### opt_grant_grant_option: WITH GRANT OPTION
 sub got_opt_grant_grant_option { TRUE  }
-### function_with_argtypes_list: function_with_argtypes+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_function_with_argtypes_list { $_[0]->lappend($_[1], $_[3]) }
-### function_with_argtypes: func_name func_args
 sub got_function_with_argtypes {
    return SQL::Translator::Statement::FuncWithArgs->new(
       funcname => $_[1],
       funcargs => $_[0]->extractArgTypes($_[2]),
    );
 }
-### GrantRoleStmt: GRANT privilege_list TO name_list opt_grant_admin_option opt_granted_by
 sub got_GrantRoleStmt {
    return SQL::Translator::Statement::GrantRole->new(
       is_grant      => TRUE,
@@ -3606,7 +2934,6 @@ sub got_GrantRoleStmt {
       grantor       => $_[6],
    );
 }
-### RevokeRoleStmt_1: REVOKE privilege_list FROM name_list opt_granted_by opt_drop_behavior
 sub got_RevokeRoleStmt_1 {
    return SQL::Translator::Statement::GrantRole->new(
       is_grant      => FALSE,
@@ -3616,7 +2943,6 @@ sub got_RevokeRoleStmt_1 {
       behavior      => $_[6],
    );
 }
-### RevokeRoleStmt_2: REVOKE ADMIN OPTION FOR privilege_list FROM name_list opt_granted_by opt_drop_behavior
 sub got_RevokeRoleStmt_2 {
    return SQL::Translator::Statement::GrantRole->new(
       is_grant      => FALSE,
@@ -3626,26 +2952,18 @@ sub got_RevokeRoleStmt_2 {
       behavior      => $_[9],
    );
 }
-### opt_grant_admin_option: WITH ADMIN OPTION
 sub got_opt_grant_admin_option { TRUE  }
-### opt_granted_by: GRANTED BY RoleId
 sub got_opt_granted_by { $_[3] }
-### AlterDefaultPrivilegesStmt: ALTER DEFAULT PRIVILEGES DefACLOptionList DefACLAction
 sub got_AlterDefaultPrivilegesStmt {
    return SQL::Translator::Statement::AlterDefaultPrivileges->new(
       options => $_[4],
       action  => $_[5],
    );
 }
-### DefACLOptionList: DefACLOption* % ~
 sub got_DefACLOptionList { $_[0]->lappend($_[1], $_[2]) }
-### DefACLOption_1: IN SCHEMA name_list
 sub got_DefACLOption_1 { $_[0]->makeDefElem("schemas", $_[3]) }
-### DefACLOption_2: FOR ROLE name_list
 sub got_DefACLOption_2 { $_[0]->makeDefElem("roles",   $_[3]) }
-### DefACLOption_3: FOR USER name_list
 sub got_DefACLOption_3 { $_[0]->makeDefElem("roles",   $_[3]) }
-### DefACLAction_1: GRANT privileges ON defacl_privilege_target TO grantee_list opt_grant_grant_option
 sub got_DefACLAction_1 {
    return SQL::Translator::Statement::Grant->new(
       is_grant     => TRUE,
@@ -3657,7 +2975,6 @@ sub got_DefACLAction_1 {
       grant_option => $_[7],
    );
 }
-### DefACLAction_2: REVOKE privileges ON defacl_privilege_target FROM grantee_list opt_drop_behavior
 sub got_DefACLAction_2 {
    return SQL::Translator::Statement::Grant->new(
       is_grant     => FALSE,
@@ -3670,7 +2987,6 @@ sub got_DefACLAction_2 {
       behavior     => $_[7],
    );
 }
-### DefACLAction_3: REVOKE GRANT OPTION FOR privileges ON defacl_privilege_target FROM grantee_list opt_drop_behavior
 sub got_DefACLAction_3 {
    return SQL::Translator::Statement::Grant->new(
       is_grant     => FALSE,
@@ -3683,15 +2999,10 @@ sub got_DefACLAction_3 {
       behavior     => $_[10],
    );
 }
-### defacl_privilege_target_1: TABLES
 sub got_defacl_privilege_target_1 { ACL_OBJECT_RELATION }
-### defacl_privilege_target_2: FUNCTIONS
 sub got_defacl_privilege_target_2 { ACL_OBJECT_FUNCTION }
-### defacl_privilege_target_3: SEQUENCES
 sub got_defacl_privilege_target_3 { ACL_OBJECT_SEQUENCE }
-### defacl_privilege_target_4: TYPES
 sub got_defacl_privilege_target_4 { ACL_OBJECT_TYPE     }
-### IndexStmt: CREATE opt_unique INDEX opt_concurrently opt_index_name ON qualified_name access_method_clause  ~ <C_LPAREN> ~  index_params  ~ <C_RPAREN> ~  opt_reloptions OptTableSpace where_clause
 sub got_IndexStmt {
    return SQL::Translator::Statement::Index->new(
       unique       => $_[2],
@@ -3714,17 +3025,11 @@ sub got_IndexStmt {
       initdeferred   => FALSE,
    );
 }
-### opt_unique: UNIQUE
 sub got_opt_unique { TRUE  }
-### opt_concurrently: CONCURRENTLY
 sub got_opt_concurrently { TRUE  }
-### opt_index_name: index_name
 sub got_opt_index_name { $_[1] }
-### access_method_clause: USING access_method
 sub got_access_method_clause { $_[2] }
-### index_params: index_elem+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_index_params { $_[0]->lappend($_[1], $_[3]) }
-### index_elem_1: ColId opt_collate opt_class opt_asc_desc opt_nulls_order
 sub got_index_elem_1 {
    return SQL::Translator::Statement::IndexElem->new(
       name           => $_[1],
@@ -3736,7 +3041,6 @@ sub got_index_elem_1 {
       nulls_ordering => $_[5],
    );
 }
-### index_elem_2: func_expr opt_collate opt_class opt_asc_desc opt_nulls_order
 sub got_index_elem_2 {
    return SQL::Translator::Statement::IndexElem->new(
       name           => NULL,
@@ -3748,7 +3052,6 @@ sub got_index_elem_2 {
       nulls_ordering => $_[5],
    );
 }
-### index_elem_3:  ~ <C_LPAREN> ~  a_expr  ~ <C_RPAREN> ~  opt_collate opt_class opt_asc_desc opt_nulls_order
 sub got_index_elem_3 {
    return SQL::Translator::Statement::IndexElem->new(
       name           => NULL,
@@ -3760,21 +3063,13 @@ sub got_index_elem_3 {
       nulls_ordering => $_[7],
    );
 }
-### opt_collate: COLLATE any_name
 sub got_opt_collate { $_[2] }
-### opt_class_1: any_name
 sub got_opt_class_1 { $_[1] }
-### opt_class_2: USING any_name
 sub got_opt_class_2 { $_[2] }
-### opt_asc_desc_1: ASC
 sub got_opt_asc_desc_1 { SORTBY_ASC     }
-### opt_asc_desc_2: DESC
 sub got_opt_asc_desc_2 { SORTBY_DESC    }
-### opt_nulls_order_1: NULLS_FIRST
 sub got_opt_nulls_order_1 { SORTBY_NULLS_FIRST   }
-### opt_nulls_order_2: NULLS_LAST
 sub got_opt_nulls_order_2 { SORTBY_NULLS_LAST    }
-### CreateFunctionStmt_1: CREATE opt_or_replace FUNCTION func_name func_args_with_defaults RETURNS func_return createfunc_opt_list opt_definition
 sub got_CreateFunctionStmt_1 {
    return SQL::Translator::Statement::CreateFunction->new(
       replace    => $_[2],
@@ -3785,7 +3080,6 @@ sub got_CreateFunctionStmt_1 {
       withClause => $_[9],
    );
 }
-### CreateFunctionStmt_2: CREATE opt_or_replace FUNCTION func_name func_args_with_defaults RETURNS TABLE  ~ <C_LPAREN> ~  table_func_column_list  ~ <C_RPAREN> ~  createfunc_opt_list opt_definition
 sub got_CreateFunctionStmt_2 {
    my $n = SQL::Translator::Statement::CreateFunction->new(
       replace    => $_[2],
@@ -3798,7 +3092,6 @@ sub got_CreateFunctionStmt_2 {
    $n->returnType->_set_location( $_[0]->YYLLoc($_[7], 7) );
    return $n;
 }
-### CreateFunctionStmt_3: CREATE opt_or_replace FUNCTION func_name func_args_with_defaults createfunc_opt_list opt_definition
 sub got_CreateFunctionStmt_3 {
    return SQL::Translator::Statement::CreateFunction->new(
       replace    => $_[2],
@@ -3809,21 +3102,13 @@ sub got_CreateFunctionStmt_3 {
       withClause => $_[7],
    );
 }
-### opt_or_replace: OR REPLACE
 sub got_opt_or_replace { TRUE  }
-### func_args_1:  ~ <C_LPAREN> ~  func_args_list  ~ <C_RPAREN> ~ 
 sub got_func_args_1 { $_[2] }
-### func_args_2:  ~ <C_LPAREN> ~   ~ <C_RPAREN> ~ 
 sub got_func_args_2 { NULL  }
-### func_args_list: func_arg+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_func_args_list { $_[0]->lappend($_[1], $_[3]) }
-### func_args_with_defaults_1:  ~ <C_LPAREN> ~  func_args_with_defaults_list  ~ <C_RPAREN> ~ 
 sub got_func_args_with_defaults_1 { $_[2] }
-### func_args_with_defaults_2:  ~ <C_LPAREN> ~   ~ <C_RPAREN> ~ 
 sub got_func_args_with_defaults_2 { NULL  }
-### func_args_with_defaults_list: func_arg_with_default+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_func_args_with_defaults_list { $_[0]->lappend($_[1], $_[3]) }
-### func_arg_1: arg_class param_name func_type
 sub got_func_arg_1 {
    return SQL::Translator::Statement::Function::Parameter->new(
       name    => $_[2],
@@ -3832,7 +3117,6 @@ sub got_func_arg_1 {
       defexpr => NULL,
    );
 }
-### func_arg_2: param_name arg_class func_type
 sub got_func_arg_2 {
    return SQL::Translator::Statement::Function::Parameter->new(
       name    => $_[1],
@@ -3841,7 +3125,6 @@ sub got_func_arg_2 {
       defexpr => NULL,
    );
 }
-### func_arg_3: param_name func_type
 sub got_func_arg_3 {
    return SQL::Translator::Statement::Function::Parameter->new(
       name    => $_[1],
@@ -3850,7 +3133,6 @@ sub got_func_arg_3 {
       defexpr => NULL,
    );
 }
-### func_arg_4: arg_class func_type
 sub got_func_arg_4 {
    return SQL::Translator::Statement::Function::Parameter->new(
       name    => NULL,
@@ -3859,7 +3141,6 @@ sub got_func_arg_4 {
       defexpr => NULL,
    );
 }
-### func_arg_5: func_type
 sub got_func_arg_5 {
    return SQL::Translator::Statement::Function::Parameter->new(
       name    => NULL,
@@ -3868,31 +3149,22 @@ sub got_func_arg_5 {
       defexpr => NULL,
    );
 }
-### arg_class_1: IN
 sub got_arg_class_1 { FUNC_PARAM_IN       }
-### arg_class_2: OUT
 sub got_arg_class_2 { FUNC_PARAM_OUT      }
-### arg_class_3: INOUT
 sub got_arg_class_3 { FUNC_PARAM_INOUT    }
-### arg_class_4: IN OUT
 sub got_arg_class_4 { FUNC_PARAM_INOUT    }
-### arg_class_5: VARIADIC
 sub got_arg_class_5 { FUNC_PARAM_VARIADIC }
 # We can catch over-specified results here if we want to,
 # but for now better to silently swallow typmod, etc.
 # - thomas 2000-03-22
-### func_return: func_type
 sub got_func_return { $_[1] }
-### func_type_1: Typename
 sub got_func_type_1 { $_[1] }
-### func_type_2: type_function_name attrs  ~ <C_PERCENT> ~  TYPE
 sub got_func_type_2 {
    my $n = $_[0]->makeTypeNameFromNameList($_[0]->lcons($_[1], $_[2]));
    $n->pct_type(TRUE);
    $n->_set_location( $_[0]->YYLLoc($_[1], 1) );
    return $n;
 }
-### func_type_3: SETOF type_function_name attrs  ~ <C_PERCENT> ~  TYPE
 sub got_func_type_3 {
    my $n = $_[0]->makeTypeNameFromNameList($_[0]->lcons($_[2], $_[3]));
    $n->pct_type(TRUE);
@@ -3900,66 +3172,39 @@ sub got_func_type_3 {
    $n->_set_location( $_[0]->YYLLoc($_[2], 2) );
    return $n;
 }
-### func_arg_with_default_1: func_arg
 sub got_func_arg_with_default_1 { $_[1] }
-### func_arg_with_default_2: func_arg DEFAULT a_expr
 sub got_func_arg_with_default_2 {
    $_[1]->defexpr($_[3]);
    return $_[1];
 }
-### func_arg_with_default_3: func_arg  ~ <C_EQUAL> ~  a_expr
 sub got_func_arg_with_default_3 {
    $_[1]->defexpr($_[3]);
    return $_[1];
 }
-### createfunc_opt_list: createfunc_opt_item+ % ~
 sub got_createfunc_opt_list { $_[0]->lappend($_[1], $_[2]) }
-### common_func_opt_item_1 : CALLED ON NULL INPUT
 sub got_common_func_opt_item_1  { $_[0]->makeDefElem("strict",     FALSE      ) }
-### common_func_opt_item_2 : RETURNS NULL ON NULL INPUT
 sub got_common_func_opt_item_2  { $_[0]->makeDefElem("strict",     TRUE       ) }
-### common_func_opt_item_3 : STRICT
 sub got_common_func_opt_item_3  { $_[0]->makeDefElem("strict",     TRUE       ) }
-### common_func_opt_item_4 : IMMUTABLE
 sub got_common_func_opt_item_4  { $_[0]->makeDefElem("volatility", "immutable") }
-### common_func_opt_item_5 : STABLE
 sub got_common_func_opt_item_5  { $_[0]->makeDefElem("volatility", "stable"   ) }
-### common_func_opt_item_6 : VOLATILE
 sub got_common_func_opt_item_6  { $_[0]->makeDefElem("volatility", "volatile" ) }
-### common_func_opt_item_7 : EXTERNAL SECURITY DEFINER
 sub got_common_func_opt_item_7  { $_[0]->makeDefElem("security",   TRUE       ) }
-### common_func_opt_item_8 : EXTERNAL SECURITY INVOKER
 sub got_common_func_opt_item_8  { $_[0]->makeDefElem("security",   FALSE      ) }
-### common_func_opt_item_9 : SECURITY DEFINER
 sub got_common_func_opt_item_9  { $_[0]->makeDefElem("security",   TRUE       ) }
-### common_func_opt_item_10: SECURITY INVOKER
 sub got_common_func_opt_item_10 { $_[0]->makeDefElem("security",   FALSE      ) }
-### common_func_opt_item_11: LEAKPROOF
 sub got_common_func_opt_item_11 { $_[0]->makeDefElem("leakproof",  TRUE       ) }
-### common_func_opt_item_12: NOT LEAKPROOF
 sub got_common_func_opt_item_12 { $_[0]->makeDefElem("leakproof",  FALSE      ) }
-### common_func_opt_item_13: COST NumericOnly
 sub got_common_func_opt_item_13 { $_[0]->makeDefElem("cost",       $_[2]      ) }
-### common_func_opt_item_14: ROWS NumericOnly
 sub got_common_func_opt_item_14 { $_[0]->makeDefElem("rows",       $_[2]      ) }
 # we abuse the normal content of a DefElem here
-### common_func_opt_item_15: FunctionSetResetClause
 sub got_common_func_opt_item_15 { $_[0]->makeDefElem("set",        $_[1]      ) }
-### createfunc_opt_item_1: AS func_as
 sub got_createfunc_opt_item_1 { $_[0]->makeDefElem("as",       $_[2]) }
-### createfunc_opt_item_2: LANGUAGE ColId_or_Sconst
 sub got_createfunc_opt_item_2 { $_[0]->makeDefElem("language", $_[2]) }
-### createfunc_opt_item_3: WINDOW
 sub got_createfunc_opt_item_3 { $_[0]->makeDefElem("window",    TRUE) }
-### createfunc_opt_item_4: common_func_opt_item
 sub got_createfunc_opt_item_4 { $_[1] }
-### func_as_1: Sconst
 sub got_func_as_1 { $_[0]->lappend($_[1])        }
-### func_as_2: Sconst  ~ <C_COMMA> ~  Sconst
 sub got_func_as_2 { $_[0]->lappend($_[1], $_[3]) }
-### opt_definition: WITH definition
 sub got_opt_definition { $_[2] }
-### table_func_column: param_name func_type
 sub got_table_func_column {
    return SQL::Translator::Statement::Function::Parameter->new(
       name    => $_[1],
@@ -3968,18 +3213,14 @@ sub got_table_func_column {
       defexpr => NULL,
    );
 }
-### table_func_column_list: table_func_column+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_table_func_column_list { $_[0]->lappend($_[1], $_[3]) }
-### AlterFunctionStmt: ALTER FUNCTION function_with_argtypes alterfunc_opt_list opt_restrict
 sub got_AlterFunctionStmt {
    return SQL::Translator::Statement::AlterFunction->new(
       func    => $_[3],
       actions => $_[4],
    );
 }
-### alterfunc_opt_list: common_func_opt_item+ % ~
 sub got_alterfunc_opt_list { $_[0]->lappend($_[1], $_[2]) }
-### RemoveFuncStmt_1: DROP FUNCTION func_name func_args opt_drop_behavior
 sub got_RemoveFuncStmt_1 {
    return SQL::Translator::Statement::Drop->new(
       removeType => OBJECT_FUNCTION,
@@ -3990,7 +3231,6 @@ sub got_RemoveFuncStmt_1 {
       concurrent => FALSE,
    );
 }
-### RemoveFuncStmt_2: DROP FUNCTION IF EXISTS func_name func_args opt_drop_behavior
 sub got_RemoveFuncStmt_2 {
    return SQL::Translator::Statement::Drop->new(
       removeType => OBJECT_FUNCTION,
@@ -4001,7 +3241,6 @@ sub got_RemoveFuncStmt_2 {
       concurrent => FALSE,
    );
 }
-### RemoveAggrStmt_1: DROP AGGREGATE func_name aggr_args opt_drop_behavior
 sub got_RemoveAggrStmt_1 {
    return SQL::Translator::Statement::Drop->new(
       removeType => OBJECT_AGGREGATE,
@@ -4012,7 +3251,6 @@ sub got_RemoveAggrStmt_1 {
       concurrent => FALSE,
    );
 }
-### RemoveAggrStmt_2: DROP AGGREGATE IF EXISTS func_name aggr_args opt_drop_behavior
 sub got_RemoveAggrStmt_2 {
    return SQL::Translator::Statement::Drop->new(
       removeType => OBJECT_AGGREGATE,
@@ -4023,7 +3261,6 @@ sub got_RemoveAggrStmt_2 {
       concurrent => FALSE,
    );
 }
-### RemoveOperStmt_1: DROP OPERATOR any_operator oper_argtypes opt_drop_behavior
 sub got_RemoveOperStmt_1 {
    return SQL::Translator::Statement::Drop->new(
       removeType => OBJECT_OPERATOR,
@@ -4034,7 +3271,6 @@ sub got_RemoveOperStmt_1 {
       concurrent => FALSE,
    );
 }
-### RemoveOperStmt_2: DROP OPERATOR IF EXISTS any_operator oper_argtypes opt_drop_behavior
 sub got_RemoveOperStmt_2 {
    return SQL::Translator::Statement::Drop->new(
       removeType => OBJECT_OPERATOR,
@@ -4045,7 +3281,6 @@ sub got_RemoveOperStmt_2 {
       concurrent => FALSE,
    );
 }
-### oper_argtypes_1:  ~ <C_LPAREN> ~  Typename  ~ <C_RPAREN> ~ 
 sub got_oper_argtypes_1 {
    $_[0]->ereport(ERROR,
          ERRCODE_SYNTAX_ERROR,
@@ -4053,31 +3288,21 @@ sub got_oper_argtypes_1 {
          "Use NONE to denote the missing argument of a unary operator.",
          $_[0]->YYLLoc($_[3], 3));
 }
-### oper_argtypes_2:  ~ <C_LPAREN> ~  Typename  ~ <C_COMMA> ~  Typename  ~ <C_RPAREN> ~ 
 sub got_oper_argtypes_2 { $_[0]->lappend($_[2], $_[4]) }
 # left unary
-### oper_argtypes_3:  ~ <C_LPAREN> ~  NONE  ~ <C_COMMA> ~  Typename  ~ <C_RPAREN> ~ 
 sub got_oper_argtypes_3 { $_[0]->lappend(NULL,  $_[4]) }
 # right unary
-### oper_argtypes_4:  ~ <C_LPAREN> ~  Typename  ~ <C_COMMA> ~  NONE  ~ <C_RPAREN> ~ 
 sub got_oper_argtypes_4 { $_[0]->lappend($_[2], NULL ) }
-### any_operator_1: all_Op
 sub got_any_operator_1 { $_[0]->lappend($_[1])      }
-### any_operator_2: <ColId>2+ % / ~  ~ <C_DOT> ~  ~ /
 sub got_any_operator_2 { $_[0]->lcons($_[1], $_[3]) }
-### DoStmt: DO dostmt_opt_list
 sub got_DoStmt {
    return SQL::Translator::Statement::Do->new(
       args => $_[2],
    );
 }
-### dostmt_opt_list: dostmt_opt_item+ % ~
 sub got_dostmt_opt_list { $_[0]->lappend($_[1], $_[2]) }
-### dostmt_opt_item_1: Sconst
 sub got_dostmt_opt_item_1 { $_[0]->makeDefElem("as",       $_[1]) }
-### dostmt_opt_item_2: LANGUAGE ColId_or_Sconst
 sub got_dostmt_opt_item_2 { $_[0]->makeDefElem("language", $_[2]) }
-### CreateCastStmt_1: CREATE CAST  ~ <C_LPAREN> ~  Typename AS Typename  ~ <C_RPAREN> ~  WITH FUNCTION function_with_argtypes cast_context
 sub got_CreateCastStmt_1 {
    return SQL::Translator::Statement::CreateCast->new(
       sourcetype => $_[4],
@@ -4087,7 +3312,6 @@ sub got_CreateCastStmt_1 {
       inout      => FALSE,
    );
 }
-### CreateCastStmt_2: CREATE CAST  ~ <C_LPAREN> ~  Typename AS Typename  ~ <C_RPAREN> ~  WITHOUT FUNCTION cast_context
 sub got_CreateCastStmt_2 {
    return SQL::Translator::Statement::CreateCast->new(
       sourcetype => $_[4],
@@ -4097,7 +3321,6 @@ sub got_CreateCastStmt_2 {
       inout      => FALSE,
    );
 }
-### CreateCastStmt_3: CREATE CAST  ~ <C_LPAREN> ~  Typename AS Typename  ~ <C_RPAREN> ~  WITH INOUT cast_context
 sub got_CreateCastStmt_3 {
    return SQL::Translator::Statement::CreateCast->new(
       sourcetype => $_[4],
@@ -4107,11 +3330,8 @@ sub got_CreateCastStmt_3 {
       inout      => TRUE,
    );
 }
-### cast_context_1: AS IMPLICIT
 sub got_cast_context_1 { COERCION_IMPLICIT   }
-### cast_context_2: AS ASSIGNMENT
 sub got_cast_context_2 { COERCION_ASSIGNMENT }
-### DropCastStmt: DROP CAST opt_if_exists  ~ <C_LPAREN> ~  Typename AS Typename  ~ <C_RPAREN> ~  opt_drop_behavior
 sub got_DropCastStmt {
    return SQL::Translator::Statement::Drop->new(
       removeType => OBJECT_CAST,
@@ -4122,9 +3342,7 @@ sub got_DropCastStmt {
       concurrent => FALSE,
    );
 }
-### opt_if_exists: IF EXISTS
 sub got_opt_if_exists { TRUE  }
-### ReindexStmt_1: REINDEX reindex_type qualified_name opt_force
 sub got_ReindexStmt_1 {
    return SQL::Translator::Statement::Reindex->new(
       kind      => $_[2],
@@ -4132,7 +3350,6 @@ sub got_ReindexStmt_1 {
       name      => NULL,
    );
 }
-### ReindexStmt_2: REINDEX SYSTEM name opt_force
 sub got_ReindexStmt_2 {
    return SQL::Translator::Statement::Reindex->new(
       kind      => OBJECT_DATABASE,
@@ -4142,7 +3359,6 @@ sub got_ReindexStmt_2 {
       do_user   => FALSE,
    );
 }
-### ReindexStmt_3: REINDEX DATABASE name opt_force
 sub got_ReindexStmt_3 {
    return SQL::Translator::Statement::Reindex->new(
       kind      => OBJECT_DATABASE,
@@ -4152,13 +3368,9 @@ sub got_ReindexStmt_3 {
       do_user   => TRUE,
    );
 }
-### reindex_type_1: INDEX
 sub got_reindex_type_1 { 'INDEX' }
-### reindex_type_2: TABLE
 sub got_reindex_type_2 { 'TABLE' }
-### opt_force: FORCE
 sub got_opt_force { TRUE  }
-### RenameStmt_1 : ALTER AGGREGATE func_name aggr_args RENAME TO name
 sub got_RenameStmt_1  {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_AGGREGATE,
@@ -4168,7 +3380,6 @@ sub got_RenameStmt_1  {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_2 : ALTER COLLATION any_name RENAME TO name
 sub got_RenameStmt_2  {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_COLLATION,
@@ -4177,7 +3388,6 @@ sub got_RenameStmt_2  {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_3 : ALTER CONVERSION any_name RENAME TO name
 sub got_RenameStmt_3  {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_CONVERSION,
@@ -4186,7 +3396,6 @@ sub got_RenameStmt_3  {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_4 : ALTER DATABASE database_name RENAME TO database_name
 sub got_RenameStmt_4  {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_DATABASE,
@@ -4195,7 +3404,6 @@ sub got_RenameStmt_4  {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_5 : ALTER DOMAIN any_name RENAME TO name
 sub got_RenameStmt_5  {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_DOMAIN,
@@ -4204,7 +3412,6 @@ sub got_RenameStmt_5  {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_6 : ALTER DOMAIN any_name RENAME CONSTRAINT name TO name
 sub got_RenameStmt_6  {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_CONSTRAINT,
@@ -4215,7 +3422,6 @@ sub got_RenameStmt_6  {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_7 : ALTER FOREIGN DATA WRAPPER name RENAME TO name
 sub got_RenameStmt_7  {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_FDW,
@@ -4224,7 +3430,6 @@ sub got_RenameStmt_7  {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_8 : ALTER FUNCTION function_with_argtypes RENAME TO name
 sub got_RenameStmt_8  {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_FUNCTION,
@@ -4234,7 +3439,6 @@ sub got_RenameStmt_8  {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_9 : ALTER GROUP RoleId RENAME TO RoleId
 sub got_RenameStmt_9  {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_ROLE,
@@ -4243,7 +3447,6 @@ sub got_RenameStmt_9  {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_10: ALTER opt_procedural LANGUAGE name RENAME TO name
 sub got_RenameStmt_10 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_LANGUAGE,
@@ -4252,7 +3455,6 @@ sub got_RenameStmt_10 {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_11: ALTER OPERATOR CLASS any_name USING access_method RENAME TO name
 sub got_RenameStmt_11 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_OPCLASS,
@@ -4262,7 +3464,6 @@ sub got_RenameStmt_11 {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_12: ALTER OPERATOR FAMILY any_name USING access_method RENAME TO name
 sub got_RenameStmt_12 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_OPFAMILY,
@@ -4272,7 +3473,6 @@ sub got_RenameStmt_12 {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_13: ALTER SCHEMA name RENAME TO name
 sub got_RenameStmt_13 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_SCHEMA,
@@ -4281,7 +3481,6 @@ sub got_RenameStmt_13 {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_14: ALTER SERVER name RENAME TO name
 sub got_RenameStmt_14 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_FOREIGN_SERVER,
@@ -4290,7 +3489,6 @@ sub got_RenameStmt_14 {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_15: ALTER TABLE relation_expr RENAME TO name
 sub got_RenameStmt_15 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_TABLE,
@@ -4300,7 +3498,6 @@ sub got_RenameStmt_15 {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_16: ALTER TABLE IF EXISTS relation_expr RENAME TO name
 sub got_RenameStmt_16 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_TABLE,
@@ -4310,7 +3507,6 @@ sub got_RenameStmt_16 {
       missing_ok          => TRUE,
    );
 }
-### RenameStmt_17: ALTER SEQUENCE qualified_name RENAME TO name
 sub got_RenameStmt_17 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_SEQUENCE,
@@ -4320,7 +3516,6 @@ sub got_RenameStmt_17 {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_18: ALTER SEQUENCE IF EXISTS qualified_name RENAME TO name
 sub got_RenameStmt_18 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_SEQUENCE,
@@ -4330,7 +3525,6 @@ sub got_RenameStmt_18 {
       missing_ok          => TRUE,
    );
 }
-### RenameStmt_19: ALTER VIEW qualified_name RENAME TO name
 sub got_RenameStmt_19 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_VIEW,
@@ -4340,7 +3534,6 @@ sub got_RenameStmt_19 {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_20: ALTER VIEW IF EXISTS qualified_name RENAME TO name
 sub got_RenameStmt_20 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_VIEW,
@@ -4350,7 +3543,6 @@ sub got_RenameStmt_20 {
       missing_ok          => TRUE,
    );
 }
-### RenameStmt_21: ALTER INDEX qualified_name RENAME TO name
 sub got_RenameStmt_21 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_INDEX,
@@ -4360,7 +3552,6 @@ sub got_RenameStmt_21 {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_22: ALTER INDEX IF EXISTS qualified_name RENAME TO name
 sub got_RenameStmt_22 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_INDEX,
@@ -4370,7 +3561,6 @@ sub got_RenameStmt_22 {
       missing_ok          => TRUE,
    );
 }
-### RenameStmt_23: ALTER FOREIGN TABLE relation_expr RENAME TO name
 sub got_RenameStmt_23 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_FOREIGN_TABLE,
@@ -4380,7 +3570,6 @@ sub got_RenameStmt_23 {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_24: ALTER FOREIGN TABLE IF EXISTS relation_expr RENAME TO name
 sub got_RenameStmt_24 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_FOREIGN_TABLE,
@@ -4390,7 +3579,6 @@ sub got_RenameStmt_24 {
       missing_ok          => TRUE,
    );
 }
-### RenameStmt_25: ALTER TABLE relation_expr RENAME opt_column name TO name
 sub got_RenameStmt_25 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_COLUMN,
@@ -4401,7 +3589,6 @@ sub got_RenameStmt_25 {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_26: ALTER TABLE IF EXISTS relation_expr RENAME opt_column name TO name
 sub got_RenameStmt_26 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_COLUMN,
@@ -4412,7 +3599,6 @@ sub got_RenameStmt_26 {
       missing_ok          => TRUE,
    );
 }
-### RenameStmt_27: ALTER TABLE relation_expr RENAME CONSTRAINT name TO name
 sub got_RenameStmt_27 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_CONSTRAINT,
@@ -4423,7 +3609,6 @@ sub got_RenameStmt_27 {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_28: ALTER FOREIGN TABLE relation_expr RENAME opt_column name TO name
 sub got_RenameStmt_28 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_COLUMN,
@@ -4434,7 +3619,6 @@ sub got_RenameStmt_28 {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_29: ALTER FOREIGN TABLE IF EXISTS relation_expr RENAME opt_column name TO name
 sub got_RenameStmt_29 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_COLUMN,
@@ -4445,7 +3629,6 @@ sub got_RenameStmt_29 {
       missing_ok          => TRUE,
    );
 }
-### RenameStmt_30: ALTER TRIGGER name ON qualified_name RENAME TO name
 sub got_RenameStmt_30 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_TRIGGER,
@@ -4455,7 +3638,6 @@ sub got_RenameStmt_30 {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_31: ALTER EVENT TRIGGER name RENAME TO name
 sub got_RenameStmt_31 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_EVENT_TRIGGER,
@@ -4464,7 +3646,6 @@ sub got_RenameStmt_31 {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_32: ALTER ROLE RoleId RENAME TO RoleId
 sub got_RenameStmt_32 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_ROLE,
@@ -4473,7 +3654,6 @@ sub got_RenameStmt_32 {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_33: ALTER USER RoleId RENAME TO RoleId
 sub got_RenameStmt_33 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_ROLE,
@@ -4482,7 +3662,6 @@ sub got_RenameStmt_33 {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_34: ALTER TABLESPACE name RENAME TO name
 sub got_RenameStmt_34 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_TABLESPACE,
@@ -4491,7 +3670,6 @@ sub got_RenameStmt_34 {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_35: ALTER TABLESPACE name SET reloptions
 sub got_RenameStmt_35 {
    return SQL::Translator::Statement::AlterTableSpaceOptions->new(
       tablespacename      => $_[3],
@@ -4500,7 +3678,6 @@ sub got_RenameStmt_35 {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_36: ALTER TABLESPACE name RESET reloptions
 sub got_RenameStmt_36 {
    return SQL::Translator::Statement::AlterTableSpaceOptions->new(
       tablespacename      => $_[3],
@@ -4509,7 +3686,6 @@ sub got_RenameStmt_36 {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_37: ALTER TEXT SEARCH PARSER any_name RENAME TO name
 sub got_RenameStmt_37 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_TSPARSER,
@@ -4518,7 +3694,6 @@ sub got_RenameStmt_37 {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_38: ALTER TEXT SEARCH DICTIONARY any_name RENAME TO name
 sub got_RenameStmt_38 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_TSDICTIONARY,
@@ -4527,7 +3702,6 @@ sub got_RenameStmt_38 {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_39: ALTER TEXT SEARCH TEMPLATE any_name RENAME TO name
 sub got_RenameStmt_39 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_TSTEMPLATE,
@@ -4536,7 +3710,6 @@ sub got_RenameStmt_39 {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_40: ALTER TEXT SEARCH CONFIGURATION any_name RENAME TO name
 sub got_RenameStmt_40 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_TSCONFIGURATION,
@@ -4545,7 +3718,6 @@ sub got_RenameStmt_40 {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_41: ALTER TYPE any_name RENAME TO name
 sub got_RenameStmt_41 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_TYPE,
@@ -4554,7 +3726,6 @@ sub got_RenameStmt_41 {
       missing_ok          => FALSE,
    );
 }
-### RenameStmt_42: ALTER TYPE any_name RENAME ATTRIBUTE name TO name opt_drop_behavior
 sub got_RenameStmt_42 {
    return SQL::Translator::Statement::Rename->new(
       renameType          => OBJECT_ATTRIBUTE,
@@ -4567,11 +3738,8 @@ sub got_RenameStmt_42 {
    );
 }
 #** Just noise... ##
-### opt_column: COLUMN
 sub got_opt_column { OBJECT_COLUMN }
-### opt_set_data: SET DATA
 sub got_opt_set_data { 1 }
-### AlterObjectSchemaStmt_1 : ALTER AGGREGATE func_name aggr_args SET SCHEMA name
 sub got_AlterObjectSchemaStmt_1  {
    return SQL::Translator::Statement::AlterObjectSchema->new(
       objectType => OBJECT_AGGREGATE,
@@ -4580,7 +3748,6 @@ sub got_AlterObjectSchemaStmt_1  {
       newschema  => $_[7],
    );
 }
-### AlterObjectSchemaStmt_2 : ALTER COLLATION any_name SET SCHEMA name
 sub got_AlterObjectSchemaStmt_2  {
    return SQL::Translator::Statement::AlterObjectSchema->new(
       objectType => OBJECT_COLLATION,
@@ -4588,7 +3755,6 @@ sub got_AlterObjectSchemaStmt_2  {
       newschema  => $_[6],
    );
 }
-### AlterObjectSchemaStmt_3 : ALTER CONVERSION any_name SET SCHEMA name
 sub got_AlterObjectSchemaStmt_3  {
    return SQL::Translator::Statement::AlterObjectSchema->new(
       objectType => OBJECT_CONVERSION,
@@ -4596,7 +3762,6 @@ sub got_AlterObjectSchemaStmt_3  {
       newschema  => $_[6],
    );
 }
-### AlterObjectSchemaStmt_4 : ALTER DOMAIN any_name SET SCHEMA name
 sub got_AlterObjectSchemaStmt_4  {
    return SQL::Translator::Statement::AlterObjectSchema->new(
       objectType => OBJECT_DOMAIN,
@@ -4604,7 +3769,6 @@ sub got_AlterObjectSchemaStmt_4  {
       newschema  => $_[6],
    );
 }
-### AlterObjectSchemaStmt_5 : ALTER EXTENSION any_name SET SCHEMA name
 sub got_AlterObjectSchemaStmt_5  {
    return SQL::Translator::Statement::AlterObjectSchema->new(
       objectType => OBJECT_EXTENSION,
@@ -4612,7 +3776,6 @@ sub got_AlterObjectSchemaStmt_5  {
       newschema  => $_[6],
    );
 }
-### AlterObjectSchemaStmt_6 : ALTER FUNCTION function_with_argtypes SET SCHEMA name
 sub got_AlterObjectSchemaStmt_6  {
    return SQL::Translator::Statement::AlterObjectSchema->new(
       objectType => OBJECT_FUNCTION,
@@ -4621,7 +3784,6 @@ sub got_AlterObjectSchemaStmt_6  {
       newschema  => $_[6],
    );
 }
-### AlterObjectSchemaStmt_7 : ALTER OPERATOR any_operator oper_argtypes SET SCHEMA name
 sub got_AlterObjectSchemaStmt_7  {
    return SQL::Translator::Statement::AlterObjectSchema->new(
       objectType => OBJECT_OPERATOR,
@@ -4630,7 +3792,6 @@ sub got_AlterObjectSchemaStmt_7  {
       newschema  => $_[7],
    );
 }
-### AlterObjectSchemaStmt_8 : ALTER OPERATOR CLASS any_name USING access_method SET SCHEMA name
 sub got_AlterObjectSchemaStmt_8  {
    return SQL::Translator::Statement::AlterObjectSchema->new(
       objectType => OBJECT_OPCLASS,
@@ -4639,7 +3800,6 @@ sub got_AlterObjectSchemaStmt_8  {
       newschema  => $_[9],
    );
 }
-### AlterObjectSchemaStmt_9 : ALTER OPERATOR FAMILY any_name USING access_method SET SCHEMA name
 sub got_AlterObjectSchemaStmt_9  {
    return SQL::Translator::Statement::AlterObjectSchema->new(
       objectType => OBJECT_OPFAMILY,
@@ -4648,7 +3808,6 @@ sub got_AlterObjectSchemaStmt_9  {
       newschema  => $_[9],
    );
 }
-### AlterObjectSchemaStmt_10: ALTER TABLE relation_expr SET SCHEMA name
 sub got_AlterObjectSchemaStmt_10 {
    return SQL::Translator::Statement::AlterObjectSchema->new(
       objectType => OBJECT_TABLE,
@@ -4657,7 +3816,6 @@ sub got_AlterObjectSchemaStmt_10 {
       missing_ok => FALSE,
    );
 }
-### AlterObjectSchemaStmt_11: ALTER TABLE IF EXISTS relation_expr SET SCHEMA name
 sub got_AlterObjectSchemaStmt_11 {
    return SQL::Translator::Statement::AlterObjectSchema->new(
       objectType => OBJECT_TABLE,
@@ -4666,7 +3824,6 @@ sub got_AlterObjectSchemaStmt_11 {
       missing_ok => TRUE,
    );
 }
-### AlterObjectSchemaStmt_12: ALTER TEXT SEARCH PARSER any_name SET SCHEMA name
 sub got_AlterObjectSchemaStmt_12 {
    return SQL::Translator::Statement::AlterObjectSchema->new(
       objectType => OBJECT_TSPARSER,
@@ -4674,7 +3831,6 @@ sub got_AlterObjectSchemaStmt_12 {
       newschema  => $_[8],
    );
 }
-### AlterObjectSchemaStmt_13: ALTER TEXT SEARCH DICTIONARY any_name SET SCHEMA name
 sub got_AlterObjectSchemaStmt_13 {
    return SQL::Translator::Statement::AlterObjectSchema->new(
       objectType => OBJECT_TSDICTIONARY,
@@ -4682,7 +3838,6 @@ sub got_AlterObjectSchemaStmt_13 {
       newschema  => $_[8],
    );
 }
-### AlterObjectSchemaStmt_14: ALTER TEXT SEARCH TEMPLATE any_name SET SCHEMA name
 sub got_AlterObjectSchemaStmt_14 {
    return SQL::Translator::Statement::AlterObjectSchema->new(
       objectType => OBJECT_TSTEMPLATE,
@@ -4690,7 +3845,6 @@ sub got_AlterObjectSchemaStmt_14 {
       newschema  => $_[8],
    );
 }
-### AlterObjectSchemaStmt_15: ALTER TEXT SEARCH CONFIGURATION any_name SET SCHEMA name
 sub got_AlterObjectSchemaStmt_15 {
    return SQL::Translator::Statement::AlterObjectSchema->new(
       objectType => OBJECT_TSCONFIGURATION,
@@ -4698,7 +3852,6 @@ sub got_AlterObjectSchemaStmt_15 {
       newschema  => $_[8],
    );
 }
-### AlterObjectSchemaStmt_16: ALTER SEQUENCE qualified_name SET SCHEMA name
 sub got_AlterObjectSchemaStmt_16 {
    return SQL::Translator::Statement::AlterObjectSchema->new(
       objectType => OBJECT_SEQUENCE,
@@ -4707,7 +3860,6 @@ sub got_AlterObjectSchemaStmt_16 {
       missing_ok => FALSE,                  
    );
 }
-### AlterObjectSchemaStmt_17: ALTER SEQUENCE IF EXISTS qualified_name SET SCHEMA name
 sub got_AlterObjectSchemaStmt_17 {
    return SQL::Translator::Statement::AlterObjectSchema->new(
       objectType => OBJECT_SEQUENCE,
@@ -4716,7 +3868,6 @@ sub got_AlterObjectSchemaStmt_17 {
       missing_ok => TRUE,
    );
 }
-### AlterObjectSchemaStmt_18: ALTER VIEW qualified_name SET SCHEMA name
 sub got_AlterObjectSchemaStmt_18 {
    return SQL::Translator::Statement::AlterObjectSchema->new(
       objectType => OBJECT_VIEW,
@@ -4725,7 +3876,6 @@ sub got_AlterObjectSchemaStmt_18 {
       missing_ok => FALSE,
    );
 }
-### AlterObjectSchemaStmt_19: ALTER VIEW IF EXISTS qualified_name SET SCHEMA name
 sub got_AlterObjectSchemaStmt_19 {
    return SQL::Translator::Statement::AlterObjectSchema->new(
       objectType => OBJECT_VIEW,
@@ -4734,7 +3884,6 @@ sub got_AlterObjectSchemaStmt_19 {
       missing_ok => TRUE,
    );
 }
-### AlterObjectSchemaStmt_20: ALTER FOREIGN TABLE relation_expr SET SCHEMA name
 sub got_AlterObjectSchemaStmt_20 {
    return SQL::Translator::Statement::AlterObjectSchema->new(
       objectType => OBJECT_FOREIGN_TABLE,
@@ -4743,7 +3892,6 @@ sub got_AlterObjectSchemaStmt_20 {
       missing_ok => FALSE,
    );
 }
-### AlterObjectSchemaStmt_21: ALTER FOREIGN TABLE IF EXISTS relation_expr SET SCHEMA name
 sub got_AlterObjectSchemaStmt_21 {
    return SQL::Translator::Statement::AlterObjectSchema->new(
       objectType => OBJECT_FOREIGN_TABLE,
@@ -4752,7 +3900,6 @@ sub got_AlterObjectSchemaStmt_21 {
       missing_ok => TRUE,
    );
 }
-### AlterObjectSchemaStmt_22: ALTER TYPE any_name SET SCHEMA name
 sub got_AlterObjectSchemaStmt_22 {
    return SQL::Translator::Statement::AlterObjectSchema->new(
       objectType => OBJECT_TYPE,
@@ -4760,7 +3907,6 @@ sub got_AlterObjectSchemaStmt_22 {
       newschema  => $_[6],
    );
 }
-### AlterOwnerStmt_1 : ALTER AGGREGATE func_name aggr_args OWNER TO RoleId
 sub got_AlterOwnerStmt_1  {
    return SQL::Translator::Statement::AlterOwner->new(
       objectType => OBJECT_AGGREGATE,
@@ -4769,7 +3915,6 @@ sub got_AlterOwnerStmt_1  {
       newowner   => $_[7],
    );
 }
-### AlterOwnerStmt_2 : ALTER COLLATION any_name OWNER TO RoleId
 sub got_AlterOwnerStmt_2  {
    return SQL::Translator::Statement::AlterOwner->new(
       objectType => OBJECT_COLLATION,
@@ -4777,7 +3922,6 @@ sub got_AlterOwnerStmt_2  {
       newowner   => $_[6],
    );
 }
-### AlterOwnerStmt_3 : ALTER CONVERSION any_name OWNER TO RoleId
 sub got_AlterOwnerStmt_3  {
    return SQL::Translator::Statement::AlterOwner->new(
       objectType => OBJECT_CONVERSION,
@@ -4785,7 +3929,6 @@ sub got_AlterOwnerStmt_3  {
       newowner   => $_[6],
    );
 }
-### AlterOwnerStmt_4 : ALTER DATABASE database_name OWNER TO RoleId
 sub got_AlterOwnerStmt_4  {
    return SQL::Translator::Statement::AlterOwner->new(
       objectType => OBJECT_DATABASE,
@@ -4793,7 +3936,6 @@ sub got_AlterOwnerStmt_4  {
       newowner   => $_[6],
    );
 }
-### AlterOwnerStmt_5 : ALTER DOMAIN any_name OWNER TO RoleId
 sub got_AlterOwnerStmt_5  {
    return SQL::Translator::Statement::AlterOwner->new(
       objectType => OBJECT_DOMAIN,
@@ -4801,7 +3943,6 @@ sub got_AlterOwnerStmt_5  {
       newowner   => $_[6],
    );
 }
-### AlterOwnerStmt_6 : ALTER FUNCTION function_with_argtypes OWNER TO RoleId
 sub got_AlterOwnerStmt_6  {
    return SQL::Translator::Statement::AlterOwner->new(
       objectType => OBJECT_FUNCTION,
@@ -4810,7 +3951,6 @@ sub got_AlterOwnerStmt_6  {
       newowner   => $_[6],
    );
 }
-### AlterOwnerStmt_7 : ALTER opt_procedural LANGUAGE name OWNER TO RoleId
 sub got_AlterOwnerStmt_7  {
    return SQL::Translator::Statement::AlterOwner->new(
       objectType => OBJECT_LANGUAGE,
@@ -4818,7 +3958,6 @@ sub got_AlterOwnerStmt_7  {
       newowner   => $_[7],
    );
 }
-### AlterOwnerStmt_8 : ALTER LARGE OBJECT NumericOnly OWNER TO RoleId
 sub got_AlterOwnerStmt_8  {
    return SQL::Translator::Statement::AlterOwner->new(
       objectType => OBJECT_LARGEOBJECT,
@@ -4826,7 +3965,6 @@ sub got_AlterOwnerStmt_8  {
       newowner   => $_[7],
    );
 }
-### AlterOwnerStmt_9 : ALTER OPERATOR any_operator oper_argtypes OWNER TO RoleId
 sub got_AlterOwnerStmt_9  {
    return SQL::Translator::Statement::AlterOwner->new(
       objectType => OBJECT_OPERATOR,
@@ -4835,7 +3973,6 @@ sub got_AlterOwnerStmt_9  {
       newowner   => $_[7],
    );
 }
-### AlterOwnerStmt_10: ALTER OPERATOR CLASS any_name USING access_method OWNER TO RoleId
 sub got_AlterOwnerStmt_10 {
    return SQL::Translator::Statement::AlterOwner->new(
       objectType => OBJECT_OPCLASS,
@@ -4844,7 +3981,6 @@ sub got_AlterOwnerStmt_10 {
       newowner   => $_[9],
    );
 }
-### AlterOwnerStmt_11: ALTER OPERATOR FAMILY any_name USING access_method OWNER TO RoleId
 sub got_AlterOwnerStmt_11 {
    return SQL::Translator::Statement::AlterOwner->new(
       objectType => OBJECT_OPFAMILY,
@@ -4853,7 +3989,6 @@ sub got_AlterOwnerStmt_11 {
       newowner   => $_[9],
    );
 }
-### AlterOwnerStmt_12: ALTER SCHEMA name OWNER TO RoleId
 sub got_AlterOwnerStmt_12 {
    return SQL::Translator::Statement::AlterOwner->new(
       objectType => OBJECT_SCHEMA,
@@ -4861,7 +3996,6 @@ sub got_AlterOwnerStmt_12 {
       newowner   => $_[6],
    );
 }
-### AlterOwnerStmt_13: ALTER TYPE any_name OWNER TO RoleId
 sub got_AlterOwnerStmt_13 {
    return SQL::Translator::Statement::AlterOwner->new(
       objectType => OBJECT_TYPE,
@@ -4869,7 +4003,6 @@ sub got_AlterOwnerStmt_13 {
       newowner   => $_[6],
    );
 }
-### AlterOwnerStmt_14: ALTER TABLESPACE name OWNER TO RoleId
 sub got_AlterOwnerStmt_14 {
    return SQL::Translator::Statement::AlterOwner->new(
       objectType => OBJECT_TABLESPACE,
@@ -4877,7 +4010,6 @@ sub got_AlterOwnerStmt_14 {
       newowner   => $_[6],
    );
 }
-### AlterOwnerStmt_15: ALTER TEXT SEARCH DICTIONARY any_name OWNER TO RoleId
 sub got_AlterOwnerStmt_15 {
    return SQL::Translator::Statement::AlterOwner->new(
       objectType => OBJECT_TSDICTIONARY,
@@ -4885,7 +4017,6 @@ sub got_AlterOwnerStmt_15 {
       newowner   => $_[8],
    );
 }
-### AlterOwnerStmt_16: ALTER TEXT SEARCH CONFIGURATION any_name OWNER TO RoleId
 sub got_AlterOwnerStmt_16 {
    return SQL::Translator::Statement::AlterOwner->new(
       objectType => OBJECT_TSCONFIGURATION,
@@ -4893,7 +4024,6 @@ sub got_AlterOwnerStmt_16 {
       newowner   => $_[8],
    );
 }
-### AlterOwnerStmt_17: ALTER FOREIGN DATA WRAPPER name OWNER TO RoleId
 sub got_AlterOwnerStmt_17 {
    return SQL::Translator::Statement::AlterOwner->new(
       objectType => OBJECT_FDW,
@@ -4901,7 +4031,6 @@ sub got_AlterOwnerStmt_17 {
       newowner   => $_[8],
    );
 }
-### AlterOwnerStmt_18: ALTER SERVER name OWNER TO RoleId
 sub got_AlterOwnerStmt_18 {
    return SQL::Translator::Statement::AlterOwner->new(
       objectType => OBJECT_FOREIGN_SERVER,
@@ -4909,7 +4038,6 @@ sub got_AlterOwnerStmt_18 {
       newowner   => $_[6],
    );
 }
-### AlterOwnerStmt_19: ALTER EVENT TRIGGER name OWNER TO RoleId
 sub got_AlterOwnerStmt_19 {
    return SQL::Translator::Statement::AlterOwner->new(
       objectType => OBJECT_EVENT_TRIGGER,
@@ -4917,7 +4045,6 @@ sub got_AlterOwnerStmt_19 {
       newowner   => $_[7],
    );
 }
-### RuleStmt: CREATE opt_or_replace RULE name AS ON event TO qualified_name where_clause DO opt_instead RuleActionList
 sub got_RuleStmt {
    return SQL::Translator::Statement::Rule->new(
       replace     => $_[2],
@@ -4929,29 +4056,17 @@ sub got_RuleStmt {
       actions     => $_[13],
    );
 }
-### RuleActionList_1: NOTHING
 sub got_RuleActionList_1 { NIL }
-### RuleActionList_2: RuleActionStmt
 sub got_RuleActionList_2 { $_[0]->lappend($_[1]) }
-### RuleActionList_3:  ~ <C_LPAREN> ~  RuleActionMulti  ~ <C_RPAREN> ~ 
 sub got_RuleActionList_3 { $_[2] }
-### RuleActionMulti: RuleActionStmtOrEmpty+ % / ~  ~ <C_SEMI> ~  ~ /
 sub got_RuleActionMulti { (defined $_[3]) ? $_[0]->lappend($_[1], $_[3]) : $_[1] }
-### RuleActionStmtOrEmpty: RuleActionStmt
 sub got_RuleActionStmtOrEmpty { $_[1] }
-### event_1: SELECT
 sub got_event_1 { CMD_SELECT }
-### event_2: UPDATE
 sub got_event_2 { CMD_UPDATE }
-### event_3: DELETE
 sub got_event_3 { CMD_DELETE }
-### event_4: INSERT
 sub got_event_4 { CMD_INSERT }
-### opt_instead_1: INSTEAD
 sub got_opt_instead_1 { TRUE  }
-### opt_instead_2: ALSO
 sub got_opt_instead_2 { FALSE }
-### DropRuleStmt_1: DROP RULE name ON qualified_name opt_drop_behavior
 sub got_DropRuleStmt_1 {
    return SQL::Translator::Statement::Drop->new(
       removeType => OBJECT_RULE,
@@ -4962,7 +4077,6 @@ sub got_DropRuleStmt_1 {
       concurrent => FALSE,
    );
 }
-### DropRuleStmt_2: DROP RULE IF EXISTS name ON qualified_name opt_drop_behavior
 sub got_DropRuleStmt_2 {
    return SQL::Translator::Statement::Drop->new(
       removeType => OBJECT_RULE,
@@ -4973,152 +4087,122 @@ sub got_DropRuleStmt_2 {
       concurrent => FALSE,
    );
 }
-### NotifyStmt: NOTIFY ColId notify_payload
 sub got_NotifyStmt {
    return SQL::Translator::Statement::Notify->new(
       conditionname => $_[2],
       payload       => $_[3],
    );
 }
-### notify_payload:  ~ <C_COMMA> ~  Sconst
 sub got_notify_payload { $_[2] }
-### ListenStmt: LISTEN ColId
 sub got_ListenStmt {
    return SQL::Translator::Statement::Listen->new(
       conditionname => $_[2],
    );
 }
-### UnlistenStmt_1: UNLISTEN ColId
 sub got_UnlistenStmt_1 {
    return SQL::Translator::Statement::Unlisten->new(
       conditionname => $_[2],
    );
 }
-### UnlistenStmt_2: UNLISTEN  ~ <C_STAR> ~ 
 sub got_UnlistenStmt_2 {
    return SQL::Translator::Statement::Unlisten->new(
       conditionname => NULL,
    );
 }
-### TransactionStmt_1 : ABORT opt_transaction
 sub got_TransactionStmt_1  {
    return SQL::Translator::Statement::Transaction->new(
       kind    => TRANS_STMT_ROLLBACK,
       options => NIL,
    );
 }
-### TransactionStmt_2 : BEGIN opt_transaction transaction_mode_list_or_empty
 sub got_TransactionStmt_2  {
    return SQL::Translator::Statement::Transaction->new(
       kind    => TRANS_STMT_BEGIN,
       options => $_[3],
    );
 }
-### TransactionStmt_3 : START TRANSACTION transaction_mode_list_or_empty
 sub got_TransactionStmt_3  {
    return SQL::Translator::Statement::Transaction->new(
       kind    => TRANS_STMT_START,
       options => $_[3],
    );
 }
-### TransactionStmt_4 : COMMIT opt_transaction
 sub got_TransactionStmt_4  {
    return SQL::Translator::Statement::Transaction->new(
       kind    => TRANS_STMT_COMMIT,
       options => NIL,
    );
 }
-### TransactionStmt_5 : END opt_transaction
 sub got_TransactionStmt_5  {
    return SQL::Translator::Statement::Transaction->new(
       kind    => TRANS_STMT_COMMIT,
       options => NIL,
    );
 }
-### TransactionStmt_6 : ROLLBACK opt_transaction
 sub got_TransactionStmt_6  {
    return SQL::Translator::Statement::Transaction->new(
       kind    => TRANS_STMT_ROLLBACK,
       options => NIL,
    );
 }
-### TransactionStmt_7 : SAVEPOINT ColId
 sub got_TransactionStmt_7  {
    return SQL::Translator::Statement::Transaction->new(
       kind    => TRANS_STMT_SAVEPOINT,
       options => $_[0]->lappend($_[0]->makeDefElem("savepoint_name", $_[2])),
    );
 }
-### TransactionStmt_8 : RELEASE SAVEPOINT ColId
 sub got_TransactionStmt_8  {
    return SQL::Translator::Statement::Transaction->new(
       kind    => TRANS_STMT_RELEASE,
       options => $_[0]->lappend($_[0]->makeDefElem("savepoint_name", $_[3])),
    );
 }
-### TransactionStmt_9 : RELEASE ColId
 sub got_TransactionStmt_9  {
    return SQL::Translator::Statement::Transaction->new(
       kind    => TRANS_STMT_RELEASE,
       options => $_[0]->lappend($_[0]->makeDefElem("savepoint_name", $_[2])),
    );
 }
-### TransactionStmt_10: ROLLBACK opt_transaction TO SAVEPOINT ColId
 sub got_TransactionStmt_10 {
    return SQL::Translator::Statement::Transaction->new(
       kind    => TRANS_STMT_ROLLBACK_TO,
       options => $_[0]->lappend($_[0]->makeDefElem("savepoint_name", $_[5])),
    );
 }
-### TransactionStmt_11: ROLLBACK opt_transaction TO ColId
 sub got_TransactionStmt_11 {
    return SQL::Translator::Statement::Transaction->new(
       kind    => TRANS_STMT_ROLLBACK_TO,
       options => $_[0]->lappend($_[0]->makeDefElem("savepoint_name", $_[4])),
    );
 }
-### TransactionStmt_12: PREPARE TRANSACTION Sconst
 sub got_TransactionStmt_12 {
    return SQL::Translator::Statement::Transaction->new(
       kind    => TRANS_STMT_PREPARE,
       gid     => $_[3],
    );
 }
-### TransactionStmt_13: COMMIT PREPARED Sconst
 sub got_TransactionStmt_13 {
    return SQL::Translator::Statement::Transaction->new(
       kind    => TRANS_STMT_COMMIT_PREPARED,
       gid     => $_[3],
    );
 }
-### TransactionStmt_14: ROLLBACK PREPARED Sconst
 sub got_TransactionStmt_14 {
    return SQL::Translator::Statement::Transaction->new(
       kind    => TRANS_STMT_ROLLBACK_PREPARED,
       gid     => $_[3],
    );
 }
-### opt_transaction_1: WORK
 sub got_opt_transaction_1 {}
-### opt_transaction_2: TRANSACTION
 sub got_opt_transaction_2 {}
-### transaction_mode_item_1: ISOLATION LEVEL iso_level
 sub got_transaction_mode_item_1 { $_[0]->makeDefElem("transaction_isolation",  $_[0]->makeStringConst($_[3], $_[0]->YYLLoc($_[3], 3))) }
-### transaction_mode_item_2: READ ONLY
 sub got_transaction_mode_item_2 { $_[0]->makeDefElem("transaction_read_only",  $_[0]->makeIntConst   (TRUE,  $_[0]->YYLLoc($_[1], 1))) }
-### transaction_mode_item_3: READ WRITE
 sub got_transaction_mode_item_3 { $_[0]->makeDefElem("transaction_read_only",  $_[0]->makeIntConst   (FALSE, $_[0]->YYLLoc($_[1], 1))) }
-### transaction_mode_item_4: DEFERRABLE
 sub got_transaction_mode_item_4 { $_[0]->makeDefElem("transaction_deferrable", $_[0]->makeIntConst   (TRUE,  $_[0]->YYLLoc($_[1], 1))) }
-### transaction_mode_item_5: NOT DEFERRABLE
 sub got_transaction_mode_item_5 { $_[0]->makeDefElem("transaction_deferrable", $_[0]->makeIntConst   (FALSE, $_[0]->YYLLoc($_[1], 1))) }
-### transaction_mode_list_1: transaction_mode_item
 sub got_transaction_mode_list_1 { $_[0]->lappend($_[1])        }
-### transaction_mode_list_2: transaction_mode_list  ~ <C_COMMA> ~  transaction_mode_item
 sub got_transaction_mode_list_2 { $_[0]->lappend($_[1], $_[3]) }
-### transaction_mode_list_3: transaction_mode_list transaction_mode_item
 sub got_transaction_mode_list_3 { $_[0]->lappend($_[1], $_[2]) }
-### ViewStmt_1: CREATE OptTemp VIEW qualified_name opt_column_list opt_reloptions AS SelectStmt opt_check_option
 sub got_ViewStmt_1 {
    my $n = SQL::Translator::Statement::View->new(
       view    => $_[4],
@@ -5130,7 +4214,6 @@ sub got_ViewStmt_1 {
    $n->view->relpersistence($_[2]);
    return $n;
 }
-### ViewStmt_2: CREATE OR REPLACE OptTemp VIEW qualified_name opt_column_list opt_reloptions AS SelectStmt opt_check_option
 sub got_ViewStmt_2 {
    my $n = SQL::Translator::Statement::View->new(
       view    => $_[6],
@@ -5142,113 +4225,82 @@ sub got_ViewStmt_2 {
    $n->view->relpersistence($_[4]);
    return $n;
 }
-### opt_check_option_1: WITH CHECK OPTION
 sub got_opt_check_option_1 {
    $_[0]->ereport(ERROR,
          ERRCODE_FEATURE_NOT_SUPPORTED,
           "WITH CHECK OPTION is not implemented");
 }
-### opt_check_option_2: WITH CASCADED CHECK OPTION
 sub got_opt_check_option_2 {
    $_[0]->ereport(ERROR,
          ERRCODE_FEATURE_NOT_SUPPORTED,
           "WITH CHECK OPTION is not implemented");
 }
-### opt_check_option_3: WITH LOCAL CHECK OPTION
 sub got_opt_check_option_3 {
    $_[0]->ereport(ERROR,
          ERRCODE_FEATURE_NOT_SUPPORTED,
           "WITH CHECK OPTION is not implemented");
 }
-### LoadStmt: LOAD file_name
 sub got_LoadStmt {
    return SQL::Translator::Statement::Load->new(
       filename => $_[2],
    );
 }
-### CreatedbStmt: CREATE DATABASE database_name opt_with createdb_opt_list
 sub got_CreatedbStmt {
    return SQL::Translator::Statement::Createdb->new(
       dbname  => $_[3],
       options => $_[5],
    );
 }
-### createdb_opt_list: createdb_opt_item* % ~
 sub got_createdb_opt_list { $_[0]->lappend($_[1], $_[2]) }
-### createdb_opt_item_1 : TABLESPACE opt_equal name
 sub got_createdb_opt_item_1  { $_[0]->makeDefElem("tablespace",  $_[3]) }
-### createdb_opt_item_2 : TABLESPACE opt_equal DEFAULT
 sub got_createdb_opt_item_2  { $_[0]->makeDefElem("tablespace",   NULL) }
-### createdb_opt_item_3 : LOCATION opt_equal Sconst
 sub got_createdb_opt_item_3  { $_[0]->makeDefElem("location",    $_[3]) }
-### createdb_opt_item_4 : LOCATION opt_equal DEFAULT
 sub got_createdb_opt_item_4  { $_[0]->makeDefElem("location",     NULL) }
-### createdb_opt_item_5 : TEMPLATE opt_equal name
 sub got_createdb_opt_item_5  { $_[0]->makeDefElem("template",    $_[3]) }
-### createdb_opt_item_6 : TEMPLATE opt_equal DEFAULT
 sub got_createdb_opt_item_6  { $_[0]->makeDefElem("template",     NULL) }
-### createdb_opt_item_7 : ENCODING opt_equal Sconst
 sub got_createdb_opt_item_7  { $_[0]->makeDefElem("encoding",    $_[3]) }
-### createdb_opt_item_8 : ENCODING opt_equal Iconst
 sub got_createdb_opt_item_8  { $_[0]->makeDefElem("encoding",  $_[3]+0) }
-### createdb_opt_item_9 : ENCODING opt_equal DEFAULT
 sub got_createdb_opt_item_9  { $_[0]->makeDefElem("encoding",     NULL) }
-### createdb_opt_item_10: LC_COLLATE opt_equal Sconst
 sub got_createdb_opt_item_10 { $_[0]->makeDefElem("lc_collate",  $_[3]) }
-### createdb_opt_item_11: LC_COLLATE opt_equal DEFAULT
 sub got_createdb_opt_item_11 { $_[0]->makeDefElem("lc_collate",   NULL) }
-### createdb_opt_item_12: LC_CTYPE opt_equal Sconst
 sub got_createdb_opt_item_12 { $_[0]->makeDefElem("lc_ctype",    $_[3]) }
-### createdb_opt_item_13: LC_CTYPE opt_equal DEFAULT
 sub got_createdb_opt_item_13 { $_[0]->makeDefElem("lc_ctype",     NULL) }
-### createdb_opt_item_14: CONNECTION LIMIT opt_equal SignedIconst
 sub got_createdb_opt_item_14 { $_[0]->makeDefElem("connectionlimit", $_[4]+0) }
-### createdb_opt_item_15: OWNER opt_equal name
 sub got_createdb_opt_item_15 { $_[0]->makeDefElem("owner",       $_[3]) }
-### createdb_opt_item_16: OWNER opt_equal DEFAULT
 sub got_createdb_opt_item_16 { $_[0]->makeDefElem("owner",        NULL) }
-### opt_equal:  ~ <C_EQUAL> ~ 
 sub got_opt_equal {}
-### AlterDatabaseStmt_1: ALTER DATABASE database_name opt_with alterdb_opt_list
 sub got_AlterDatabaseStmt_1 {
   return SQL::Translator::Statement::AlterDatabase->new(
      dbname  => $_[3],
      options => $_[5],
   );
 }
-### AlterDatabaseStmt_2: ALTER DATABASE database_name SET TABLESPACE name
 sub got_AlterDatabaseStmt_2 {
   return SQL::Translator::Statement::AlterDatabase->new(
      dbname  => $_[3],
      options => $_[0]->lappend($_[0]->makeDefElem("tablespace", $_[6])),
   );
 }
-### AlterDatabaseSetStmt: ALTER DATABASE database_name SetResetClause
 sub got_AlterDatabaseSetStmt {
    return SQL::Translator::Statement::AlterDatabaseSet->new(
       dbname  => $_[3],
       setstmt => $_[4],
    );
 }
-### alterdb_opt_list: alterdb_opt_item* % ~
 sub got_alterdb_opt_list { $_[0]->lappend($_[1], $_[2]) }
-### alterdb_opt_item: CONNECTION LIMIT opt_equal SignedIconst
 sub got_alterdb_opt_item { $_[0]->makeDefElem("connectionlimit", $_[4]+0) }
-### DropdbStmt_1: DROP DATABASE database_name
 sub got_DropdbStmt_1 {
    return SQL::Translator::Statement::Dropdb->new(
       dbname     => $_[3],
       missing_ok => FALSE,
    );
 }
-### DropdbStmt_2: DROP DATABASE IF EXISTS database_name
 sub got_DropdbStmt_2 {
    return SQL::Translator::Statement::Dropdb->new(
       dbname     => $_[5],
       missing_ok => TRUE,
    );
 }
-### CreateDomainStmt: CREATE DOMAIN any_name opt_as Typename ColQualList
 sub got_CreateDomainStmt {
    my $n = SQL::Translator::Statement::CreateDomain->new(
       domainname => $_[3],
@@ -5258,9 +4310,6 @@ sub got_CreateDomainStmt {
    return $n;
 }
 # ALTER DOMAIN <domain> DROP NOT NULL
-### AlterDomainStmt_1: 
-# ALTER DOMAIN <domain> {SET DEFAULT <expr>|DROP DEFAULT}
-    ALTER DOMAIN any_name alter_column_default
 sub got_AlterDomainStmt_1 {
    return SQL::Translator::Statement::AlterDomain->new(
       subtype  => 'T',
@@ -5269,7 +4318,6 @@ sub got_AlterDomainStmt_1 {
    );
 }
 # ALTER DOMAIN <domain> SET NOT NULL
-### AlterDomainStmt_2: ALTER DOMAIN any_name DROP NOT NULL
 sub got_AlterDomainStmt_2 {
    return SQL::Translator::Statement::AlterDomain->new(
       subtype  => 'N',
@@ -5277,7 +4325,6 @@ sub got_AlterDomainStmt_2 {
    );
 }
 # ALTER DOMAIN <domain> ADD CONSTRAINT ...
-### AlterDomainStmt_3: ALTER DOMAIN any_name SET NOT NULL
 sub got_AlterDomainStmt_3 {
    return SQL::Translator::Statement::AlterDomain->new(
       subtype  => 'O',
@@ -5285,7 +4332,6 @@ sub got_AlterDomainStmt_3 {
    );
 }
 # ALTER DOMAIN <domain> DROP CONSTRAINT <name> [RESTRICT|CASCADE]
-### AlterDomainStmt_4: ALTER DOMAIN any_name ADD TableConstraint
 sub got_AlterDomainStmt_4 {
    return SQL::Translator::Statement::AlterDomain->new(
       subtype  => 'C',
@@ -5294,7 +4340,6 @@ sub got_AlterDomainStmt_4 {
    );
 }
 # ALTER DOMAIN <domain> DROP CONSTRAINT IF EXISTS <name> [RESTRICT|CASCADE]
-### AlterDomainStmt_5: ALTER DOMAIN any_name DROP CONSTRAINT name opt_drop_behavior
 sub got_AlterDomainStmt_5 {
    return SQL::Translator::Statement::AlterDomain->new(
       subtype    => 'X',
@@ -5305,7 +4350,6 @@ sub got_AlterDomainStmt_5 {
    );
 }
 # ALTER DOMAIN <domain> VALIDATE CONSTRAINT <name>
-### AlterDomainStmt_6: ALTER DOMAIN any_name DROP CONSTRAINT IF EXISTS name opt_drop_behavior
 sub got_AlterDomainStmt_6 {
    return SQL::Translator::Statement::AlterDomain->new(
       subtype    => 'X',
@@ -5315,7 +4359,6 @@ sub got_AlterDomainStmt_6 {
       missing_ok => TRUE,
    );
 }
-### AlterDomainStmt_7: ALTER DOMAIN any_name VALIDATE CONSTRAINT name
 sub got_AlterDomainStmt_7 {
    return SQL::Translator::Statement::AlterDomain->new(
       subtype    => 'V',
@@ -5323,16 +4366,13 @@ sub got_AlterDomainStmt_7 {
       name       => $_[6],
    );
 }
-### opt_as: AS
 sub got_opt_as {}
-### AlterTSDictionaryStmt: ALTER TEXT SEARCH DICTIONARY any_name definition
 sub got_AlterTSDictionaryStmt {
    return SQL::Translator::Statement::AlterTSDictionary->new(
       dictname => $_[5],
       options  => $_[6],
    );
 }
-### AlterTSConfigurationStmt_1: ALTER TEXT SEARCH CONFIGURATION any_name ADD MAPPING FOR name_list WITH any_name_list
 sub got_AlterTSConfigurationStmt_1 {
    return SQL::Translator::Statement::AlterTSConfiguration->new(
       cfgname    => $_[5],
@@ -5342,7 +4382,6 @@ sub got_AlterTSConfigurationStmt_1 {
       replace    => FALSE,
    );
 }
-### AlterTSConfigurationStmt_2: ALTER TEXT SEARCH CONFIGURATION any_name ALTER MAPPING FOR name_list WITH any_name_list
 sub got_AlterTSConfigurationStmt_2 {
    return SQL::Translator::Statement::AlterTSConfiguration->new(
       cfgname    => $_[5],
@@ -5352,7 +4391,6 @@ sub got_AlterTSConfigurationStmt_2 {
       replace    => FALSE,
    );
 }
-### AlterTSConfigurationStmt_3: ALTER TEXT SEARCH CONFIGURATION any_name ALTER MAPPING REPLACE any_name WITH any_name
 sub got_AlterTSConfigurationStmt_3 {
    return SQL::Translator::Statement::AlterTSConfiguration->new(
       cfgname    => $_[5],
@@ -5362,7 +4400,6 @@ sub got_AlterTSConfigurationStmt_3 {
       replace    => TRUE,
    );
 }
-### AlterTSConfigurationStmt_4: ALTER TEXT SEARCH CONFIGURATION any_name ALTER MAPPING FOR name_list REPLACE any_name WITH any_name
 sub got_AlterTSConfigurationStmt_4 {
    return SQL::Translator::Statement::AlterTSConfiguration->new(
       cfgname    => $_[5],
@@ -5372,7 +4409,6 @@ sub got_AlterTSConfigurationStmt_4 {
       replace    => TRUE,
    );
 }
-### AlterTSConfigurationStmt_5: ALTER TEXT SEARCH CONFIGURATION any_name DROP MAPPING FOR name_list
 sub got_AlterTSConfigurationStmt_5 {
    return SQL::Translator::Statement::AlterTSConfiguration->new(
       cfgname    => $_[5],
@@ -5380,7 +4416,6 @@ sub got_AlterTSConfigurationStmt_5 {
       missing_ok => FALSE,
    );
 }
-### AlterTSConfigurationStmt_6: ALTER TEXT SEARCH CONFIGURATION any_name DROP MAPPING IF EXISTS FOR name_list
 sub got_AlterTSConfigurationStmt_6 {
    return SQL::Translator::Statement::AlterTSConfiguration->new(
       cfgname    => $_[5],
@@ -5388,7 +4423,6 @@ sub got_AlterTSConfigurationStmt_6 {
       missing_ok => TRUE,
    );
 }
-### CreateConversionStmt: CREATE opt_default CONVERSION any_name FOR Sconst TO Sconst FROM any_name
 sub got_CreateConversionStmt {
   return SQL::Translator::Statement::CreateConversion->new(
      conversion_name   => $_[4],
@@ -5398,7 +4432,6 @@ sub got_CreateConversionStmt {
      def               => $_[2],
   );
 }
-### ClusterStmt_1: CLUSTER opt_verbose qualified_name cluster_index_specification
 sub got_ClusterStmt_1 {
     return SQL::Translator::Statement::Cluster->new(
       relation  => $_[3],
@@ -5407,7 +4440,6 @@ sub got_ClusterStmt_1 {
    );
 }
 # kept for pre-8.3 compatibility
-### ClusterStmt_2: CLUSTER opt_verbose
 sub got_ClusterStmt_2 {
    return SQL::Translator::Statement::Cluster->new(
       relation  => NULL,
@@ -5415,7 +4447,6 @@ sub got_ClusterStmt_2 {
       verbose   => $_[2],
    );
 }
-### ClusterStmt_3: CLUSTER opt_verbose index_name ON qualified_name
 sub got_ClusterStmt_3 {
    return SQL::Translator::Statement::Cluster->new(
       relation  => $_[5],
@@ -5423,9 +4454,7 @@ sub got_ClusterStmt_3 {
       verbose   => $_[2],
    );
 }
-### cluster_index_specification: USING index_name
 sub got_cluster_index_specification { $_[2] }
-### VacuumStmt_1: VACUUM opt_full opt_freeze opt_verbose
 sub got_VacuumStmt_1 {
    return SQL::Translator::Statement::Analyze->new(
       options          => VACOPT_VACUUM |
@@ -5437,7 +4466,6 @@ sub got_VacuumStmt_1 {
       va_cols          => NIL,
    );
 }
-### VacuumStmt_2: VACUUM opt_full opt_freeze opt_verbose qualified_name
 sub got_VacuumStmt_2 {
    return SQL::Translator::Statement::Analyze->new(
       options          => VACOPT_VACUUM |
@@ -5449,7 +4477,6 @@ sub got_VacuumStmt_2 {
       va_cols          => NIL,
    );
 }
-### VacuumStmt_3: VACUUM opt_full opt_freeze opt_verbose AnalyzeStmt
 sub got_VacuumStmt_3 {
    $_[5]->options( VACOPT_VACUUM |
       $_[2] ? VACOPT_FULL : 0 |
@@ -5459,7 +4486,6 @@ sub got_VacuumStmt_3 {
    $_[5]->freeze_table_age($_[3] ? 0 : -1);
    return $_[5];
 }
-### VacuumStmt_4: VACUUM  ~ <C_LPAREN> ~  vacuum_option_list  ~ <C_RPAREN> ~ 
 sub got_VacuumStmt_4 {
    my $opt = VACOPT_VACUUM | $_[3];
    return SQL::Translator::Statement::Analyze->new(
@@ -5470,7 +4496,6 @@ sub got_VacuumStmt_4 {
       va_cols          => NIL,
    );
 }
-### VacuumStmt_5: VACUUM  ~ <C_LPAREN> ~  vacuum_option_list  ~ <C_RPAREN> ~  qualified_name opt_name_list
 sub got_VacuumStmt_5 {
    my $opt = VACOPT_VACUUM | $_[3] | $_[6] ? VACOPT_ANALYZE : 0;  #* implies analyze
    return SQL::Translator::Statement::Analyze->new(
@@ -5481,17 +4506,11 @@ sub got_VacuumStmt_5 {
       va_cols          => $_[6],
    );
 }
-### vacuum_option_list: vacuum_option_elem+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_vacuum_option_list { $_[1] | $_[3] }
-### vacuum_option_elem_1: analyze_keyword
 sub got_vacuum_option_elem_1 { VACOPT_ANALYZE }
-### vacuum_option_elem_2: VERBOSE
 sub got_vacuum_option_elem_2 { VACOPT_VERBOSE }
-### vacuum_option_elem_3: FREEZE
 sub got_vacuum_option_elem_3 { VACOPT_FREEZE  }
-### vacuum_option_elem_4: FULL
 sub got_vacuum_option_elem_4 { VACOPT_FULL    }
-### AnalyzeStmt_1: analyze_keyword opt_verbose
 sub got_AnalyzeStmt_1 {
    return SQL::Translator::Statement::Analyze->new(
       options          => VACOPT_ANALYZE | $_[2] ? VACOPT_VERBOSE : 0,
@@ -5501,7 +4520,6 @@ sub got_AnalyzeStmt_1 {
       va_cols          => NIL,
    );
 }
-### AnalyzeStmt_2: analyze_keyword opt_verbose qualified_name opt_name_list
 sub got_AnalyzeStmt_2 {
    return SQL::Translator::Statement::Analyze->new(
       options          => VACOPT_ANALYZE | $_[2] ? VACOPT_VERBOSE : 0,
@@ -5511,27 +4529,19 @@ sub got_AnalyzeStmt_2 {
       va_cols          => $_[4],
    );
 }
-### analyze_keyword_1: ANALYZE
 sub got_analyze_keyword_1 {}
 # British
-### analyze_keyword_2: ANALYSE
 sub got_analyze_keyword_2 {}
-### opt_verbose: VERBOSE
 sub got_opt_verbose { TRUE  }
-### opt_full: FULL
 sub got_opt_full { TRUE  }
-### opt_freeze: FREEZE
 sub got_opt_freeze { TRUE  }
-### opt_name_list:  ~ <C_LPAREN> ~  name_list  ~ <C_RPAREN> ~ 
 sub got_opt_name_list { $_[2] }
-### ExplainStmt_1: EXPLAIN ExplainableStmt
 sub got_ExplainStmt_1 {
    return SQL::Translator::Statement::Explain->new(
       query   => $_[2],
       options => NIL,
    );
 }
-### ExplainStmt_2: EXPLAIN analyze_keyword opt_verbose ExplainableStmt
 sub got_ExplainStmt_2 {
    return SQL::Translator::Statement::Explain->new(
       query   => $_[4],
@@ -5540,35 +4550,25 @@ sub got_ExplainStmt_2 {
       ),
    );
 }
-### ExplainStmt_3: EXPLAIN VERBOSE ExplainableStmt
 sub got_ExplainStmt_3 {
    return SQL::Translator::Statement::Explain->new(
       query   => $_[3],
       options => $_[0]->lappend($_[0]->makeDefElem("verbose", NULL)),
    );
 }
-### ExplainStmt_4: EXPLAIN  ~ <C_LPAREN> ~  explain_option_list  ~ <C_RPAREN> ~  ExplainableStmt
 sub got_ExplainStmt_4 {
    return SQL::Translator::Statement::Explain->new(
       query   => $_[5],
       options => $_[3],
    );
 }
-### explain_option_list: explain_option_elem+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_explain_option_list { $_[0]->lappend($_[1], $_[3]) }
-### explain_option_elem: explain_option_name explain_option_arg
 sub got_explain_option_elem { $_[0]->makeDefElem($_[1], $_[2]) }
-### explain_option_name_1: ColId
 sub got_explain_option_name_1 { $_[1] }
-### explain_option_name_2: analyze_keyword
 sub got_explain_option_name_2 { "analyze" }
-### explain_option_name_3: VERBOSE
 sub got_explain_option_name_3 { "verbose" }
-### explain_option_arg_1: opt_boolean_or_string
 sub got_explain_option_arg_1 { $_[1] }
-### explain_option_arg_2: NumericOnly
 sub got_explain_option_arg_2 { $_[1] }
-### PrepareStmt: PREPARE name prep_type_clause AS PreparableStmt
 sub got_PrepareStmt {
    return SQL::Translator::Statement::Prepare->new(
       name     => $_[2],
@@ -5576,16 +4576,13 @@ sub got_PrepareStmt {
       query    => $_[5],
    );
 }
-### prep_type_clause:  ~ <C_LPAREN> ~  type_list  ~ <C_RPAREN> ~ 
 sub got_prep_type_clause { $_[2] }
-### ExecuteStmt_1: EXECUTE name execute_param_clause
 sub got_ExecuteStmt_1 {
    return SQL::Translator::Statement::Execute->new(
       name   => $_[2],
       params => $_[3],
    );
 }
-### ExecuteStmt_2: CREATE OptTemp TABLE create_as_target AS EXECUTE name execute_param_clause opt_with_data
 sub got_ExecuteStmt_2 {
    $_[4]->rel->relpersistence($_[2]);
    $_[4]->skipData(!$_[9]);
@@ -5598,63 +4595,52 @@ sub got_ExecuteStmt_2 {
       is_select_into => FALSE,
    );
 }
-### execute_param_clause:  ~ <C_LPAREN> ~  expr_list  ~ <C_RPAREN> ~ 
 sub got_execute_param_clause { $_[2] }
-### DeallocateStmt_1: DEALLOCATE name
 sub got_DeallocateStmt_1 {
    return SQL::Translator::Statement::Deallocate->new(
       name => $_[2],
    );
 }
-### DeallocateStmt_2: DEALLOCATE PREPARE name
 sub got_DeallocateStmt_2 {
    return SQL::Translator::Statement::Deallocate->new(
       name => $_[3],
    );
 }
-### DeallocateStmt_3: DEALLOCATE ALL
 sub got_DeallocateStmt_3 {
    return SQL::Translator::Statement::Deallocate->new(
       name => NULL,
    );
 }
-### DeallocateStmt_4: DEALLOCATE PREPARE ALL
 sub got_DeallocateStmt_4 {
    return SQL::Translator::Statement::Deallocate->new(
       name => NULL,
    );
 }
-### InsertStmt: opt_with_clause INSERT INTO qualified_name insert_rest returning_clause
 sub got_InsertStmt {
    $_[5]->relation($_[4]);
    $_[5]->returningList($_[6]);
    $_[5]->withClause($_[1]);
    return $_[5];
 }
-### insert_rest_1: SelectStmt
 sub got_insert_rest_1 {
    return SQL::Translator::Statement::Insert->new(
       cols       => NIL,
       selectStmt => $_[1],
    );
 }
-### insert_rest_2:  ~ <C_LPAREN> ~  insert_column_list  ~ <C_RPAREN> ~  SelectStmt
 sub got_insert_rest_2 {
    return SQL::Translator::Statement::Insert->new(
       cols       => $_[2],
       selectStmt => $_[4],
    );
 }
-### insert_rest_3: DEFAULT VALUES
 sub got_insert_rest_3 {
    return SQL::Translator::Statement::Insert->new(
       cols       => NIL,
       selectStmt => NULL,
    );
 }
-### insert_column_list: insert_column_item+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_insert_column_list { $_[0]->lappend($_[1], $_[3]) }
-### insert_column_item: ColId opt_indirection
 sub got_insert_column_item {
    return SQL::Translator::Statement::ResultTarget->new(
       name        => $_[1],
@@ -5663,9 +4649,7 @@ sub got_insert_column_item {
       location    => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### returning_clause: RETURNING target_list
 sub got_returning_clause { $_[2] }
-### DeleteStmt: opt_with_clause DELETE FROM relation_expr_opt_alias using_clause where_or_current_clause returning_clause
 sub got_DeleteStmt {
    return SQL::Translator::Statement::Delete->new(
       relation => $_[4],
@@ -5675,9 +4659,7 @@ sub got_DeleteStmt {
       withClause => $_[1],
    );
 }
-### using_clause: USING from_list
 sub got_using_clause { $_[2] }
-### LockStmt: LOCK opt_table relation_expr_list opt_lock opt_nowait
 sub got_LockStmt {
    return SQL::Translator::Statement::Lock->new(
       relations => $_[3],
@@ -5685,27 +4667,16 @@ sub got_LockStmt {
       nowait    => $_[5],
    );
 }
-### opt_lock: IN lock_type MODE
 sub got_opt_lock { $_[2]                      }
-### lock_type_1: ACCESS SHARE
 sub got_lock_type_1 { 'AccessShareLock'          }
-### lock_type_2: ROW SHARE
 sub got_lock_type_2 { 'RowShareLock'             }
-### lock_type_3: ROW EXCLUSIVE
 sub got_lock_type_3 { 'RowExclusiveLock'         }
-### lock_type_4: SHARE UPDATE EXCLUSIVE
 sub got_lock_type_4 { 'ShareUpdateExclusiveLock' }
-### lock_type_5: SHARE
 sub got_lock_type_5 { 'ShareLock'                }
-### lock_type_6: SHARE ROW EXCLUSIVE
 sub got_lock_type_6 { 'ShareRowExclusiveLock'    }
-### lock_type_7: EXCLUSIVE
 sub got_lock_type_7 { 'ExclusiveLock'            }
-### lock_type_8: ACCESS EXCLUSIVE
 sub got_lock_type_8 { 'AccessExclusiveLock'      }
-### opt_nowait: NOWAIT
 sub got_opt_nowait { TRUE  }
-### UpdateStmt: opt_with_clause UPDATE relation_expr_opt_alias SET set_clause_list from_clause where_or_current_clause returning_clause
 sub got_UpdateStmt {
    return SQL::Translator::Statement::Update->new(
       relation      => $_[3],
@@ -5716,18 +4687,13 @@ sub got_UpdateStmt {
       withClause    => $_[1],
    );
 }
-### set_clause_list: set_clause+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_set_clause_list { $_[0]->lappend($_[1],$_[3]) }
-### set_clause_1: single_set_clause
 sub got_set_clause_1 { $_[0]->lappend($_[1]) }
-### set_clause_2: multiple_set_clause
 sub got_set_clause_2 { $_[1] }
-### single_set_clause: set_target  ~ <C_EQUAL> ~  ctext_expr
 sub got_single_set_clause {
    $_[1]->val($_[3]);
    return $_[1];
 }
-### multiple_set_clause:  ~ <C_LPAREN> ~  set_target_list  ~ <C_RPAREN> ~   ~ <C_EQUAL> ~  ctext_row
 sub got_multiple_set_clause {
    #* Break the ctext_row apart, merge individual expressions
    #* into the destination ResTargets.  XXX this approach
@@ -5744,7 +4710,6 @@ sub got_multiple_set_clause {
 
    return $_[2];
 }
-### set_target: ColId opt_indirection
 sub got_set_target {
    return SQL::Translator::Statement::ResultTarget->new(
       name        => $_[1],
@@ -5753,9 +4718,7 @@ sub got_set_target {
       location    => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### set_target_list: set_target+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_set_target_list { $_[0]->lappend($_[1],$_[3]) }
-### DeclareCursorStmt: DECLARE cursor_name cursor_options CURSOR opt_hold FOR SelectStmt
 sub got_DeclareCursorStmt {
    return SQL::Translator::Statement::DeclareCursor->new(
       portalname => $_[2],
@@ -5764,66 +4727,46 @@ sub got_DeclareCursorStmt {
       query => $_[7],
    );
 }
-### cursor_name: name
 sub got_cursor_name { $_[1] }
-### cursor_options_1: cursor_options NO SCROLL
 sub got_cursor_options_1 { $_[1] | CURSOR_OPT_NO_SCROLL   }
-### cursor_options_2: cursor_options SCROLL
 sub got_cursor_options_2 { $_[1] | CURSOR_OPT_SCROLL      }
-### cursor_options_3: cursor_options BINARY
 sub got_cursor_options_3 { $_[1] | CURSOR_OPT_BINARY      }
-### cursor_options_4: cursor_options INSENSITIVE
 sub got_cursor_options_4 { $_[1] | CURSOR_OPT_INSENSITIVE }
-### opt_hold_1: WITH HOLD
 sub got_opt_hold_1 { CURSOR_OPT_HOLD }
-### opt_hold_2: WITHOUT HOLD
 sub got_opt_hold_2 { 0 }
-### select_with_parens_1:  ~ <C_LPAREN> ~  select_no_parens  ~ <C_RPAREN> ~ 
 sub got_select_with_parens_1 { $_[2] }
-### select_with_parens_2:  ~ <C_LPAREN> ~  select_with_parens  ~ <C_RPAREN> ~ 
 sub got_select_with_parens_2 { $_[2] }
-### select_no_parens_1: simple_select
 sub got_select_no_parens_1 { $_[1] }
-### select_no_parens_2: select_clause sort_clause
 sub got_select_no_parens_2 {
    $_[0]->insertSelectOptions($_[1], $_[2], NIL, NULL, NULL, NULL);
    return $_[1];
 }
-### select_no_parens_3: select_clause opt_sort_clause for_locking_clause opt_select_limit
 sub got_select_no_parens_3 {
    $_[0]->insertSelectOptions($_[1], $_[2], $_[3], $_[4]->[0,1], NULL);
    return $_[1];
 }
-### select_no_parens_4: select_clause opt_sort_clause select_limit opt_for_locking_clause
 sub got_select_no_parens_4 {
    $_[0]->insertSelectOptions($_[1], $_[2], $_[4], $_[3]->[0,1], NULL);
    return $_[1];
 }
-### select_no_parens_5: with_clause select_clause
 sub got_select_no_parens_5 {
    $_[0]->insertSelectOptions($_[2], NULL, NIL, NULL, NULL, $_[1]);
    return $_[2];
 }
-### select_no_parens_6: with_clause select_clause sort_clause
 sub got_select_no_parens_6 {
    $_[0]->insertSelectOptions($_[2], $_[3], NIL, NULL, NULL, $_[1]);
    return $_[2];
 }
-### select_no_parens_7: with_clause select_clause opt_sort_clause for_locking_clause opt_select_limit
 sub got_select_no_parens_7 {
    $_[0]->insertSelectOptions($_[2], $_[3], $_[4], $_[5]->[0,1], $_[1]);
    return $_[2];
 }
-### select_no_parens_8: with_clause select_clause opt_sort_clause select_limit opt_for_locking_clause
 sub got_select_no_parens_8 {
    $_[0]->insertSelectOptions($_[2], $_[3], $_[5], $_[4]->[0,1], $_[1]);
    return $_[2];
 }
-### select_clause_1: simple_select
 sub got_select_clause_1 { $_[1] }
-### select_clause_2: select_with_parens
 sub got_select_clause_2 { $_[1] }
-### simple_select_1: SELECT opt_distinct target_list into_clause from_clause where_clause group_clause having_clause window_clause
 sub got_simple_select_1 {
    return SQL::Translator::Statement::Select->new(
       distinctClause => $_[2],
@@ -5836,10 +4779,8 @@ sub got_simple_select_1 {
       windowClause   => $_[9],
    );
 }
-### simple_select_2: values_clause
 sub got_simple_select_2 { $_[1] }
 # same as SELECT * FROM relation_expr
-### simple_select_3: TABLE relation_expr
 sub got_simple_select_3 {
    return SQL::Translator::Statement::Select->new(
       targetList => $_[0]->lappend(
@@ -5856,13 +4797,9 @@ sub got_simple_select_3 {
       fromClause => $_[0]->lappend($_[2]),
    );
 }
-### simple_select_4: select_clause UNION opt_all select_clause
 sub got_simple_select_4 { $_[0]->makeSetOp(SETOP_UNION,     $_[3], $_[1], $_[4]) }
-### simple_select_5: select_clause INTERSECT opt_all select_clause
 sub got_simple_select_5 { $_[0]->makeSetOp(SETOP_INTERSECT, $_[3], $_[1], $_[4]) }
-### simple_select_6: select_clause EXCEPT opt_all select_clause
 sub got_simple_select_6 { $_[0]->makeSetOp(SETOP_EXCEPT,    $_[3], $_[1], $_[4]) }
-### with_clause_1: WITH cte_list
 sub got_with_clause_1 {
    return SQL::Translator::Statement::WithClause->new(
       ctes      => $_[2],
@@ -5870,7 +4807,6 @@ sub got_with_clause_1 {
       location  => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### with_clause_2: WITH RECURSIVE cte_list
 sub got_with_clause_2 {
    return SQL::Translator::Statement::WithClause->new(
       ctes      => $_[3],
@@ -5878,9 +4814,7 @@ sub got_with_clause_2 {
       location  => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### cte_list: common_table_expr+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_cte_list { $_[0]->lappend($_[1], $_[3]) }
-### common_table_expr: name opt_name_list AS  ~ <C_LPAREN> ~  PreparableStmt  ~ <C_RPAREN> ~ 
 sub got_common_table_expr {
    return SQL::Translator::Statement::CommonTableExpr->new(
       ctename       => $_[1],
@@ -5889,9 +4823,7 @@ sub got_common_table_expr {
       location      => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### opt_with_clause: with_clause
 sub got_opt_with_clause { $_[1] }
-### into_clause: INTO OptTempTableName
 sub got_into_clause {
    return SQL::Translator::Statement::IntoClause->new(
       rel            => $_[2],
@@ -5902,70 +4834,51 @@ sub got_into_clause {
       skipData       => FALSE,
    );
 }
-### OptTempTableName_1: TEMPORARY opt_table qualified_name
 sub got_OptTempTableName_1 {
    $_[3]->relpersistence(RELPERSISTENCE_TEMP);
    return $_[3];
 }
-### OptTempTableName_2: TEMP opt_table qualified_name
 sub got_OptTempTableName_2 {
    $_[3]->relpersistence(RELPERSISTENCE_TEMP);
    return $_[3];
 }
-### OptTempTableName_3: LOCAL TEMPORARY opt_table qualified_name
 sub got_OptTempTableName_3 {
    $_[4]->relpersistence(RELPERSISTENCE_TEMP);
    return $_[4];
 }
-### OptTempTableName_4: LOCAL TEMP opt_table qualified_name
 sub got_OptTempTableName_4 {
    $_[4]->relpersistence(RELPERSISTENCE_TEMP);
    return $_[4];
 }
-### OptTempTableName_5: GLOBAL TEMPORARY opt_table qualified_name
 sub got_OptTempTableName_5 {
    $_[4]->relpersistence(RELPERSISTENCE_TEMP);
    return $_[4];
 }
-### OptTempTableName_6: GLOBAL TEMP opt_table qualified_name
 sub got_OptTempTableName_6 {
    $_[4]->relpersistence(RELPERSISTENCE_TEMP);
    return $_[4];
 }
-### OptTempTableName_7: UNLOGGED opt_table qualified_name
 sub got_OptTempTableName_7 {
    $_[3]->relpersistence(RELPERSISTENCE_UNLOGGED);
    return $_[3];
 }
-### OptTempTableName_8: TABLE qualified_name
 sub got_OptTempTableName_8 {
    $_[2]->relpersistence(RELPERSISTENCE_PERMANENT);
    return $_[2];
 }
-### OptTempTableName_9: qualified_name
 sub got_OptTempTableName_9 {
    $_[1]->relpersistence(RELPERSISTENCE_PERMANENT);
    return $_[1];
 }
-### opt_table: TABLE
 sub got_opt_table {}
-### opt_all_1: ALL
 sub got_opt_all_1 { TRUE  }
-### opt_all_2: DISTINCT
 sub got_opt_all_2 { FALSE }
-### opt_distinct_1: DISTINCT
 sub got_opt_distinct_1 { $_[0]->lappend(NIL) }
-### opt_distinct_2: DISTINCT ON  ~ <C_LPAREN> ~  expr_list  ~ <C_RPAREN> ~ 
 sub got_opt_distinct_2 { $_[4] }
-### opt_distinct_3: ALL
 sub got_opt_distinct_3 { NIL   }
-### opt_sort_clause: sort_clause
 sub got_opt_sort_clause { $_[1] }
-### sort_clause: ORDER BY sortby_list
 sub got_sort_clause { $_[3] }
-### sortby_list: sortby+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_sortby_list { $_[0]->lappend($_[1], $_[3]) }
-### sortby_1: a_expr USING qual_all_Op opt_nulls_order
 sub got_sortby_1 {
    return SQL::Translator::Statement::SortBy->new(
       node         => $_[1],
@@ -5975,7 +4888,6 @@ sub got_sortby_1 {
       location     => $_[0]->YYLLoc($_[3], 3),
    );
 }
-### sortby_2: a_expr opt_asc_desc opt_nulls_order
 sub got_sortby_2 {
    return SQL::Translator::Statement::SortBy->new(
       node         => $_[1],
@@ -5985,69 +4897,38 @@ sub got_sortby_2 {
       location     => NULL,  #* no operator
    );
 }
-### select_limit_1: limit_clause offset_clause
 sub got_select_limit_1 { $_[0]->lappend($_[2], $_[1]) }
-### select_limit_2: offset_clause limit_clause
 sub got_select_limit_2 { $_[0]->lappend($_[1], $_[2]) }
 # Changed to support LimitYX
-### select_limit_3: limit_clause
 sub got_select_limit_3 { ref $_[1] eq 'ARRAY' ? $_[1] : $_[0]->lappend(NULL, $_[1]) }
-### select_limit_4: offset_clause
 sub got_select_limit_4 { $_[0]->lappend($_[1], NULL) }
-### opt_select_limit: select_limit
 sub got_opt_select_limit { $_[1] }
-### limit_clause_1: LIMIT select_limit_value
 sub got_limit_clause_1 { $_[2] }
 # SQL:2008 syntax
-### limit_clause_2: LIMIT select_limit_value  ~ <C_COMMA> ~  select_offset_value 
-# Disabled because it was too confusing, bjm 2002-02-18
-    
-## SQLite supports this format, so we'll go ahead and re-enable this.
-## This would be 'LimitYX' in SQL::Abstract::Limit.
 sub got_limit_clause_2 {
    $_[0]->lappend($_[1], $_[3]);
 }
-### limit_clause_3: FETCH first_or_next opt_select_fetch_first_value row_or_rows ONLY
 sub got_limit_clause_3 { $_[3] }
 # SQL:2008 syntax
-### offset_clause_1: OFFSET select_offset_value
 sub got_offset_clause_1 { $_[2] }
-### offset_clause_2: OFFSET select_offset_value2 row_or_rows
 sub got_offset_clause_2 { $_[2] }
 # LIMIT ALL is represented as a NULL constant
-### select_limit_value_1: a_expr
 sub got_select_limit_value_1 { $_[1] }
-### select_limit_value_2: ALL
 sub got_select_limit_value_2 { $_[0]->makeNullAConst($_[0]->YYLLoc($_[1], 1)) }
-### select_offset_value: a_expr
 sub got_select_offset_value { $_[1] }
-### opt_select_fetch_first_value_1: SignedIconst
 sub got_opt_select_fetch_first_value_1 { $_[0]->makeIntConst($_[1], $_[0]->YYLLoc($_[1], 1)) }
-### opt_select_fetch_first_value_2:  ~ <C_LPAREN> ~  a_expr  ~ <C_RPAREN> ~ 
 sub got_opt_select_fetch_first_value_2 { $_[2] }
-### select_offset_value2: c_expr
 sub got_select_offset_value2 { $_[1] }
-### row_or_rows_1: ROW
 sub got_row_or_rows_1 { 0 }
-### row_or_rows_2: ROWS
 sub got_row_or_rows_2 { 0 }
-### first_or_next_1: FIRST
 sub got_first_or_next_1 { 0 }
-### first_or_next_2: NEXT
 sub got_first_or_next_2 { 0 }
-### group_clause: GROUP BY expr_list
 sub got_group_clause { $_[3] }
-### having_clause: HAVING a_expr
 sub got_having_clause { $_[2] }
-### for_locking_clause_1: for_locking_items
 sub got_for_locking_clause_1 { $_[1] }
-### for_locking_clause_2: FOR READ ONLY
 sub got_for_locking_clause_2 { NIL   }
-### opt_for_locking_clause: for_locking_clause
 sub got_opt_for_locking_clause { $_[1] }
-### for_locking_items: for_locking_item+ % ~
 sub got_for_locking_items { $_[0]->lappend($_[1], $_[2]) }
-### for_locking_item_1: FOR UPDATE locked_rels_list opt_nowait
 sub got_for_locking_item_1 {
    return SQL::Translator::Statement::LockingClause->new(
       lockedRels => $_[3],
@@ -6055,7 +4936,6 @@ sub got_for_locking_item_1 {
       noWait     => $_[4],
    );
 }
-### for_locking_item_2: FOR SHARE locked_rels_list opt_nowait
 sub got_for_locking_item_2 {
    return SQL::Translator::Statement::LockingClause->new(
       lockedRels => $_[3],
@@ -6063,29 +4943,22 @@ sub got_for_locking_item_2 {
       noWait     => $_[4],
    );
 }
-### locked_rels_list: OF qualified_name_list
 sub got_locked_rels_list { $_[2] }
-### values_clause_1: VALUES ctext_row
 sub got_values_clause_1 {
    return SQL::Translator::Statement::Select->new(
       valuesLists => $_[0]->lappend($_[2]),
    );
 }
-### values_clause_2: <ctext_row>2+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_values_clause_2 {
    $_[1]->valuesLists( $_[0]->lappend($_[1]->valuesLists, $_[3]) );
    return $_[1];
 }
-### from_clause: FROM from_list
 sub got_from_clause { $_[2] }
-### from_list: table_ref+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_from_list { $_[0]->lappend($_[1], $_[3]) }
-### table_ref_1: relation_expr opt_alias_clause
 sub got_table_ref_1 {
     $_[1]->alias($_[2]);
     return $_[1];
 }
-### table_ref_2: func_table func_alias_clause
 sub got_table_ref_2 {
 	RangeFunction *n = makeNode(RangeFunction);
 	n->lateral = false;
@@ -6094,7 +4967,6 @@ sub got_table_ref_2 {
 	n->coldeflist = lsecond($2);
 	$$ = (Node *) n;
 }
-### table_ref_3: LATERAL func_table func_alias_clause
 sub got_table_ref_3 {
 	RangeFunction *n = makeNode(RangeFunction);
 	n->lateral = true;
@@ -6103,7 +4975,6 @@ sub got_table_ref_3 {
 	n->coldeflist = lsecond($3);
 	$$ = (Node *) n;
 }
-### table_ref_4: func_table func_alias_clause
 sub got_table_ref_4 {
     return SQL::Translator::Statement::Range::Function->new(
        lateral      => FALSE,
@@ -6121,7 +4992,6 @@ sub got_table_ref_4 {
 # the spec and see if anyone complains.
 # However, it does seem like a good idea to emit
 # an error message that's better than "syntax error".
-### table_ref_5: LATERAL func_table func_alias_clause
 sub got_table_ref_5 {
     return SQL::Translator::Statement::Range::Function->new(
        lateral      => TRUE,
@@ -6130,7 +5000,6 @@ sub got_table_ref_5 {
        coldeflist   => $_[3]->[1],
     );
 }
-### table_ref_6: select_with_parens opt_alias_clause
 sub got_table_ref_6 {
    $_[0]->ereport(ERROR,
          ERRCODE_SYNTAX_ERROR,
@@ -6149,7 +5018,6 @@ sub got_table_ref_6 {
       alias    => $_[2],
    );
 }
-### table_ref_7: LATERAL select_with_parens opt_alias_clause
 sub got_table_ref_7 {
    $_[0]->ereport(ERROR,
          ERRCODE_SYNTAX_ERROR,
@@ -6168,17 +5036,13 @@ sub got_table_ref_7 {
       alias    => $_[3],
    );
 }
-### table_ref_8: joined_table
 sub got_table_ref_8 { $_[1] }
-### table_ref_9:  ~ <C_LPAREN> ~  joined_table  ~ <C_RPAREN> ~  alias_clause
 sub got_table_ref_9 {
    $_[2]->alias($_[4]);
    return $_[2];
 }
-### joined_table_1:  ~ <C_LPAREN> ~  joined_table  ~ <C_RPAREN> ~ 
 sub got_joined_table_1 { $_[2] }
 # CROSS JOIN is same as unqualified inner join
-### joined_table_2: table_ref CROSS JOIN table_ref
 sub got_joined_table_2 {
    return SQL::Translator::Statement::JoinExpr->new(
       jointype    => JOIN_INNER,
@@ -6189,7 +5053,6 @@ sub got_joined_table_2 {
       quals       => NULL,
    );
 }
-### joined_table_3: table_ref join_type JOIN table_ref join_qual
 sub got_joined_table_3 {
    return SQL::Translator::Statement::JoinExpr->new(
       jointype  => $_[2],
@@ -6204,7 +5067,6 @@ sub got_joined_table_3 {
    );
 }
 # letting join_type reduce to empty doesn't work
-### joined_table_4: table_ref JOIN table_ref join_qual
 sub got_joined_table_4 {
    return SQL::Translator::Statement::JoinExpr->new(
       jointype  => JOIN_INNER,
@@ -6218,7 +5080,6 @@ sub got_joined_table_4 {
       ),
    );
 }
-### joined_table_5: table_ref NATURAL join_type JOIN table_ref
 sub got_joined_table_5 {
    return SQL::Translator::Statement::JoinExpr->new(
       jointype    => $_[3],
@@ -6230,7 +5091,6 @@ sub got_joined_table_5 {
    );
 }
 # letting join_type reduce to empty doesn't work
-### joined_table_6: table_ref NATURAL JOIN table_ref
 sub got_joined_table_6 {
    return SQL::Translator::Statement::JoinExpr->new(
       jointype    => JOIN_INNER,
@@ -6241,95 +5101,72 @@ sub got_joined_table_6 {
       quals       => NULL,  #* fill later
    );
 }
-### alias_clause_1: AS ColId  ~ <C_LPAREN> ~  name_list  ~ <C_RPAREN> ~ 
 sub got_alias_clause_1 {
    return SQL::Translator::Statement::Alias->new(
       aliasname => $_[2],
       colnames  => $_[4],
    );
 }
-### alias_clause_2: AS ColId
 sub got_alias_clause_2 {
    return SQL::Translator::Statement::Alias->new(
       aliasname => $_[2],
    );
 }
-### alias_clause_3: ColId  ~ <C_LPAREN> ~  name_list  ~ <C_RPAREN> ~ 
 sub got_alias_clause_3 {
    return SQL::Translator::Statement::Alias->new(
       aliasname => $_[1],
       colnames  => $_[3],
    );
 }
-### alias_clause_4: ColId
 sub got_alias_clause_4 {
    return SQL::Translator::Statement::Alias->new(
       aliasname => $_[1],
    );
 }
-### opt_alias_clause: alias_clause
 sub got_opt_alias_clause { $_[1] }
-### func_alias_clause_1: alias_clause
 sub got_func_alias_clause_1 { [ $_[1], NIL  ] }
-### func_alias_clause_2: AS  ~ <C_LPAREN> ~  TableFuncElementList  ~ <C_RPAREN> ~ 
 sub got_func_alias_clause_2 { [ NULL, $_[3] ] }
-### func_alias_clause_3: AS ColId  ~ <C_LPAREN> ~  TableFuncElementList  ~ <C_RPAREN> ~ 
 sub got_func_alias_clause_3 { [
                SQL::Translator::Statement::Alias->new( aliasname => $_[2] ),
                $_[4]
             ] }
-### func_alias_clause_4: ColId  ~ <C_LPAREN> ~  TableFuncElementList  ~ <C_RPAREN> ~ 
 sub got_func_alias_clause_4 { [
                SQL::Translator::Statement::Alias->new( aliasname => $_[1] ),
                $_[3]
             ] }
-### join_type_1: FULL join_outer
 sub got_join_type_1 { JOIN_FULL }
-### join_type_2: LEFT join_outer
 sub got_join_type_2 { JOIN_LEFT }
-### join_type_3: RIGHT join_outer
 sub got_join_type_3 { JOIN_RIGHT }
-### join_type_4: INNER
 sub got_join_type_4 { JOIN_INNER }
-### join_outer: OUTER
 sub got_join_outer { NULL }
-### join_qual_1: USING  ~ <C_LPAREN> ~  name_list  ~ <C_RPAREN> ~ 
 sub got_join_qual_1 { $_[3] }
-### join_qual_2: ON a_expr
 sub got_join_qual_2 { $_[2] }
 # default inheritance
-### relation_expr_1: qualified_name
 sub got_relation_expr_1 {
    $_[1]->inhOpt(INH_DEFAULT);
    $_[1]->alias(NULL);
    return $_[1];
 }
 # inheritance query
-### relation_expr_2: qualified_name  ~ <C_STAR> ~ 
 sub got_relation_expr_2 {
    $_[1]->inhOpt(INH_YES);
    $_[1]->alias(NULL);
    return $_[1];
 }
 # no inheritance
-### relation_expr_3: ONLY qualified_name
 sub got_relation_expr_3 {
    $_[2]->inhOpt(INH_NO);
    $_[2]->alias(NULL);
    return $_[2];
 }
 # no inheritance, SQL99-style syntax
-### relation_expr_4: ONLY  ~ <C_LPAREN> ~  qualified_name  ~ <C_RPAREN> ~ 
 sub got_relation_expr_4 {
    $_[3]->inhOpt(INH_NO);
    $_[3]->alias(NULL);
    return $_[3];
 }
-### relation_expr_list: relation_expr+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_relation_expr_list { $_[0]->lappend($_[1], $_[3]) }
-### relation_expr_opt_alias_1: relation_expr
 sub got_relation_expr_opt_alias_1 { $_[1] }
-### relation_expr_opt_alias_2: relation_expr ColId
 sub got_relation_expr_opt_alias_2 {
    my $alias = SQL::Translator::Statement::Alias->new(
       aliasname => $_[2],
@@ -6337,7 +5174,6 @@ sub got_relation_expr_opt_alias_2 {
    $_[1]->alias($alias);
    return $_[1];
 }
-### relation_expr_opt_alias_3: relation_expr AS ColId
 sub got_relation_expr_opt_alias_3 {
    my $alias = SQL::Translator::Statement::Alias->new(
       aliasname => $_[3],
@@ -6345,13 +5181,9 @@ sub got_relation_expr_opt_alias_3 {
    $_[1]->alias($alias);
    return $_[1];
 }
-### func_table: func_expr
 sub got_func_table { $_[1] }
-### where_clause: WHERE a_expr
 sub got_where_clause { $_[2] }
-### where_or_current_clause_1: WHERE a_expr
 sub got_where_or_current_clause_1 { $_[2] }
-### where_or_current_clause_2: WHERE CURRENT OF cursor_name
 sub got_where_or_current_clause_2 {
    return SQL::Translator::Statement::CurrentOfExpr->new(
       #* cvarno is filled in by parse analysis
@@ -6359,11 +5191,8 @@ sub got_where_or_current_clause_2 {
       cursor_param => 0,
    );
 }
-### OptTableFuncElementList: TableFuncElementList
 sub got_OptTableFuncElementList { $_[1] }
-### TableFuncElementList: TableFuncElement+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_TableFuncElementList { $_[0]->lappend($_[1], $_[3]) }
-### TableFuncElement: ColId Typename opt_collate_clause
 sub got_TableFuncElement {
    return SQL::Translator::Statement::Column::Definition->new(
       colname        => $_[1],
@@ -6380,60 +5209,45 @@ sub got_TableFuncElement {
       constraints    => NIL,
    );
 }
-### Typename_1: SimpleTypename opt_array_bounds
 sub got_Typename_1 {
    $_[1]->arrayBounds($_[2]);
    return $_[1];
 }
 # SQL standard syntax, currently only one-dimensional
-### Typename_2: SETOF SimpleTypename opt_array_bounds
 sub got_Typename_2 {
    $_[2]->arrayBounds($_[3]);
    $_[2]->setof(TRUE);
    return $_[2];
 }
-### Typename_3: SimpleTypename ARRAY  ~ <C_LSQUARE> ~  Iconst  ~ <C_RSQUARE> ~ 
 sub got_Typename_3 {
    $_[1]->arrayBounds( $_[0]->lappend($_[4]+0) );
    return $_[1];
 }
-### Typename_4: SETOF SimpleTypename ARRAY  ~ <C_LSQUARE> ~  Iconst  ~ <C_RSQUARE> ~ 
 sub got_Typename_4 {
    $_[2]->arrayBounds( $_[0]->lappend($_[5]+0) );
    $_[2]->setof(TRUE);
    return $_[2];
 }
-### Typename_5: SimpleTypename ARRAY
 sub got_Typename_5 {
    $_[1]->arrayBounds( $_[0]->lappend(-1) );
    return $_[1];
 }
-### Typename_6: SETOF SimpleTypename ARRAY
 sub got_Typename_6 {
    $_[2]->arrayBounds( $_[0]->lappend(-1) );
    $_[2]->setof(TRUE);
    return $_[2];
 }
-### opt_array_bounds_1:  ~ <C_RSQUARE> ~ * % / ~  ~ <C_LSQUARE> ~  ~ /
 sub got_opt_array_bounds_1 { $_[0]->lappend($_[1], -1)      }
-### opt_array_bounds_2:  ~ <C_RSQUARE> ~ 2+ % / ~  ~ <C_LSQUARE> ~  Iconst ~ /
 sub got_opt_array_bounds_2 { $_[0]->lappend($_[1], $_[3]+0) }
-### SimpleTypename_1: GenericType
 sub got_SimpleTypename_1 { $_[1] }
-### SimpleTypename_2: Numeric
 sub got_SimpleTypename_2 { $_[1] }
-### SimpleTypename_3: Bit
 sub got_SimpleTypename_3 { $_[1] }
-### SimpleTypename_4: Character
 sub got_SimpleTypename_4 { $_[1] }
-### SimpleTypename_5: ConstDatetime
 sub got_SimpleTypename_5 { $_[1] }
-### SimpleTypename_6: ConstInterval opt_interval
 sub got_SimpleTypename_6 {
    $_[1]->typmods($_[2]);
    return $_[1];
 }
-### SimpleTypename_7: ConstInterval  ~ <C_LPAREN> ~  Iconst  ~ <C_RPAREN> ~  opt_interval
 sub got_SimpleTypename_7 {
    if (defined $_[5])  {
       $_[0]->ereport(ERROR,
@@ -6447,99 +5261,80 @@ sub got_SimpleTypename_7 {
    }
    return $_[1];
 }
-### ConstTypename_1: Numeric
 sub got_ConstTypename_1 { $_[1] }
-### ConstTypename_2: ConstBit
 sub got_ConstTypename_2 { $_[1] }
-### ConstTypename_3: ConstCharacter
 sub got_ConstTypename_3 { $_[1] }
-### ConstTypename_4: ConstDatetime
 sub got_ConstTypename_4 { $_[1] }
-### GenericType_1: type_function_name opt_type_modifiers
 sub got_GenericType_1 {
    my $n = $_[0]->makeTypeNameFromNameList([ $_[1] ]);
    $n->typmods($_[2]);
    $n->_set_location( $_[0]->YYLLoc($_[1], 1) );
    return $n;
 }
-### GenericType_2: type_function_name attrs opt_type_modifiers
 sub got_GenericType_2 {
    my $n = $_[0]->makeTypeNameFromNameList($_[0]->lcons($_[1], $_[2]));
    $n->typmods($_[3]);
    $n->_set_location( $_[0]->YYLLoc($_[1], 1) );
    return $n;
 }
-### opt_type_modifiers:  ~ <C_LPAREN> ~  expr_list  ~ <C_RPAREN> ~ 
 sub got_opt_type_modifiers { $_[2] }
-### Numeric_1 : INT
 sub got_Numeric_1  {
    my $n = $_[0]->SystemTypeName("int4");
    $n->_set_location( $_[0]->YYLLoc($_[1], 1) );
    return $n;
 }
-### Numeric_2 : INTEGER
 sub got_Numeric_2  {
    my $n = $_[0]->SystemTypeName("int4");
    $n->_set_location( $_[0]->YYLLoc($_[1], 1) );
    return $n;
 }
-### Numeric_3 : SMALLINT
 sub got_Numeric_3  {
    my $n = $_[0]->SystemTypeName("int2");
    $n->_set_location( $_[0]->YYLLoc($_[1], 1) );
    return $n;
 }
-### Numeric_4 : BIGINT
 sub got_Numeric_4  {
    my $n = $_[0]->SystemTypeName("int8");
    $n->_set_location( $_[0]->YYLLoc($_[1], 1) );
    return $n;
 }
-### Numeric_5 : REAL
 sub got_Numeric_5  {
    my $n = $_[0]->SystemTypeName("float4");
    $n->_set_location( $_[0]->YYLLoc($_[1], 1) );
    return $n;
 }
-### Numeric_6 : FLOAT opt_float
 sub got_Numeric_6  {
    $_[2]->_set_location( $_[0]->YYLLoc($_[1], 1) );
    return $_[2];
 }
-### Numeric_7 : DOUBLE PRECISION
 sub got_Numeric_7  {
    my $n = $_[0]->SystemTypeName("float8");
    $n->_set_location( $_[0]->YYLLoc($_[1], 1) );
    return $n;
 }
-### Numeric_8 : DECIMAL opt_type_modifiers
 sub got_Numeric_8  {
    my $n = $_[0]->SystemTypeName("numeric");
    $n->_set_location( $_[0]->YYLLoc($_[1], 1) );
    $n->typmods($_[2]);
    return $n;
 }
-### Numeric_9 : DEC opt_type_modifiers
 sub got_Numeric_9  {
    my $n = $_[0]->SystemTypeName("numeric");
    $n->_set_location( $_[0]->YYLLoc($_[1], 1) );
    $n->typmods($_[2]);
    return $n;
 }
-### Numeric_10: NUMERIC opt_type_modifiers
 sub got_Numeric_10 {
    my $n = $_[0]->SystemTypeName("numeric");
    $n->_set_location( $_[0]->YYLLoc($_[1], 1) );
    $n->typmods($_[2]);
    return $n;
 }
-### Numeric_11: BOOLEAN
 sub got_Numeric_11 {
    my $n = $_[0]->SystemTypeName("bool");
    $n->_set_location( $_[0]->YYLLoc($_[1], 1) );
    return $n;
 }
-### opt_float:  ~ <C_LPAREN> ~  Iconst  ~ <C_RPAREN> ~ 
 sub got_opt_float {
    if ($_[2] < 1) {
       $_[0]->ereport(ERROR,
@@ -6556,22 +5351,16 @@ sub got_opt_float {
              $_[0]->YYLLoc($_[2], 2));
    }
 }
-### Bit_1: BitWithLength
 sub got_Bit_1 { $_[1] }
-### Bit_2: BitWithoutLength
 sub got_Bit_2 { $_[1] }
-### ConstBit_1: BitWithLength
 sub got_ConstBit_1 { $_[1] }
-### ConstBit_2: BitWithoutLength
 sub got_ConstBit_2 { $_[1]->typmods(NIL); $_[1]; }
-### BitWithLength: BIT opt_varying  ~ <C_LPAREN> ~  expr_list  ~ <C_RPAREN> ~ 
 sub got_BitWithLength {
    my $n = $_[0]->SystemTypeName($_[2] ? 'varbit' : 'bit');
    $n->typmods($_[4]);
    $n->_set_location( $_[0]->YYLLoc($_[1], 1) );
    return $n;
 }
-### BitWithoutLength: BIT opt_varying
 sub got_BitWithoutLength {
    #* bit defaults to bit(1), varbit to no limit
    if ($_[2]) { return $_[0]->SystemTypeName("varbit"); }
@@ -6582,23 +5371,18 @@ sub got_BitWithoutLength {
       return $n;
    }
 }
-### Character_1: CharacterWithLength
 sub got_Character_1 { $_[1] }
-### Character_2: CharacterWithoutLength
 sub got_Character_2 { $_[1] }
 # Length was not specified so allow to be unrestricted.
 # This handles problems with fixed-length (bpchar) strings
 # which in column definitions must default to a length
 # of one, but should not be constrained if the length
 # was not specified.
-### ConstCharacter_1: CharacterWithLength
 sub got_ConstCharacter_1 { $_[1] }
-### ConstCharacter_2: CharacterWithoutLength
 sub got_ConstCharacter_2 {
    $_[1]->typmods(NIL);
    return $_[1];
 }
-### CharacterWithLength: character  ~ <C_LPAREN> ~  Iconst  ~ <C_RPAREN> ~  opt_charset
 sub got_CharacterWithLength {
    $_[1] .= '_'.$_[5]
       if (defined $_[5] && $_[5] eq "sql_text");
@@ -6608,7 +5392,6 @@ sub got_CharacterWithLength {
    $n->_set_location( $_[0]->YYLLoc($_[1], 1) );
    return $n;
 }
-### CharacterWithoutLength: character opt_charset
 sub got_CharacterWithoutLength {
    $_[1] .= '_'.$_[2]
       if (defined $_[2] && $_[2] eq "sql_text");
@@ -6622,102 +5405,69 @@ sub got_CharacterWithoutLength {
    $n->_set_location( $_[0]->YYLLoc($_[1], 1) );
    return $n;
 }
-### character_1: CHARACTER opt_varying
 sub got_character_1 { $_[2] ? "varchar": "bpchar" }
-### character_2: CHAR opt_varying
 sub got_character_2 { $_[2] ? "varchar": "bpchar" }
-### character_3: VARCHAR
 sub got_character_3 { "varchar" }
-### character_4: NATIONAL CHARACTER opt_varying
 sub got_character_4 { $_[3] ? "varchar": "bpchar" }
-### character_5: NATIONAL CHAR opt_varying
 sub got_character_5 { $_[3] ? "varchar": "bpchar" }
-### character_6: NCHAR opt_varying
 sub got_character_6 { $_[2] ? "varchar": "bpchar" }
-### opt_varying: VARYING
 sub got_opt_varying { TRUE  }
-### opt_charset: CHARACTER SET ColId
 sub got_opt_charset { $_[3] }
-### ConstDatetime_1: TIMESTAMP  ~ <C_LPAREN> ~  Iconst  ~ <C_RPAREN> ~  opt_timezone
 sub got_ConstDatetime_1 {
    my $n = $_[0]->SystemTypeName('timestamp'.($_[5] ? 'tz' : ''));
    $n->typmods($_[0]->lappend($_[0]->makeIntConst($_[3], $_[0]->YYLLoc($_[3], 3))));
    $n->_set_location( $_[0]->YYLLoc($_[1], 1) );
    return $n;
 }
-### ConstDatetime_2: TIMESTAMP opt_timezone
 sub got_ConstDatetime_2 {
    my $n = $_[0]->SystemTypeName('timestamp'.($_[2] ? 'tz' : ''));
    $n->_set_location( $_[0]->YYLLoc($_[1], 1) );
    return $n;
 }
-### ConstDatetime_3: TIME  ~ <C_LPAREN> ~  Iconst  ~ <C_RPAREN> ~  opt_timezone
 sub got_ConstDatetime_3 {
    my $n = $_[0]->SystemTypeName('time'.($_[5] ? 'tz' : ''));
    $n->typmods($_[0]->lappend($_[0]->makeIntConst($_[3], $_[0]->YYLLoc($_[3], 3))));
    $n->_set_location( $_[0]->YYLLoc($_[1], 1) );
    return $n;
 }
-### ConstDatetime_4: TIME opt_timezone
 sub got_ConstDatetime_4 {
    my $n = $_[0]->SystemTypeName('time'.($_[2] ? 'tz' : ''));
    $n->_set_location( $_[0]->YYLLoc($_[1], 1) );
    return $n;
 }
-### ConstInterval: INTERVAL
 sub got_ConstInterval {
    my $n = $_[0]->SystemTypeName("interval");
    $n->_set_location( $_[0]->YYLLoc($_[1], 1) );
    return $n;
 }
-### opt_timezone_1: WITH_TIME ZONE
 sub got_opt_timezone_1 { TRUE  }
-### opt_timezone_2: WITHOUT TIME ZONE
 sub got_opt_timezone_2 { FALSE }
-### opt_interval_1 : YEAR
 sub got_opt_interval_1  { $_[0]->lappend( $_[0]->makeIntConst(INTERVAL_MASK_YEAR,   $_[0]->YYLLoc($_[1], 1))) }
-### opt_interval_2 : MONTH
 sub got_opt_interval_2  { $_[0]->lappend( $_[0]->makeIntConst(INTERVAL_MASK_MONTH,  $_[0]->YYLLoc($_[1], 1))) }
-### opt_interval_3 : DAY
 sub got_opt_interval_3  { $_[0]->lappend( $_[0]->makeIntConst(INTERVAL_MASK_DAY,    $_[0]->YYLLoc($_[1], 1))) }
-### opt_interval_4 : HOUR
 sub got_opt_interval_4  { $_[0]->lappend( $_[0]->makeIntConst(INTERVAL_MASK_HOUR,   $_[0]->YYLLoc($_[1], 1))) }
-### opt_interval_5 : MINUTE
 sub got_opt_interval_5  { $_[0]->lappend( $_[0]->makeIntConst(INTERVAL_MASK_MINUTE, $_[0]->YYLLoc($_[1], 1))) }
-### opt_interval_6 : interval_second
 sub got_opt_interval_6  { $_[1] }
-### opt_interval_7 : YEAR TO MONTH
 sub got_opt_interval_7  { $_[0]->lappend($_[0]->makeIntConst(INTERVAL_MASK_YEAR | INTERVAL_MASK_MONTH, $_[0]->YYLLoc($_[1], 1))) }
-### opt_interval_8 : DAY TO HOUR
 sub got_opt_interval_8  { $_[0]->lappend($_[0]->makeIntConst(INTERVAL_MASK_DAY  | INTERVAL_MASK_HOUR,  $_[0]->YYLLoc($_[1], 1))) }
-### opt_interval_9 : DAY TO MINUTE
 sub got_opt_interval_9  { $_[0]->lappend($_[0]->makeIntConst(INTERVAL_MASK_DAY  | INTERVAL_MASK_HOUR | INTERVAL_MASK_MINUTE, $_[0]->YYLLoc($_[1], 1))) }
-### opt_interval_10: DAY TO interval_second
 sub got_opt_interval_10 {
    $_[3]->[0] = $_[0]->makeIntConst(INTERVAL_MASK_DAY | INTERVAL_MASK_HOUR | INTERVAL_MASK_MINUTE | INTERVAL_MASK_SECOND, $_[0]->YYLLoc($_[1], 1));
    return $_[3];
 }
-### opt_interval_11: HOUR TO MINUTE
 sub got_opt_interval_11 { $_[0]->lappend($_[0]->makeIntConst(INTERVAL_MASK_HOUR | INTERVAL_MASK_MINUTE, $_[0]->YYLLoc($_[1], 1))) }
-### opt_interval_12: HOUR TO interval_second
 sub got_opt_interval_12 {
    $_[3]->[0] = $_[0]->makeIntConst(INTERVAL_MASK_HOUR | INTERVAL_MASK_MINUTE | INTERVAL_MASK_SECOND, $_[0]->YYLLoc($_[1], 1));
    return $_[3];
 }
-### opt_interval_13: MINUTE TO interval_second
 sub got_opt_interval_13 {
    $_[3]->[0] = $_[0]->makeIntConst(INTERVAL_MASK_MINUTE | INTERVAL_MASK_SECOND, $_[0]->YYLLoc($_[1], 1));
    return $_[3];
 }
-### interval_second_1: SECOND
 sub got_interval_second_1 { $_[0]->lappend($_[0]->makeIntConst(INTERVAL_MASK_SECOND, $_[0]->YYLLoc($_[1], 1))) }
-### interval_second_2: SECOND  ~ <C_LPAREN> ~  Iconst  ~ <C_RPAREN> ~ 
 sub got_interval_second_2 { $_[0]->lappend($_[0]->makeIntConst(INTERVAL_MASK_SECOND, $_[0]->YYLLoc($_[1], 1)), $_[0]->makeIntConst($_[3], $_[0]->YYLLoc($_[3], 3))) }
-### a_expr_1 : c_expr
 sub got_a_expr_1  { $_[1] }
-### a_expr_2 : a_expr TYPECAST Typename
 sub got_a_expr_2  { $_[0]->makeTypeCast($_[1], $_[3], $_[0]->YYLLoc($_[2], 2)) }
-### a_expr_3 : a_expr COLLATE any_name
 sub got_a_expr_3  {
    return SQL::Translator::Statement::CollateClause->new(
       arg           => $_[1],
@@ -6732,7 +5482,6 @@ sub got_a_expr_3  {
 #
 # If you add more explicitly-known operators, be sure to add them
 # also to b_expr and to the MathOp list above.
-### a_expr_4 : a_expr AT TIME ZONE a_expr
 sub got_a_expr_4  {
    return SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[0]->SystemFuncName("timezone"),
@@ -6745,43 +5494,24 @@ sub got_a_expr_4  {
       location      => $_[0]->YYLLoc($_[2], 2),
    );
 }
-### a_expr_5 :  ~ <C_PLUS> ~  a_expr
 sub got_a_expr_5  { $_[0]->makeSimpleA_Expr(AEXPR_OP,  "+",  NULL, $_[2], $_[0]->YYLLoc($_[1], 1)) }
-### a_expr_6 :  ~ <C_DASH> ~  a_expr
 sub got_a_expr_6  { $_[0]->doNegate($_[2], $_[0]->YYLLoc($_[1], 1))                                }
-### a_expr_7 : a_expr  ~ <C_PLUS> ~  a_expr
 sub got_a_expr_7  { $_[0]->makeSimpleA_Expr(AEXPR_OP,  "+", $_[1], $_[3], $_[0]->YYLLoc($_[2], 2)) }
-### a_expr_8 : a_expr  ~ <C_DASH> ~  a_expr
 sub got_a_expr_8  { $_[0]->makeSimpleA_Expr(AEXPR_OP,  "-", $_[1], $_[3], $_[0]->YYLLoc($_[2], 2)) }
-### a_expr_9 : a_expr  ~ <C_STAR> ~  a_expr
 sub got_a_expr_9  { $_[0]->makeSimpleA_Expr(AEXPR_OP,  "*", $_[1], $_[3], $_[0]->YYLLoc($_[2], 2)) }
-### a_expr_10: a_expr  ~ <C_SLASH> ~  a_expr
 sub got_a_expr_10 { $_[0]->makeSimpleA_Expr(AEXPR_OP,  "/", $_[1], $_[3], $_[0]->YYLLoc($_[2], 2)) }
-### a_expr_11: a_expr  ~ <C_PERCENT> ~  a_expr
 sub got_a_expr_11 { $_[0]->makeSimpleA_Expr(AEXPR_OP,  "%", $_[1], $_[3], $_[0]->YYLLoc($_[2], 2)) }
-### a_expr_12: a_expr  ~ <C_CARET> ~  a_expr
 sub got_a_expr_12 { $_[0]->makeSimpleA_Expr(AEXPR_OP,  "^", $_[1], $_[3], $_[0]->YYLLoc($_[2], 2)) }
-### a_expr_13: a_expr  ~ <C_LANGLE> ~  a_expr
 sub got_a_expr_13 { $_[0]->makeSimpleA_Expr(AEXPR_OP,  "<", $_[1], $_[3], $_[0]->YYLLoc($_[2], 2)) }
-### a_expr_14: a_expr  ~ <C_RANGLE> ~  a_expr
 sub got_a_expr_14 { $_[0]->makeSimpleA_Expr(AEXPR_OP,  ">", $_[1], $_[3], $_[0]->YYLLoc($_[2], 2)) }
-### a_expr_15: a_expr  ~ <C_EQUAL> ~  a_expr
 sub got_a_expr_15 { $_[0]->makeSimpleA_Expr(AEXPR_OP,  "=", $_[1], $_[3], $_[0]->YYLLoc($_[2], 2)) }
-### a_expr_16: a_expr qual_Op a_expr
 sub got_a_expr_16 { $_[0]->makeA_Expr(AEXPR_OP,  $_[2], $_[1], $_[3], $_[0]->YYLLoc($_[2], 2))     }
-### a_expr_17: qual_Op a_expr
 sub got_a_expr_17 { $_[0]->makeA_Expr(AEXPR_OP,  $_[1],  NULL, $_[2], $_[0]->YYLLoc($_[1], 1))     }
-### a_expr_18: a_expr qual_Op
 sub got_a_expr_18 { $_[0]->makeA_Expr(AEXPR_OP,  $_[2], $_[1],  NULL, $_[0]->YYLLoc($_[2], 2))     }
-### a_expr_19: a_expr AND a_expr
 sub got_a_expr_19 { $_[0]->makeA_Expr(AEXPR_AND, NIL, $_[1], $_[3], $_[0]->YYLLoc($_[2], 2))       }
-### a_expr_20: a_expr OR a_expr
 sub got_a_expr_20 { $_[0]->makeA_Expr(AEXPR_OR,  NIL, $_[1], $_[3], $_[0]->YYLLoc($_[2], 2))       }
-### a_expr_21: NOT a_expr
 sub got_a_expr_21 { $_[0]->makeA_Expr(AEXPR_NOT, NIL,  NULL, $_[2], $_[0]->YYLLoc($_[1], 1))       }
-### a_expr_22: a_expr LIKE a_expr
 sub got_a_expr_22 { $_[0]->makeSimpleA_Expr(AEXPR_OP, "~~", $_[1], $_[3], $_[0]->YYLLoc($_[2], 2)) }
-### a_expr_23: a_expr LIKE a_expr ESCAPE a_expr
 sub got_a_expr_23 {
    my $n = SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[0]->SystemFuncName("like_escape"),
@@ -6795,9 +5525,7 @@ sub got_a_expr_23 {
    );
    return $_[0]->makeSimpleA_Expr(AEXPR_OP, "~~", $_[1], $n, $_[0]->YYLLoc($_[2], 2));
 }
-### a_expr_24: a_expr NOT LIKE a_expr
 sub got_a_expr_24 { $_[0]->makeSimpleA_Expr(AEXPR_OP, "!~~", $_[1], $_[4], $_[0]->YYLLoc($_[2], 2)) }
-### a_expr_25: a_expr NOT LIKE a_expr ESCAPE a_expr
 sub got_a_expr_25 {
    my $n = SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[0]->SystemFuncName("like_escape"),
@@ -6811,9 +5539,7 @@ sub got_a_expr_25 {
    );
    return $_[0]->makeSimpleA_Expr(AEXPR_OP, "!~~", $_[1], $n, $_[0]->YYLLoc($_[2], 2));
 }
-### a_expr_26: a_expr ILIKE a_expr
 sub got_a_expr_26 { $_[0]->makeSimpleA_Expr(AEXPR_OP, "~~*", $_[1], $_[3], $_[0]->YYLLoc($_[2], 2)) }
-### a_expr_27: a_expr ILIKE a_expr ESCAPE a_expr
 sub got_a_expr_27 {
    my $n = SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[0]->SystemFuncName("like_escape"),
@@ -6827,9 +5553,7 @@ sub got_a_expr_27 {
    );
    return $_[0]->makeSimpleA_Expr(AEXPR_OP, "~~*", $_[1], $n, $_[0]->YYLLoc($_[2], 2));
 }
-### a_expr_28: a_expr NOT ILIKE a_expr
 sub got_a_expr_28 { $_[0]->makeSimpleA_Expr(AEXPR_OP, "!~~*", $_[1], $_[4], $_[0]->YYLLoc($_[2], 2)) }
-### a_expr_29: a_expr NOT ILIKE a_expr ESCAPE a_expr
 sub got_a_expr_29 {
    my $n = SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[0]->SystemFuncName("like_escape"),
@@ -6843,7 +5567,6 @@ sub got_a_expr_29 {
    );
    return $_[0]->makeSimpleA_Expr(AEXPR_OP, "!~~*", $_[1], $n, $_[0]->YYLLoc($_[2], 2));
 }
-### a_expr_30: a_expr SIMILAR TO a_expr
 sub got_a_expr_30 {
    my $n = SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[0]->SystemFuncName("similar_escape"),
@@ -6857,7 +5580,6 @@ sub got_a_expr_30 {
    );
    return $_[0]->makeSimpleA_Expr(AEXPR_OP, "~", $_[1], $n, $_[0]->YYLLoc($_[2], 2));
 }
-### a_expr_31: a_expr SIMILAR TO a_expr ESCAPE a_expr
 sub got_a_expr_31 {
    my $n = SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[0]->SystemFuncName("similar_escape"),
@@ -6871,7 +5593,6 @@ sub got_a_expr_31 {
    );
    return $_[0]->makeSimpleA_Expr(AEXPR_OP, "~", $_[1], $n, $_[0]->YYLLoc($_[2], 2));
 }
-### a_expr_32: a_expr NOT SIMILAR TO a_expr
 sub got_a_expr_32 {
    my $n = SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[0]->SystemFuncName("similar_escape"),
@@ -6893,7 +5614,6 @@ sub got_a_expr_32 {
 # Allow two SQL extensions
 #   a ISNULL
 #   a NOTNULL
-### a_expr_33: a_expr NOT SIMILAR TO a_expr ESCAPE a_expr
 sub got_a_expr_33 {
    my $n = SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[0]->SystemFuncName("similar_escape"),
@@ -6907,81 +5627,68 @@ sub got_a_expr_33 {
    );
    return $_[0]->makeSimpleA_Expr(AEXPR_OP, "!~", $_[1], $n, $_[0]->YYLLoc($_[2], 2));
 }
-### a_expr_34: a_expr IS NULL
 sub got_a_expr_34 {
    return SQL::Translator::Statement::NullTest->new(
       arg => $_[1],
       nulltesttype => IS_NULL,
    );
 }
-### a_expr_35: a_expr ISNULL
 sub got_a_expr_35 {
    return SQL::Translator::Statement::NullTest->new(
       arg => $_[1],
       nulltesttype => IS_NULL,
    );
 }
-### a_expr_36: a_expr IS NOT NULL
 sub got_a_expr_36 {
    return SQL::Translator::Statement::NullTest->new(
       arg => $_[1],
       nulltesttype => IS_NOT_NULL,
    );
 }
-### a_expr_37: a_expr NOTNULL
 sub got_a_expr_37 {
    return SQL::Translator::Statement::NullTest->new(
       arg => $_[1],
       nulltesttype => IS_NOT_NULL,
    );
 }
-### a_expr_38: row OVERLAPS row
 sub got_a_expr_38 { $_[0]->makeOverlaps($_[1], $_[3], $_[0]->YYLLoc($_[2], 2)) }
-### a_expr_39: a_expr IS TRUE
 sub got_a_expr_39 {
    return SQL::Translator::Statement::BooleanTest->new(
       arg          => $_[1],
       booltesttype => IS_TRUE,
    );
 }
-### a_expr_40: a_expr IS NOT TRUE
 sub got_a_expr_40 {
    return SQL::Translator::Statement::BooleanTest->new(
       arg          => $_[1],
       booltesttype => IS_NOT_TRUE,
    );
 }
-### a_expr_41: a_expr IS FALSE
 sub got_a_expr_41 {
    return SQL::Translator::Statement::BooleanTest->new(
       arg          => $_[1],
       booltesttype => IS_FALSE,
    );
 }
-### a_expr_42: a_expr IS NOT FALSE
 sub got_a_expr_42 {
    return SQL::Translator::Statement::BooleanTest->new(
       arg          => $_[1],
       booltesttype => IS_NOT_FALSE,
    );
 }
-### a_expr_43: a_expr IS UNKNOWN
 sub got_a_expr_43 {
    return SQL::Translator::Statement::BooleanTest->new(
       arg          => $_[1],
       booltesttype => IS_UNKNOWN,
    );
 }
-### a_expr_44: a_expr IS NOT UNKNOWN
 sub got_a_expr_44 {
    return SQL::Translator::Statement::BooleanTest->new(
       arg          => $_[1],
       booltesttype => IS_NOT_UNKNOWN,
    );
 }
-### a_expr_45: a_expr IS DISTINCT FROM a_expr
 sub got_a_expr_45 { $_[0]->makeSimpleA_Expr(AEXPR_DISTINCT, "=", $_[1], $_[5], $_[0]->YYLLoc($_[2], 2)) }
-### a_expr_46: a_expr IS NOT DISTINCT FROM a_expr
 sub got_a_expr_46 {
    return $_[0]->makeA_Expr(
       AEXPR_NOT, NIL, NULL,
@@ -6989,15 +5696,12 @@ sub got_a_expr_46 {
       $_[0]->YYLLoc($_[2], 2)
    );
 }
-### a_expr_47: a_expr IS OF  ~ <C_LPAREN> ~  type_list  ~ <C_RPAREN> ~ 
 sub got_a_expr_47 { $_[0]->makeSimpleA_Expr(AEXPR_OF,  "=", $_[1], $_[5], $_[0]->YYLLoc($_[2], 2)) }
 #   Ideally we would not use hard-wired operators below but
 #   instead use opclasses.  However, mixed data types and other
 #   issues make this difficult:
 #   http://archives.postgresql.org/pgsql-hackers/2008-08/msg01142.php
-### a_expr_48: a_expr IS NOT OF  ~ <C_LPAREN> ~  type_list  ~ <C_RPAREN> ~ 
 sub got_a_expr_48 { $_[0]->makeSimpleA_Expr(AEXPR_OF, "<>", $_[1], $_[6], $_[0]->YYLLoc($_[2], 2)) }
-### a_expr_49: a_expr BETWEEN opt_asymmetric b_expr AND b_expr
 sub got_a_expr_49 {
    return $_[0]->makeA_Expr(
       AEXPR_AND, NIL,
@@ -7006,7 +5710,6 @@ sub got_a_expr_49 {
       $_[0]->YYLLoc($_[2], 2)
    );
 }
-### a_expr_50: a_expr NOT BETWEEN opt_asymmetric b_expr AND b_expr
 sub got_a_expr_50 {
    return $_[0]->makeA_Expr(
       AEXPR_OR, NIL,
@@ -7015,7 +5718,6 @@ sub got_a_expr_50 {
       $_[0]->YYLLoc($_[2], 2)
    );
 }
-### a_expr_51: a_expr BETWEEN SYMMETRIC b_expr AND b_expr
 sub got_a_expr_51 {
    return $_[0]->makeA_Expr(
       AEXPR_OR, NIL,
@@ -7034,7 +5736,6 @@ sub got_a_expr_51 {
       $_[0]->YYLLoc($_[2], 2)
    );
 }
-### a_expr_52: a_expr NOT BETWEEN SYMMETRIC b_expr AND b_expr
 sub got_a_expr_52 {
    return $_[0]->makeA_Expr(
       AEXPR_AND, NIL,
@@ -7053,7 +5754,6 @@ sub got_a_expr_52 {
       $_[0]->YYLLoc($_[2], 2)
    );
 }
-### a_expr_53: a_expr IN in_expr
 sub got_a_expr_53 {
    #* in_expr returns a SubLink or a list of a_exprs
    if ($_[3]->isa('SQL::Translator::Statement::SubLink')) {
@@ -7069,7 +5769,6 @@ sub got_a_expr_53 {
       return $_[0]->makeSimpleA_Expr(AEXPR_IN, "=", $_[1], $_[3], $_[0]->YYLLoc($_[2], 2));
    }
 }
-### a_expr_54: a_expr NOT IN in_expr
 sub got_a_expr_54 {
    #* in_expr returns a SubLink or a list of a_exprs
    if ($_[4]->isa('SQL::Translator::Statement::SubLink')) {
@@ -7086,7 +5785,6 @@ sub got_a_expr_54 {
       return $_[0]->makeSimpleA_Expr(AEXPR_IN, "<>", $_[1], $_[4], $_[0]->YYLLoc($_[2], 2));
    }
 }
-### a_expr_55: a_expr subquery_Op sub_type select_with_parens
 sub got_a_expr_55 {
    return SQL::Translator::Statement::SubLink->new(
       subLinkType => $_[3],
@@ -7096,7 +5794,6 @@ sub got_a_expr_55 {
       location    => $_[0]->YYLLoc($_[2], 2),
    );
 }
-### a_expr_56: a_expr subquery_Op sub_type  ~ <C_LPAREN> ~  a_expr  ~ <C_RPAREN> ~ 
 sub got_a_expr_56 {
    return $_[0]->makeA_Expr(
       ($_[3] eq ANY_SUBLINK ? AEXPR_OP_ANY : AEXPR_OP_ALL),
@@ -7111,16 +5808,13 @@ sub got_a_expr_56 {
 # from whatever they are into count(*), and testing the
 # entire result equal to one.
 # But, will probably implement a separate node in the executor.
-### a_expr_57: UNIQUE select_with_parens
 sub got_a_expr_57 {
    $_[0]->ereport(ERROR,
          ERRCODE_FEATURE_NOT_SUPPORTED,
           "UNIQUE predicate is not yet implemented",
           $_[0]->YYLLoc($_[1], 1));
 }
-### a_expr_58: a_expr IS DOCUMENT
 sub got_a_expr_58 { $_[0]->makeXmlExpr(IS_DOCUMENT, NULL, NIL, $_[0]->lappend($_[1]), $_[0]->YYLLoc($_[2], 2)) }
-### a_expr_59: a_expr IS NOT DOCUMENT
 sub got_a_expr_59 {
    return $_[0]->makeA_Expr(
       AEXPR_NOT, NIL, NULL,
@@ -7132,41 +5826,23 @@ sub got_a_expr_59 {
       $_[0]->YYLLoc($_[2], 2)
    );
 }
-### b_expr_1 : c_expr
 sub got_b_expr_1  { $_[1] }
-### b_expr_2 : b_expr TYPECAST Typename
 sub got_b_expr_2  { $_[0]->makeTypeCast    ($_[1], $_[3],                      $_[0]->YYLLoc($_[2], 2)) }
-### b_expr_3 :  ~ <C_PLUS> ~  b_expr
 sub got_b_expr_3  { $_[0]->makeSimpleA_Expr(AEXPR_OP,       "+",  NULL, $_[2], $_[0]->YYLLoc($_[1], 1)) }
-### b_expr_4 :  ~ <C_DASH> ~  b_expr
 sub got_b_expr_4  { $_[0]->doNegate        ($_[2],                             $_[0]->YYLLoc($_[1], 1)) }
-### b_expr_5 : b_expr  ~ <C_PLUS> ~  b_expr
 sub got_b_expr_5  { $_[0]->makeSimpleA_Expr(AEXPR_OP,       "+", $_[1], $_[3], $_[0]->YYLLoc($_[2], 2)) }
-### b_expr_6 : b_expr  ~ <C_DASH> ~  b_expr
 sub got_b_expr_6  { $_[0]->makeSimpleA_Expr(AEXPR_OP,       "-", $_[1], $_[3], $_[0]->YYLLoc($_[2], 2)) }
-### b_expr_7 : b_expr  ~ <C_STAR> ~  b_expr
 sub got_b_expr_7  { $_[0]->makeSimpleA_Expr(AEXPR_OP,       "*", $_[1], $_[3], $_[0]->YYLLoc($_[2], 2)) }
-### b_expr_8 : b_expr  ~ <C_SLASH> ~  b_expr
 sub got_b_expr_8  { $_[0]->makeSimpleA_Expr(AEXPR_OP,       "/", $_[1], $_[3], $_[0]->YYLLoc($_[2], 2)) }
-### b_expr_9 : b_expr  ~ <C_PERCENT> ~  b_expr
 sub got_b_expr_9  { $_[0]->makeSimpleA_Expr(AEXPR_OP,       "%", $_[1], $_[3], $_[0]->YYLLoc($_[2], 2)) }
-### b_expr_10: b_expr  ~ <C_CARET> ~  b_expr
 sub got_b_expr_10 { $_[0]->makeSimpleA_Expr(AEXPR_OP,       "^", $_[1], $_[3], $_[0]->YYLLoc($_[2], 2)) }
-### b_expr_11: b_expr  ~ <C_LANGLE> ~  b_expr
 sub got_b_expr_11 { $_[0]->makeSimpleA_Expr(AEXPR_OP,       "<", $_[1], $_[3], $_[0]->YYLLoc($_[2], 2)) }
-### b_expr_12: b_expr  ~ <C_RANGLE> ~  b_expr
 sub got_b_expr_12 { $_[0]->makeSimpleA_Expr(AEXPR_OP,       ">", $_[1], $_[3], $_[0]->YYLLoc($_[2], 2)) }
-### b_expr_13: b_expr  ~ <C_EQUAL> ~  b_expr
 sub got_b_expr_13 { $_[0]->makeSimpleA_Expr(AEXPR_OP,       "=", $_[1], $_[3], $_[0]->YYLLoc($_[2], 2)) }
-### b_expr_14: b_expr qual_Op b_expr
 sub got_b_expr_14 { $_[0]->makeA_Expr      (AEXPR_OP,     $_[2], $_[1], $_[3], $_[0]->YYLLoc($_[2], 2)) }
-### b_expr_15: qual_Op b_expr
 sub got_b_expr_15 { $_[0]->makeA_Expr      (AEXPR_OP,     $_[1],  NULL, $_[2], $_[0]->YYLLoc($_[1], 1)) }
-### b_expr_16: b_expr qual_Op
 sub got_b_expr_16 { $_[0]->makeA_Expr      (AEXPR_OP,     $_[2], $_[1],  NULL, $_[0]->YYLLoc($_[2], 2)) }
-### b_expr_17: b_expr IS DISTINCT FROM b_expr
 sub got_b_expr_17 { $_[0]->makeSimpleA_Expr(AEXPR_DISTINCT, "=", $_[1], $_[5], $_[0]->YYLLoc($_[2], 2)) }
-### b_expr_18: b_expr IS NOT DISTINCT FROM b_expr
 sub got_b_expr_18 {
    return $_[0]->makeA_Expr(
       AEXPR_NOT, NIL, NULL,
@@ -7177,11 +5853,8 @@ sub got_b_expr_18 {
       $_[0]->YYLLoc($_[2], 2)
    );
 }
-### b_expr_19: b_expr IS OF  ~ <C_LPAREN> ~  type_list  ~ <C_RPAREN> ~ 
 sub got_b_expr_19 { $_[0]->makeSimpleA_Expr(AEXPR_OF,  "=", $_[1],  $_[5], $_[0]->YYLLoc($_[2], 2)) }
-### b_expr_20: b_expr IS NOT OF  ~ <C_LPAREN> ~  type_list  ~ <C_RPAREN> ~ 
 sub got_b_expr_20 { $_[0]->makeSimpleA_Expr(AEXPR_OF, "<>", $_[1],  $_[6], $_[0]->YYLLoc($_[2], 2)) }
-### b_expr_21: b_expr IS DOCUMENT
 sub got_b_expr_21 {
    return $_[0]->makeXmlExpr(
       IS_DOCUMENT, NULL, NIL,
@@ -7189,7 +5862,6 @@ sub got_b_expr_21 {
       $_[0]->YYLLoc($_[2], 2)
    );
 }
-### b_expr_22: b_expr IS NOT DOCUMENT
 sub got_b_expr_22 {
    return $_[0]->makeA_Expr(
       AEXPR_NOT, NIL, NULL,
@@ -7201,11 +5873,8 @@ sub got_b_expr_22 {
       $_[0]->YYLLoc($_[2], 2)
    );
 }
-### c_expr_1 : columnref
 sub got_c_expr_1  { $_[1] }
-### c_expr_2 : AexprConst
 sub got_c_expr_2  { $_[1] }
-### c_expr_3 : PARAM opt_indirection
 sub got_c_expr_3  {
    my $p = SQL::Translator::Statement::ParamRef->new(
       number   => $_[1],
@@ -7219,7 +5888,6 @@ sub got_c_expr_3  {
    }
    return $p;
 }
-### c_expr_4 :  ~ <C_LPAREN> ~  a_expr  ~ <C_RPAREN> ~  opt_indirection
 sub got_c_expr_4  {
    if ($_[4]) {
       return SQL::Translator::Statement::A_Indirection->new(
@@ -7229,11 +5897,8 @@ sub got_c_expr_4  {
    }
    return $_[2];
 }
-### c_expr_5 : case_expr
 sub got_c_expr_5  { $_[1] }
-### c_expr_6 : func_expr
 sub got_c_expr_6  { $_[1] }
-### c_expr_7 : select_with_parens
 sub got_c_expr_7  {
    return SQL::Translator::Statement::SubLink->new(
       subLinkType => EXPR_SUBLINK,
@@ -7243,7 +5908,6 @@ sub got_c_expr_7  {
       location    => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### c_expr_8 : EXISTS select_with_parens
 sub got_c_expr_8  {
    return SQL::Translator::Statement::SubLink->new(
       subLinkType => EXISTS_SUBLINK,
@@ -7253,7 +5917,6 @@ sub got_c_expr_8  {
       location    => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### c_expr_9 : ARRAY select_with_parens
 sub got_c_expr_9  {
    return SQL::Translator::Statement::SubLink->new(
       subLinkType => ARRAY_SUBLINK,
@@ -7263,13 +5926,11 @@ sub got_c_expr_9  {
       location    => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### c_expr_10: ARRAY array_expr
 sub got_c_expr_10 {
    #* point outermost A_ArrayExpr to the ARRAY keyword
    $_[2]->_set_location( $_[0]->YYLLoc($_[1], 1) );
    return $_[2];
 }
-### c_expr_11: row
 sub got_c_expr_11 {
    return SQL::Translator::Statement::RowExpr->new(
       args       => $_[1],
@@ -7278,7 +5939,6 @@ sub got_c_expr_11 {
       location   => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### func_expr_1 : func_name  ~ <C_LPAREN> ~   ~ <C_RPAREN> ~  over_clause
 sub got_func_expr_1  {
    return SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[1],
@@ -7291,7 +5951,6 @@ sub got_func_expr_1  {
       location      => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### func_expr_2 : func_name  ~ <C_LPAREN> ~  func_arg_list  ~ <C_RPAREN> ~  over_clause
 sub got_func_expr_2  {
    return SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[1],
@@ -7304,7 +5963,6 @@ sub got_func_expr_2  {
       location      => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### func_expr_3 : func_name  ~ <C_LPAREN> ~  VARIADIC func_arg_expr  ~ <C_RPAREN> ~  over_clause
 sub got_func_expr_3  {
    return SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[1],
@@ -7317,7 +5975,6 @@ sub got_func_expr_3  {
       location      => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### func_expr_4 : func_name  ~ <C_LPAREN> ~  func_arg_list  ~ <C_COMMA> ~  VARIADIC func_arg_expr  ~ <C_RPAREN> ~  over_clause
 sub got_func_expr_4  {
    return SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[1],
@@ -7330,7 +5987,6 @@ sub got_func_expr_4  {
       location      => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### func_expr_5 : func_name  ~ <C_LPAREN> ~  func_arg_list sort_clause  ~ <C_RPAREN> ~  over_clause
 sub got_func_expr_5  {
    return SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[1],
@@ -7343,7 +5999,6 @@ sub got_func_expr_5  {
       location      => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### func_expr_6 : func_name  ~ <C_LPAREN> ~  ALL func_arg_list opt_sort_clause  ~ <C_RPAREN> ~  over_clause
 sub got_func_expr_6  {
    return SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[1],
@@ -7359,7 +6014,6 @@ sub got_func_expr_6  {
       location      => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### func_expr_7 : func_name  ~ <C_LPAREN> ~  DISTINCT func_arg_list opt_sort_clause  ~ <C_RPAREN> ~  over_clause
 sub got_func_expr_7  {
    return SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[1],
@@ -7380,7 +6034,6 @@ sub got_func_expr_7  {
 # The FuncCall node is also marked agg_star = TRUE,
 # so that later processing can detect what the argument
 # really was.
-### func_expr_8 : func_name  ~ <C_LPAREN> ~   ~ <C_STAR> ~   ~ <C_RPAREN> ~  over_clause
 sub got_func_expr_8  {
    return SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[1],
@@ -7393,7 +6046,6 @@ sub got_func_expr_8  {
       location      => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### func_expr_9 : COLLATION FOR  ~ <C_LPAREN> ~  a_expr  ~ <C_RPAREN> ~ 
 sub got_func_expr_9  {
    return SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[0]->SystemFuncName("pg_collation_for"),
@@ -7419,21 +6071,18 @@ sub got_func_expr_9  {
 # of type-input conversion functions.  (As of PG 7.3
 # that is actually possible, but not clear that we want
 # to rely on it.)
-### func_expr_10: CURRENT_DATE
 sub got_func_expr_10 {
    my $n = $_[0]->makeStringConstCast("now", $_[0]->YYLLoc($_[1], 1), $_[0]->SystemTypeName("text"));
    return $_[0]->makeTypeCast($n, SystemTypeName("date"), {});
 }
 # Translate as "'now'::text::timetz".
 # See comments for CURRENT_DATE.
-### func_expr_11: CURRENT_TIME
 sub got_func_expr_11 {
    my $n = $_[0]->makeStringConstCast("now", $_[0]->YYLLoc($_[1], 1), $_[0]->SystemTypeName("text"));
    return $_[0]->makeTypeCast($n, SystemTypeName("timetz"), {});
 }
 # Translate as "'now'::text::timetz(n)".
 # See comments for CURRENT_DATE.
-### func_expr_12: CURRENT_TIME  ~ <C_LPAREN> ~  Iconst  ~ <C_RPAREN> ~ 
 sub got_func_expr_12 {
    my $n = $_[0]->makeStringConstCast("now", $_[0]->YYLLoc($_[1], 1), $_[0]->SystemTypeName("text"));
    my $d = $_[0]->SystemTypeName("timetz");
@@ -7442,7 +6091,6 @@ sub got_func_expr_12 {
 }
 # Translate as "now()", since we have a function that
 # does exactly what is needed.
-### func_expr_13: CURRENT_TIMESTAMP
 sub got_func_expr_13 {
    return SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[0]->SystemFuncName("now"),
@@ -7457,7 +6105,6 @@ sub got_func_expr_13 {
 }
 # Translate as "'now'::text::timestamptz(n)".
 # See comments for CURRENT_DATE.
-### func_expr_14: CURRENT_TIMESTAMP  ~ <C_LPAREN> ~  Iconst  ~ <C_RPAREN> ~ 
 sub got_func_expr_14 {
    my $n = $_[0]->makeStringConstCast("now", $_[0]->YYLLoc($_[1], 1), $_[0]->SystemTypeName("text"));
    my $d = $_[0]->SystemTypeName("timestamptz");
@@ -7466,14 +6113,12 @@ sub got_func_expr_14 {
 }
 # Translate as "'now'::text::time".
 # See comments for CURRENT_DATE.
-### func_expr_15: LOCALTIME
 sub got_func_expr_15 {
    my $n = $_[0]->makeStringConstCast("now", $_[0]->YYLLoc($_[1], 1), $_[0]->SystemTypeName("text"));
    return $_[0]->makeTypeCast($n, SystemTypeName("time"), {});
 }
 # Translate as "'now'::text::time(n)".
 # See comments for CURRENT_DATE.
-### func_expr_16: LOCALTIME  ~ <C_LPAREN> ~  Iconst  ~ <C_RPAREN> ~ 
 sub got_func_expr_16 {
    my $n = $_[0]->makeStringConstCast("now", $_[0]->YYLLoc($_[1], 1), $_[0]->SystemTypeName("text"));
    my $d = $_[0]->SystemTypeName("time");
@@ -7482,21 +6127,18 @@ sub got_func_expr_16 {
 }
 # Translate as "'now'::text::timestamp".
 # See comments for CURRENT_DATE.
-### func_expr_17: LOCALTIMESTAMP
 sub got_func_expr_17 {
    my $n = $_[0]->makeStringConstCast("now", $_[0]->YYLLoc($_[1], 1), $_[0]->SystemTypeName("text"));
    return $_[0]->makeTypeCast($n, SystemTypeName("timestamp"), {});
 }
 # Translate as "'now'::text::timestamp(n)".
 # See comments for CURRENT_DATE.
-### func_expr_18: LOCALTIMESTAMP  ~ <C_LPAREN> ~  Iconst  ~ <C_RPAREN> ~ 
 sub got_func_expr_18 {
    my $n = $_[0]->makeStringConstCast("now", $_[0]->YYLLoc($_[1], 1), $_[0]->SystemTypeName("text"));
    my $d = $_[0]->SystemTypeName("timestamp");
    $d->typmods( $_[0]->lappend($_[0]->makeIntConst($_[3], $_[0]->YYLLoc($_[3], 3))) );
    return $_[0]->makeTypeCast($n, $d, {});
 }
-### func_expr_19: CURRENT_ROLE
 sub got_func_expr_19 {
    return SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[0]->SystemFuncName("current_user"),
@@ -7509,7 +6151,6 @@ sub got_func_expr_19 {
       location      => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### func_expr_20: CURRENT_USER
 sub got_func_expr_20 {
    return SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[0]->SystemFuncName("current_user"),
@@ -7522,7 +6163,6 @@ sub got_func_expr_20 {
       location      => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### func_expr_21: SESSION_USER
 sub got_func_expr_21 {
    return SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[0]->SystemFuncName("session_user"),
@@ -7535,7 +6175,6 @@ sub got_func_expr_21 {
       location      => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### func_expr_22: USER
 sub got_func_expr_22 {
    return SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[0]->SystemFuncName("current_user"),
@@ -7548,7 +6187,6 @@ sub got_func_expr_22 {
       location      => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### func_expr_23: CURRENT_CATALOG
 sub got_func_expr_23 {
    return SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[0]->SystemFuncName("current_database"),
@@ -7561,7 +6199,6 @@ sub got_func_expr_23 {
       location      => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### func_expr_24: CURRENT_SCHEMA
 sub got_func_expr_24 {
    return SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[0]->SystemFuncName("current_schema"),
@@ -7574,9 +6211,7 @@ sub got_func_expr_24 {
       location      => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### func_expr_25: CAST  ~ <C_LPAREN> ~  a_expr AS Typename  ~ <C_RPAREN> ~ 
 sub got_func_expr_25 { $_[0]->makeTypeCast($_[3], $_[5], $_[0]->YYLLoc($_[1], 1)) }
-### func_expr_26: EXTRACT  ~ <C_LPAREN> ~  extract_list  ~ <C_RPAREN> ~ 
 sub got_func_expr_26 {
    return SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[0]->SystemFuncName("date_part"),
@@ -7593,7 +6228,6 @@ sub got_func_expr_26 {
 # overlay(A, B, C, D)
 # overlay(A PLACING B FROM C) is converted to
 # overlay(A, B, C)
-### func_expr_27: OVERLAY  ~ <C_LPAREN> ~  overlay_list  ~ <C_RPAREN> ~ 
 sub got_func_expr_27 {
    return SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[0]->SystemFuncName("overlay"),
@@ -7607,7 +6241,6 @@ sub got_func_expr_27 {
    );
 }
 # position(A in B) is converted to position(B, A)
-### func_expr_28: POSITION  ~ <C_LPAREN> ~  position_list  ~ <C_RPAREN> ~ 
 sub got_func_expr_28 {
    return SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[0]->SystemFuncName("position"),
@@ -7622,7 +6255,6 @@ sub got_func_expr_28 {
 }
 # substring(A from B for C) is converted to
 # substring(A, B, C) - thomas 2000-11-28
-### func_expr_29: SUBSTRING  ~ <C_LPAREN> ~  substr_list  ~ <C_RPAREN> ~ 
 sub got_func_expr_29 {
    return SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[0]->SystemFuncName("substring"),
@@ -7640,7 +6272,6 @@ sub got_func_expr_29 {
 # In SQL99, this is intended for use with structured UDTs,
 # but let's make this a generally useful form allowing stronger
 # coercions than are handled by implicit casting.
-### func_expr_30: TREAT  ~ <C_LPAREN> ~  a_expr AS Typename  ~ <C_RPAREN> ~ 
 sub got_func_expr_30 {
    return SQL::Translator::Statement::Function::Call->new(
       #* Convert SystemTypeName() to SystemFuncName() even though
@@ -7657,7 +6288,6 @@ sub got_func_expr_30 {
 }
 # various trim expressions are defined in SQL92
 # - thomas 1997-07-19
-### func_expr_31: TRIM  ~ <C_LPAREN> ~  BOTH trim_list  ~ <C_RPAREN> ~ 
 sub got_func_expr_31 {
    return SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[0]->SystemFuncName("btrim"),
@@ -7670,7 +6300,6 @@ sub got_func_expr_31 {
       location      => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### func_expr_32: TRIM  ~ <C_LPAREN> ~  LEADING trim_list  ~ <C_RPAREN> ~ 
 sub got_func_expr_32 {
    return SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[0]->SystemFuncName("ltrim"),
@@ -7683,7 +6312,6 @@ sub got_func_expr_32 {
       location      => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### func_expr_33: TRIM  ~ <C_LPAREN> ~  TRAILING trim_list  ~ <C_RPAREN> ~ 
 sub got_func_expr_33 {
    return SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[0]->SystemFuncName("rtrim"),
@@ -7696,7 +6324,6 @@ sub got_func_expr_33 {
       location      => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### func_expr_34: TRIM  ~ <C_LPAREN> ~  trim_list  ~ <C_RPAREN> ~ 
 sub got_func_expr_34 {
    return SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[0]->SystemFuncName("btrim"),
@@ -7709,16 +6336,13 @@ sub got_func_expr_34 {
       location      => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### func_expr_35: NULLIF  ~ <C_LPAREN> ~  a_expr  ~ <C_COMMA> ~  a_expr  ~ <C_RPAREN> ~ 
 sub got_func_expr_35 { $_[0]->makeSimpleA_Expr(AEXPR_NULLIF, "=", $_[3], $_[5], $_[0]->YYLLoc($_[1], 1)) }
-### func_expr_36: COALESCE  ~ <C_LPAREN> ~  expr_list  ~ <C_RPAREN> ~ 
 sub got_func_expr_36 {
    return SQL::Translator::Statement::CoalesceExpr->new(
       args     => $_[3],
       location => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### func_expr_37: GREATEST  ~ <C_LPAREN> ~  expr_list  ~ <C_RPAREN> ~ 
 sub got_func_expr_37 {
    return SQL::Translator::Statement::MinMaxExpr->new(
       args     => $_[3],
@@ -7726,7 +6350,6 @@ sub got_func_expr_37 {
       location => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### func_expr_38: LEAST  ~ <C_LPAREN> ~  expr_list  ~ <C_RPAREN> ~ 
 sub got_func_expr_38 {
    return SQL::Translator::Statement::MinMaxExpr->new(
       args     => $_[3],
@@ -7734,19 +6357,13 @@ sub got_func_expr_38 {
       location => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### func_expr_39: XMLCONCAT  ~ <C_LPAREN> ~  expr_list  ~ <C_RPAREN> ~ 
 sub got_func_expr_39 { $_[0]->makeXmlExpr(IS_XMLCONCAT, NULL, NIL, $_[3], $_[0]->YYLLoc($_[1], 1)) }
-### func_expr_40: XMLELEMENT  ~ <C_LPAREN> ~  NAME ColLabel  ~ <C_RPAREN> ~ 
 sub got_func_expr_40 { $_[0]->makeXmlExpr(IS_XMLELEMENT, $_[4], NIL, NIL, $_[0]->YYLLoc($_[1], 1)) }
-### func_expr_41: XMLELEMENT  ~ <C_LPAREN> ~  NAME ColLabel  ~ <C_COMMA> ~  xml_attributes  ~ <C_RPAREN> ~ 
 sub got_func_expr_41 { $_[0]->makeXmlExpr(IS_XMLELEMENT, $_[4], $_[6], NIL, $_[0]->YYLLoc($_[1], 1)) }
-### func_expr_42: XMLELEMENT  ~ <C_LPAREN> ~  NAME ColLabel  ~ <C_COMMA> ~  expr_list  ~ <C_RPAREN> ~ 
 sub got_func_expr_42 { $_[0]->makeXmlExpr(IS_XMLELEMENT, $_[4], NIL, $_[6], $_[0]->YYLLoc($_[1], 1)) }
-### func_expr_43: XMLELEMENT  ~ <C_LPAREN> ~  NAME ColLabel  ~ <C_COMMA> ~  xml_attributes  ~ <C_COMMA> ~  expr_list  ~ <C_RPAREN> ~ 
 sub got_func_expr_43 { $_[0]->makeXmlExpr(IS_XMLELEMENT, $_[4], $_[6], $_[8], $_[0]->YYLLoc($_[1], 1)) }
 # xmlexists(A PASSING [BY REF] B [BY REF]) is
 # converted to xmlexists(A, B)
-### func_expr_44: XMLEXISTS  ~ <C_LPAREN> ~  c_expr xmlexists_argument  ~ <C_RPAREN> ~ 
 sub got_func_expr_44 {
    return SQL::Translator::Statement::Function::Call->new(
       funcname      => $_[0]->SystemFuncName("xmlexists"),
@@ -7759,9 +6376,7 @@ sub got_func_expr_44 {
       location      => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### func_expr_45: XMLFOREST  ~ <C_LPAREN> ~  xml_attribute_list  ~ <C_RPAREN> ~ 
 sub got_func_expr_45 { $_[0]->makeXmlExpr(IS_XMLFOREST, NULL, $_[3], NIL, $_[0]->YYLLoc($_[1], 1)) }
-### func_expr_46: XMLPARSE  ~ <C_LPAREN> ~  document_or_content a_expr xml_whitespace_option  ~ <C_RPAREN> ~ 
 sub got_func_expr_46 {
    my $x = $_[0]->makeXmlExpr(IS_XMLPARSE, NULL, NIL,
                $_[0]->lappend($_[4], $_[0]->makeBoolAConst($_[5], {})),
@@ -7769,15 +6384,11 @@ sub got_func_expr_46 {
    $x->xmloption($_[3]);
    return $x;
 }
-### func_expr_47: XMLPI  ~ <C_LPAREN> ~  NAME ColLabel  ~ <C_RPAREN> ~ 
 sub got_func_expr_47 { $_[0]->makeXmlExpr(IS_XMLPI, $_[4], NULL, NIL, $_[0]->YYLLoc($_[1], 1)) }
-### func_expr_48: XMLPI  ~ <C_LPAREN> ~  NAME ColLabel  ~ <C_COMMA> ~  a_expr  ~ <C_RPAREN> ~ 
 sub got_func_expr_48 { $_[0]->makeXmlExpr(IS_XMLPI, $_[4], NULL, $_[0]->lappend($_[6]), $_[0]->YYLLoc($_[1], 1)) }
-### func_expr_49: XMLROOT  ~ <C_LPAREN> ~  a_expr  ~ <C_COMMA> ~  xml_root_version opt_xml_root_standalone  ~ <C_RPAREN> ~ 
 sub got_func_expr_49 {
    return $_[0]->makeXmlExpr(IS_XMLROOT, NULL, NIL, $_[0]->lappend($_[3], $_[5], $_[6]), $_[0]->YYLLoc($_[1], 1));
 }
-### func_expr_50: XMLSERIALIZE  ~ <C_LPAREN> ~  document_or_content a_expr AS SimpleTypename  ~ <C_RPAREN> ~ 
 sub got_func_expr_50 {
    return SQL::Translator::Statement::XMLSerialize->new(
       xmloption => $_[3],
@@ -7786,21 +6397,13 @@ sub got_func_expr_50 {
       location  => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### xml_root_version_1: VERSION a_expr
 sub got_xml_root_version_1 { $_[2] }
-### xml_root_version_2: VERSION NO VALUE
 sub got_xml_root_version_2 { $_[0]->makeNullAConst({}) }
-### opt_xml_root_standalone_1:  ~ <C_COMMA> ~  STANDALONE YES
 sub got_opt_xml_root_standalone_1 { $_[0]->makeStringConst('XML_STANDALONE_YES',      {}) }
-### opt_xml_root_standalone_2:  ~ <C_COMMA> ~  STANDALONE NO
 sub got_opt_xml_root_standalone_2 { $_[0]->makeStringConst('XML_STANDALONE_NO',       {}) }
-### opt_xml_root_standalone_3:  ~ <C_COMMA> ~  STANDALONE NO VALUE
 sub got_opt_xml_root_standalone_3 { $_[0]->makeStringConst('XML_STANDALONE_NO_VALUE', {}) }
-### xml_attributes: XMLATTRIBUTES  ~ <C_LPAREN> ~  xml_attribute_list  ~ <C_RPAREN> ~ 
 sub got_xml_attributes { $_[3] }
-### xml_attribute_list: xml_attribute_el+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_xml_attribute_list { $_[0]->lappend($_[1], $_[3]) }
-### xml_attribute_el_1: a_expr AS ColLabel
 sub got_xml_attribute_el_1 {
    return SQL::Translator::Statement::ResultTarget->new(
       name        => $_[3],
@@ -7809,7 +6412,6 @@ sub got_xml_attribute_el_1 {
       location    => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### xml_attribute_el_2: a_expr
 sub got_xml_attribute_el_2 {
    return SQL::Translator::Statement::ResultTarget->new(
       name        => NULL,
@@ -7818,34 +6420,21 @@ sub got_xml_attribute_el_2 {
       location    => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### document_or_content_1: DOCUMENT
 sub got_document_or_content_1 { XMLOPTION_DOCUMENT }
-### document_or_content_2: CONTENT
 sub got_document_or_content_2 { XMLOPTION_CONTENT  }
-### xml_whitespace_option_1: PRESERVE WHITESPACE
 sub got_xml_whitespace_option_1 { TRUE  }
-### xml_whitespace_option_2: STRIP WHITESPACE
 sub got_xml_whitespace_option_2 { FALSE }
-### xmlexists_argument_1: PASSING c_expr
 sub got_xmlexists_argument_1 { $_[2] }
-### xmlexists_argument_2: PASSING c_expr BY REF
 sub got_xmlexists_argument_2 { $_[2] }
-### xmlexists_argument_3: PASSING BY REF c_expr
 sub got_xmlexists_argument_3 { $_[4] }
-### xmlexists_argument_4: PASSING BY REF c_expr BY REF
 sub got_xmlexists_argument_4 { $_[4] }
-### window_clause: WINDOW window_definition_list
 sub got_window_clause { $_[2] }
-### window_definition_list: window_definition+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_window_definition_list { $_[0]->lappend($_[1], $_[3]) }
-### window_definition: ColId AS window_specification
 sub got_window_definition {
    $_[3]->name($_[1]);
    return $_[3];
 }
-### over_clause_1: OVER window_specification
 sub got_over_clause_1 { $_[2] }
-### over_clause_2: OVER ColId
 sub got_over_clause_2 {
    return SQL::Translator::Statement::WindowDef->new(
       name            => $_[2],
@@ -7858,7 +6447,6 @@ sub got_over_clause_2 {
       location        => $_[0]->YYLLoc($_[2], 2),
    );
 }
-### window_specification:  ~ <C_LPAREN> ~  opt_existing_window_name opt_partition_clause opt_sort_clause opt_frame_clause  ~ <C_RPAREN> ~ 
 sub got_window_specification {
    return SQL::Translator::Statement::WindowDef->new(
       name            => NULL,
@@ -7872,11 +6460,8 @@ sub got_window_specification {
       location        => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### opt_existing_window_name: ColId
 sub got_opt_existing_window_name { $_[1] }
-### opt_partition_clause: PARTITION BY expr_list
 sub got_opt_partition_clause { $_[3] }
-### opt_frame_clause_1: RANGE frame_extent
 sub got_opt_frame_clause_1 {
    my $n = $_[2];
    $n->frameOptions($n->frameOptions | FRAMEOPTION_NONDEFAULT | FRAMEOPTION_RANGE);
@@ -7896,12 +6481,10 @@ sub got_opt_frame_clause_1 {
 
    return $n;
 }
-### opt_frame_clause_2: ROWS frame_extent
 sub got_opt_frame_clause_2 {
    $_[2]->frameOptions($_[2]->frameOptions | FRAMEOPTION_NONDEFAULT | FRAMEOPTION_ROWS);
    return $_[2];
 }
-### frame_extent_1: frame_bound
 sub got_frame_extent_1 {
    #* reject invalid cases
    $_[0]->ereport(ERROR,
@@ -7919,7 +6502,6 @@ sub got_frame_extent_1 {
    $_[1]->frameOptions($_[1]->frameOptions | FRAMEOPTION_END_CURRENT_ROW);
    return $_[1];
 }
-### frame_extent_2: BETWEEN frame_bound AND frame_bound
 sub got_frame_extent_2 {
    my $n1 = $_[2];
    my $n2 = $_[4];
@@ -7956,7 +6538,6 @@ sub got_frame_extent_2 {
    $n1->endOffset( $n2->startOffset );
    return $n1;
 }
-### frame_bound_1: UNBOUNDED PRECEDING
 sub got_frame_bound_1 {
    return SQL::Translator::Statement::WindowDef->new(
       frameOptions => FRAMEOPTION_START_UNBOUNDED_PRECEDING,
@@ -7964,7 +6545,6 @@ sub got_frame_bound_1 {
       endOffset    => NULL,
    );
 }
-### frame_bound_2: UNBOUNDED FOLLOWING
 sub got_frame_bound_2 {
    return SQL::Translator::Statement::WindowDef->new(
       frameOptions => FRAMEOPTION_START_UNBOUNDED_FOLLOWING,
@@ -7972,7 +6552,6 @@ sub got_frame_bound_2 {
       endOffset    => NULL,
    );
 }
-### frame_bound_3: CURRENT ROW
 sub got_frame_bound_3 {
    return SQL::Translator::Statement::WindowDef->new(
       frameOptions => FRAMEOPTION_START_CURRENT_ROW,
@@ -7980,7 +6559,6 @@ sub got_frame_bound_3 {
       endOffset    => NULL,
    );
 }
-### frame_bound_4: a_expr PRECEDING
 sub got_frame_bound_4 {
    return SQL::Translator::Statement::WindowDef->new(
       frameOptions => FRAMEOPTION_START_VALUE_PRECEDING,
@@ -7988,7 +6566,6 @@ sub got_frame_bound_4 {
       endOffset    => NULL,
    );
 }
-### frame_bound_5: a_expr FOLLOWING
 sub got_frame_bound_5 {
    return SQL::Translator::Statement::WindowDef->new(
       frameOptions => FRAMEOPTION_START_VALUE_FOLLOWING,
@@ -7996,57 +6573,31 @@ sub got_frame_bound_5 {
       endOffset    => NULL,
    );
 }
-### row_1: ROW  ~ <C_LPAREN> ~  expr_list  ~ <C_RPAREN> ~ 
 sub got_row_1 { $_[3] }
-### row_2: ROW  ~ <C_LPAREN> ~   ~ <C_RPAREN> ~ 
 sub got_row_2 { NULL }
-### row_3:  ~ <C_LPAREN> ~  expr_list  ~ <C_COMMA> ~  a_expr  ~ <C_RPAREN> ~ 
 sub got_row_3 { $_[0]->lappend($_[2], $_[4]) }
-### sub_type_1: ANY
 sub got_sub_type_1 { ANY_SUBLINK }
-### sub_type_2: SOME
 sub got_sub_type_2 { ANY_SUBLINK }
-### sub_type_3: ALL
 sub got_sub_type_3 { ALL_SUBLINK }
-### all_Op_1: Op
 sub got_all_Op_1 { $_[1] }
-### all_Op_2: MathOp
 sub got_all_Op_2 { $_[1] }
-### MathOp_1:  ~ <C_PLUS> ~ 
 sub got_MathOp_1 { "+" }
-### MathOp_2:  ~ <C_DASH> ~ 
 sub got_MathOp_2 { "-" }
-### MathOp_3:  ~ <C_STAR> ~ 
 sub got_MathOp_3 { "*" }
-### MathOp_4:  ~ <C_SLASH> ~ 
 sub got_MathOp_4 { "/" }
-### MathOp_5:  ~ <C_PERCENT> ~ 
 sub got_MathOp_5 { "%" }
-### MathOp_6:  ~ <C_CARET> ~ 
 sub got_MathOp_6 { "^" }
-### MathOp_7:  ~ <C_LANGLE> ~ 
 sub got_MathOp_7 { "<" }
-### MathOp_8:  ~ <C_RANGLE> ~ 
 sub got_MathOp_8 { ">" }
-### MathOp_9:  ~ <C_EQUAL> ~ 
 sub got_MathOp_9 { "=" }
-### qual_Op_1: Op
 sub got_qual_Op_1 { $_[0]->lappend($_[1]) }
-### qual_Op_2: OPERATOR  ~ <C_LPAREN> ~  any_operator  ~ <C_RPAREN> ~ 
 sub got_qual_Op_2 { $_[3] }
-### qual_all_Op_1: all_Op
 sub got_qual_all_Op_1 { $_[0]->lappend($_[1]) }
-### qual_all_Op_2: OPERATOR  ~ <C_LPAREN> ~  any_operator  ~ <C_RPAREN> ~ 
 sub got_qual_all_Op_2 { $_[3] }
-### subquery_Op_1: all_Op
 sub got_subquery_Op_1 { $_[0]->lappend($_[1])  }
-### subquery_Op_2: OPERATOR  ~ <C_LPAREN> ~  any_operator  ~ <C_RPAREN> ~ 
 sub got_subquery_Op_2 { $_[3]                  }
-### subquery_Op_3: LIKE
 sub got_subquery_Op_3 { $_[0]->lappend("~~")   }
-### subquery_Op_4: NOT LIKE
 sub got_subquery_Op_4 { $_[0]->lappend("!~~")  }
-### subquery_Op_5: ILIKE
 sub got_subquery_Op_5 { $_[0]->lappend("~~*")  }
 # cannot put SIMILAR TO here, because SIMILAR TO is a hack.
 # the regular expression is preprocessed by a function (similar_escape),
@@ -8055,15 +6606,10 @@ sub got_subquery_Op_5 { $_[0]->lappend("~~*")  }
 # this transformation is made on the fly by the parser upwards.
 # however the SubLink structure which handles any/some/all stuff
 # is not ready for such a thing.
-### subquery_Op_6: NOT ILIKE
 sub got_subquery_Op_6 { $_[0]->lappend("!~~*") }
-### expr_list: a_expr+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_expr_list { $_[0]->lappend($_[1], $_[3]) }
-### func_arg_list: func_arg_expr+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_func_arg_list { $_[0]->lappend($_[1], $_[3]) }
-### func_arg_expr_1: a_expr
 sub got_func_arg_expr_1 { $_[1] }
-### func_arg_expr_2: param_name COLON_EQUALS a_expr
 sub got_func_arg_expr_2 {
    return SQL::Translator::Statement::NamedArgExpr->new(
       name      => $_[1],
@@ -8072,48 +6618,27 @@ sub got_func_arg_expr_2 {
       location  => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### type_list: Typename+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_type_list { $_[0]->lappend($_[1], $_[3]) }
-### array_expr_1:  ~ <C_LSQUARE> ~  expr_list  ~ <C_RSQUARE> ~ 
 sub got_array_expr_1 { $_[0]->makeAArrayExpr($_[2], $_[0]->YYLLoc($_[1], 1)) }
-### array_expr_2:  ~ <C_LSQUARE> ~  array_expr_list  ~ <C_RSQUARE> ~ 
 sub got_array_expr_2 { $_[0]->makeAArrayExpr($_[2], $_[0]->YYLLoc($_[1], 1)) }
-### array_expr_3:  ~ <C_LSQUARE> ~   ~ <C_RSQUARE> ~ 
 sub got_array_expr_3 { $_[0]->makeAArrayExpr(NIL,   $_[0]->YYLLoc($_[1], 1)) }
-### array_expr_list: array_expr+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_array_expr_list { $_[0]->lappend($_[1], $_[3]) }
-### extract_list: extract_arg FROM a_expr
 sub got_extract_list { $_[0]->lappend($_[0]->makeStringConst($_[1], $_[0]->YYLLoc($_[1], 1)), $_[3]) }
-### extract_arg_1: IDENT
 sub got_extract_arg_1 { $_[1]    }
-### extract_arg_2: YEAR
 sub got_extract_arg_2 { "year"   }
-### extract_arg_3: MONTH
 sub got_extract_arg_3 { "month"  }
-### extract_arg_4: DAY
 sub got_extract_arg_4 { "day"    }
-### extract_arg_5: HOUR
 sub got_extract_arg_5 { "hour"   }
-### extract_arg_6: MINUTE
 sub got_extract_arg_6 { "minute" }
-### extract_arg_7: SECOND
 sub got_extract_arg_7 { "second" }
-### extract_arg_8: Sconst
 sub got_extract_arg_8 { $_[1]    }
-### overlay_list_1: a_expr overlay_placing substr_from substr_for
 sub got_overlay_list_1 { $_[0]->lappend($_[1], $_[2], $_[3], $_[4]) }
-### overlay_list_2: a_expr overlay_placing substr_from
 sub got_overlay_list_2 { $_[0]->lappend($_[1], $_[2], $_[3])        }
-### overlay_placing: PLACING a_expr
 sub got_overlay_placing { $_[2] }
-### position_list: b_expr IN b_expr
 sub got_position_list { $_[0]->lappend($_[3], $_[1]) }
 # not legal per SQL99, but might as well allow it
-### substr_list_1: a_expr substr_from substr_for
 sub got_substr_list_1 { $_[0]->lappend($_[1], $_[2], $_[3]) }
-### substr_list_2: a_expr substr_for substr_from
 sub got_substr_list_2 { $_[0]->lappend($_[1], $_[3], $_[2]) }
-### substr_list_3: a_expr substr_from
 sub got_substr_list_3 { $_[0]->lappend($_[1], $_[2]) }
 # Since there are no cases where this syntax allows
 # a textual FOR value, we forcibly cast the argument
@@ -8122,35 +6647,25 @@ sub got_substr_list_3 { $_[0]->lappend($_[1], $_[2]) }
 # and we don't want the parser to choose the latter,
 # which it is likely to do if the second argument
 # is unknown or doesn't have an implicit cast to int4.
-### substr_list_4: a_expr substr_for
 sub got_substr_list_4 {
    return $_[0]->lappend(
       $_[1], $_[0]->makeIntConst(1, {}),
       $_[0]->makeTypeCast($_[2], $_[0]->SystemTypeName("int4"), {})
    );
 }
-### substr_list_5: expr_list
 sub got_substr_list_5 { $_[1] }
-### substr_from: FROM a_expr
 sub got_substr_from { $_[2] }
-### substr_for: FOR a_expr
 sub got_substr_for { $_[2] }
-### trim_list_1: a_expr FROM expr_list
 sub got_trim_list_1 { $_[0]->lappend($_[3], $_[1]) }
-### trim_list_2: FROM expr_list
 sub got_trim_list_2 { $_[2] }
-### trim_list_3: expr_list
 sub got_trim_list_3 { $_[1] }
-### in_expr_1: select_with_parens
 sub got_in_expr_1 {
    return SQL::Translator::Statement::SubLink->new(
       subselect => $_[1],
       #* other fields will be filled later
    );
 }
-### in_expr_2:  ~ <C_LPAREN> ~  expr_list  ~ <C_RPAREN> ~ 
 sub got_in_expr_2 { $_[2] }
-### case_expr: CASE case_arg when_clause_list case_default END
 sub got_case_expr {
    return SQL::Translator::Statement::CaseExpr->new(
       casetype  => InvalidOid,  #* not analyzed yet
@@ -8160,9 +6675,7 @@ sub got_case_expr {
       location  => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### when_clause_list: when_clause+ % ~
 sub got_when_clause_list { $_[0]->lappend($_[1], $_[2]) }
-### when_clause: WHEN a_expr THEN a_expr
 sub got_when_clause {
    return SQL::Translator::Statement::CaseWhen->new(
       expr     => $_[2],
@@ -8170,49 +6683,34 @@ sub got_when_clause {
       location => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### case_default: ELSE a_expr
 sub got_case_default { $_[2] }
-### case_arg: a_expr
 sub got_case_arg { $_[1] }
-### columnref_1: ColId
 sub got_columnref_1 { $_[0]->makeColumnRef($_[1],   NIL, $_[0]->YYLLoc($_[1], 1)) }
-### columnref_2: ColId indirection
 sub got_columnref_2 { $_[0]->makeColumnRef($_[1], $_[2], $_[0]->YYLLoc($_[1], 1)) }
-### indirection_el_1:  ~ <C_DOT> ~  attr_name
 sub got_indirection_el_1 { $_[2] }
-### indirection_el_2:  ~ <C_DOT> ~   ~ <C_STAR> ~ 
 sub got_indirection_el_2 { SQL::Translator::Statement::A_Star->new() }
-### indirection_el_3:  ~ <C_LSQUARE> ~  a_expr  ~ <C_RSQUARE> ~ 
 sub got_indirection_el_3 {
    return SQL::Translator::Statement::A_Indices->new(
       lidx => NULL,
       uidx => $_[2],
    );
 }
-### indirection_el_4:  ~ <C_LSQUARE> ~  a_expr  ~ <C_COLON> ~  a_expr  ~ <C_RSQUARE> ~ 
 sub got_indirection_el_4 {
    return SQL::Translator::Statement::A_Indices->new(
       lidx => $_[2],
       uidx => $_[4],
    );
 }
-### indirection: indirection_el+ % ~
 sub got_indirection { $_[0]->lappend($_[1], $_[2]) }
-### opt_indirection: indirection_el* % ~
 sub got_opt_indirection { $_[0]->lappend($_[1], $_[2]) }
-### ctext_expr_1: a_expr
 sub got_ctext_expr_1 {  $_[1] }
-### ctext_expr_2: DEFAULT
 sub got_ctext_expr_2 {
    return SQL::Translator::Statement::SetToDefault->new(
       location => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### ctext_expr_list: ctext_expr+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_ctext_expr_list { $_[0]->lappend($_[1], $_[3]) }
-### ctext_row:  ~ <C_LPAREN> ~  ctext_expr_list  ~ <C_RPAREN> ~ 
 sub got_ctext_row { $_[2] }
-### target_list: target_el+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_target_list { $_[0]->lappend($_[1], $_[3]) }
 # We support omitting AS only for column labels that aren't
 # any known keyword.  There is an ambiguity against postfix
@@ -8220,7 +6718,6 @@ sub got_target_list { $_[0]->lappend($_[1], $_[3]) }
 # expression and a column label?  We prefer to resolve this
 # as an infix expression, which we accomplish by assigning
 # IDENT a precedence higher than POSTFIXOP.
-### target_el_1: a_expr AS ColLabel
 sub got_target_el_1 {
    return SQL::Translator::Statement::ResultTarget->new(
       name        => $_[3],
@@ -8229,7 +6726,6 @@ sub got_target_el_1 {
       location    => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### target_el_2: a_expr IDENT
 sub got_target_el_2 {
    return SQL::Translator::Statement::ResultTarget->new(
       name        => $_[2],
@@ -8238,7 +6734,6 @@ sub got_target_el_2 {
       location    => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### target_el_3: a_expr
 sub got_target_el_3 {
    return SQL::Translator::Statement::ResultTarget->new(
       name        => NULL,
@@ -8247,7 +6742,6 @@ sub got_target_el_3 {
       location    => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### target_el_4:  ~ <C_STAR> ~ 
 sub got_target_el_4 {
    return SQL::Translator::Statement::ResultTarget->new(
       name        => NULL,
@@ -8259,11 +6753,8 @@ sub got_target_el_4 {
       location    => $_[0]->YYLLoc($_[1], 1),
    );
 }
-### qualified_name_list: qualified_name+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_qualified_name_list { $_[0]->lappend($_[1], $_[3]) }
-### qualified_name_1: ColId
 sub got_qualified_name_1 { $_[0]->makeRangeVar(NULL, $_[1], $_[0]->YYLLoc($_[1], 1)) }
-### qualified_name_2: ColId indirection
 sub got_qualified_name_2 {
    $_[0]->check_qualified_name($_[2]);
    my $n = $_[0]->makeRangeVar(NULL, NULL, $_[0]->YYLLoc($_[1], 1));
@@ -8286,46 +6777,30 @@ sub got_qualified_name_2 {
    }
    return $n;
 }
-### name_list: name+ % / ~  ~ <C_COMMA> ~  ~ /
 sub got_name_list { $_[0]->lappend($_[1], $_[3]) }
-### name: ColId
 sub got_name { $_[1] }
-### database_name: ColId
 sub got_database_name { $_[1] }
-### access_method: ColId
 sub got_access_method { $_[1] }
-### attr_name: ColLabel
 sub got_attr_name { $_[1] }
-### index_name: ColId
 sub got_index_name { $_[1] }
-### file_name: Sconst
 sub got_file_name { $_[1] }
-### func_name_1: type_function_name
 sub got_func_name_1 { $_[0]->lappend($_[1]) }
-### func_name_2: ColId indirection
 sub got_func_name_2 { $_[0]->check_func_name($_[0]->lcons($_[1], $_[2])) }
-### AexprConst_1 : Iconst
 sub got_AexprConst_1  { $_[0]->makeIntConst      ($_[1], $_[0]->YYLLoc($_[1], 1)) }
-### AexprConst_2 : FCONST
 sub got_AexprConst_2  { $_[0]->makeFloatConst    ($_[1], $_[0]->YYLLoc($_[1], 1)) }
-### AexprConst_3 : Sconst
 sub got_AexprConst_3  { $_[0]->makeStringConst   ($_[1], $_[0]->YYLLoc($_[1], 1)) }
 # This is a bit constant per SQL99:
 # Without Feature F511, "BIT data type",
 # a <general literal> shall not be a
 # <bit string literal> or a <hex string literal>.
-### AexprConst_4 : BCONST
 sub got_AexprConst_4  { $_[0]->makeBitStringConst($_[1], $_[0]->YYLLoc($_[1], 1)) }
-### AexprConst_5 : XCONST
 sub got_AexprConst_5  { $_[0]->makeBitStringConst($_[1], $_[0]->YYLLoc($_[1], 1)) }
-### AexprConst_6 : func_name Sconst
 sub got_AexprConst_6  {
    #* generic type 'literal' syntax
    my $t = $_[0]->makeTypeNameFromNameList($_[1]);
    $t->_set_location( $_[0]->YYLLoc($_[1], 1) );
    return $_[0]->makeStringConstCast($_[2], $_[0]->YYLLoc($_[2], 2), $t);
 }
-### AexprConst_7 : func_name  ~ <C_LPAREN> ~  func_arg_list  ~ <C_RPAREN> ~  Sconst
 sub got_AexprConst_7  {
    #* generic syntax with a type modifier
    my $t = $_[0]->makeTypeNameFromNameList($_[1]);
@@ -8346,14 +6821,11 @@ sub got_AexprConst_7  {
    $t->_set_location( $_[0]->YYLLoc($_[1], 1) );
    return $_[0]->makeStringConstCast($_[5], $_[0]->YYLLoc($_[5], 5), $t);
 }
-### AexprConst_8 : ConstTypename Sconst
 sub got_AexprConst_8  { $_[0]->makeStringConstCast($_[2], $_[0]->YYLLoc($_[2], 2), $_[1]) }
-### AexprConst_9 : ConstInterval Sconst opt_interval
 sub got_AexprConst_9  {
    $_[1]->typmods($_[3]);
    return $_[0]->makeStringConstCast($_[2], $_[0]->YYLLoc($_[2], 2), $_[1]);
 }
-### AexprConst_10: ConstInterval  ~ <C_LPAREN> ~  Iconst  ~ <C_RPAREN> ~  Sconst opt_interval
 sub got_AexprConst_10 {
    my $t = $_[1];
    if (defined $_[6]) {
@@ -8370,45 +6842,25 @@ sub got_AexprConst_10 {
    }
    return $_[0]->makeStringConstCast($_[5], $_[0]->YYLLoc($_[5], 5), $t);
 }
-### AexprConst_11: TRUE
 sub got_AexprConst_11 { $_[0]->makeBoolAConst(TRUE,  $_[0]->YYLLoc($_[1], 1)) }
-### AexprConst_12: FALSE
 sub got_AexprConst_12 { $_[0]->makeBoolAConst(FALSE, $_[0]->YYLLoc($_[1], 1)) }
-### AexprConst_13: NULL
 sub got_AexprConst_13 { $_[0]->makeNullAConst($_[0]->YYLLoc($_[1], 1))        }
-### Iconst: ICONST
 sub got_Iconst { $_[1] }
-### Sconst: SCONST
 sub got_Sconst { $_[1] }
-### RoleId: ColId
 sub got_RoleId { $_[1] }
-### SignedIconst_1: Iconst
 sub got_SignedIconst_1 { $_[1] }
-### SignedIconst_2:  ~ <C_PLUS> ~  Iconst
 sub got_SignedIconst_2 { + $_[2] }
-### SignedIconst_3:  ~ <C_DASH> ~  Iconst
 sub got_SignedIconst_3 { - $_[2] }
-### ColId_1: IDENT
 sub got_ColId_1 { $_[1] }
-### ColId_2: unreserved_keyword
 sub got_ColId_2 { $_[1] }
-### ColId_3: col_name_keyword
 sub got_ColId_3 { $_[1] }
-### type_function_name_1: IDENT
 sub got_type_function_name_1 { $_[1] }
-### type_function_name_2: unreserved_keyword
 sub got_type_function_name_2 { $_[1] }
-### type_function_name_3: type_func_name_keyword
 sub got_type_function_name_3 { $_[1] }
-### ColLabel_1: IDENT
 sub got_ColLabel_1 { $_[1] }
-### ColLabel_2: unreserved_keyword
 sub got_ColLabel_2 { $_[1] }
-### ColLabel_3: col_name_keyword
 sub got_ColLabel_3 { $_[1] }
-### ColLabel_4: type_func_name_keyword
 sub got_ColLabel_4 { $_[1] }
-### ColLabel_5: reserved_keyword
 sub got_ColLabel_5 { $_[1] }
 ## %% ##
 

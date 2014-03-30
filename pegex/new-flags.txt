@@ -1,0 +1,6 @@
+_ = auto-flatten
+@ = force [$match] syntax, even for zero/one match
+^ = force undef, even for no matches (for optional rules)
+* = return the number of matches, not what was matched
+
+@ = 

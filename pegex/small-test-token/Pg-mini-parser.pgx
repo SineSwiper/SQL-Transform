@@ -1,0 +1,422 @@
+%grammar SQL::Transform::Parser::Pg
+
+# The target production for the whole parse.
+stmtblock: stmt+ %% .$P_SEMI
+
+# BU parsers (like Bison) seem to do well with massive amounts of rule choices.  A
+# TD parser (like Pegex) doesn't.  So, we use some lookaheads on the first keyword
+# to break this rule up into smaller groups.
+
+stmt:  
+   # We also "sort" this by typical usage.
+     SelectStmt
+   | InsertStmt
+   | DeleteStmt
+   | UpdateStmt
+   | =$CREATE (
+        CreateAsStmt
+      | CreateAssertStmt
+      | CreateCastStmt
+      | CreateConversionStmt
+      | CreateDomainStmt
+      | CreateExtensionStmt
+      | CreateFdwStmt
+      | CreateForeignTableStmt
+      | CreateFunctionStmt
+      | CreateGroupStmt
+      | CreateOpClassStmt
+      | CreateOpFamilyStmt
+      | CreatePLangStmt
+      | CreateSchemaStmt
+      | CreateSeqStmt
+      | CreateStmt
+      | CreateTableSpaceStmt
+      | CreateTrigStmt
+      | CreateEventTrigStmt
+      | CreateRoleStmt
+      | CreateUserStmt
+      | CreateUserMappingStmt
+      | CreatedbStmt
+      | DefineStmt
+      | IndexStmt
+      | ViewStmt
+      # purposely putting this on the end
+      | CreateForeignServerStmt
+   )
+   | =$ALTER (
+        AlterEventTrigStmt
+      | AlterDatabaseStmt
+      | AlterDatabaseSetStmt
+      | AlterDefaultPrivilegesStmt
+      | AlterDomainStmt
+      | AlterEnumStmt
+      | AlterExtensionStmt
+      | AlterExtensionContentsStmt
+      | AlterFdwStmt
+      | AlterForeignServerStmt
+      | AlterForeignTableStmt
+      | AlterFunctionStmt
+      | AlterGroupStmt
+      | AlterObjectSchemaStmt
+      | AlterOwnerStmt
+      | AlterSeqStmt
+      | AlterTableStmt
+      | AlterCompositeTypeStmt
+      | AlterRoleSetStmt
+      | AlterRoleStmt
+      | AlterTSConfigurationStmt
+      | AlterTSDictionaryStmt
+      | AlterUserMappingStmt
+      | AlterUserSetStmt
+      | AlterUserStmt
+      | AlterOpFamilyStmt
+      | RenameStmt
+   )
+   | =$DROP (
+        DropAssertStmt
+      | DropCastStmt
+      | DropFdwStmt
+      | DropForeignServerStmt
+      | DropGroupStmt
+      | DropOpClassStmt
+      | DropOpFamilyStmt
+      | DropOwnedStmt
+      | DropPLangStmt
+      | DropRuleStmt
+      | DropStmt
+      | DropTableSpaceStmt
+      | DropTrigStmt
+      | DropRoleStmt
+      | DropUserStmt
+      | DropUserMappingStmt
+      | DropdbStmt
+      | RemoveAggrStmt
+      | RemoveFuncStmt
+      | RemoveOperStmt
+   )
+   
+   | TruncateStmt
+   | ExecuteStmt  # EXECUTE or CREATE; keep it on the outside of =CREATE
+   | ExplainStmt
+
+   | AnalyzeStmt
+   | CheckPointStmt
+   | ClosePortalStmt
+   | ClusterStmt
+   | CommentStmt
+   | ConstraintsSetStmt
+   | CopyStmt
+   | DeallocateStmt
+   | DeclareCursorStmt
+   | DiscardStmt
+   | DoStmt
+   | FetchStmt
+   | GrantStmt
+   | GrantRoleStmt
+   | ListenStmt
+   | LoadStmt
+   | LockStmt
+   | NotifyStmt
+   | PrepareStmt
+   | ReassignOwnedStmt
+   | ReindexStmt
+   | RevokeStmt
+   | RevokeRoleStmt
+   | RuleStmt
+   | SecLabelStmt
+   | TransactionStmt
+   | UnlistenStmt
+   | VacuumStmt
+   | VariableResetStmt
+   | VariableSetStmt
+   | VariableShowStmt
+;
+
+#### These are small case versions of the *Stmt rules to simulate
+#### the time it takes to finally find CreateForeignServerStmt
+opt_if_exists:     .$IF .$EXISTS
+opt_if_not_exists: .$IF .$NOT .$EXISTS
+opt_trusted:       .$TRUSTED
+opt_default:       .$DEFAULT
+opt_grant_option:  .$GRANT .$OPTION .$FOR
+opt_admin_option_for: .$ADMIN .$OPTION .$FOR
+opt_unique:        .$UNIQUE
+opt_concurrently:  .$CONCURRENTLY
+opt_or_replace:    .$OR .$REPLACE
+OptTemp  :
+     OptTemp_temp
+   | OptTemp_unlog
+;
+OptTemp_temp : ( .$LOCAL | .$GLOBAL )? ( .$TEMP | .$TEMPORARY )
+OptTemp_unlog: .$UNLOGGED
+
+CreateRoleStmt: .$CREATE .$ROLE RoleId .$WITH? #OptRoleList
+CreateUserStmt: .$CREATE .$USER RoleId .$WITH? #OptRoleList
+AlterRoleStmt: .$ALTER .$ROLE RoleId .$WITH? #AlterOptRoleList
+AlterRoleSetStmt: .$ALTER .$ROLE RoleId opt_in_database? #SetResetClause
+opt_in_database: .$IN .$DATABASE database_name
+AlterUserStmt: .$ALTER .$USER RoleId .$WITH? #AlterOptRoleList
+AlterUserSetStmt: .$ALTER .$USER RoleId #SetResetClause
+DropRoleStmt: .$DROP .$ROLE opt_if_exists? #name_list
+DropUserStmt: .$DROP .$USER opt_if_exists? #name_list
+CreateGroupStmt: .$CREATE .$GROUP RoleId .$WITH? #OptRoleList
+AlterGroupStmt: .$ALTER .$GROUP RoleId #add_drop USER name_list
+DropGroupStmt: .$DROP .$GROUP opt_if_exists? #name_list
+CreateSchemaStmt  : .$CREATE .$SCHEMA #(
+VariableSetStmt: .$SET (.$LOCAL | .$SESSION)? #set_rest
+VariableResetStmt: .$RESET #variable_cmd
+VariableShowStmt:   .$SHOW #variable_cmd
+ConstraintsSetStmt: .$SET .$CONSTRAINTS #constraints_set_list constraints_set_mode
+CheckPointStmt: .$CHECKPOINT
+DiscardStmt: .$DISCARD (.$TEMP | .$TEMPORARY | .$PLANS)
+AlterTableStmt  : .$ALTER #(
+AlterCompositeTypeStmt: .$ALTER .$TYPE #any_name alter_type_cmds
+ClosePortalStmt  : .$CLOSE name
+CopyStmt    : .$COPY
+CreateStmt  : .$CREATE OptTemp? .$TABLE opt_if_not_exists? #qualified_name (
+CreateAsStmt: .$CREATE OptTemp? .$TABLE #create_as_target AS SelectStmt opt_with_data?
+CreateSeqStmt: .$CREATE OptTemp? .$SEQUENCE #qualified_name OptSeqOptList
+AlterSeqStmt: .$ALTER .$SEQUENCE opt_if_exists? #qualified_name SeqOptList
+CreatePLangStmt: .$CREATE opt_or_replace? opt_trusted? .$PROCEDURAL? .$LANGUAGE #ColId_or_Sconst ( HANDLER handler_name opt_inline_handler validator_clause? )?
+DropPLangStmt  : .$DROP .$PROCEDURAL? .$LANGUAGE opt_if_exists? #ColId_or_Sconst opt_drop_behavior?
+CreateTableSpaceStmt: .$CREATE .$TABLESPACE name ( .$OWNER name )? .$LOCATION Sconst
+DropTableSpaceStmt  : .$DROP .$TABLESPACE opt_if_exists? name
+CreateExtensionStmt  : .$CREATE .$EXTENSION opt_if_not_exists? name .$WITH? #create_extension_opt_list
+AlterExtensionStmt: .$ALTER .$EXTENSION name .$UPDATE #alter_extension_opt_list
+AlterExtensionContentsStmt   : .$ALTER .$EXTENSION name #add_drop (
+CreateFdwStmt: .$CREATE .$FOREIGN .$DATA .$WRAPPER name #fdw_options? create_generic_options
+DropFdwStmt  : .$DROP .$FOREIGN .$DATA .$WRAPPER opt_if_exists? name #opt_drop_behavior?
+AlterFdwStmt  : .$ALTER .$FOREIGN .$DATA .$WRAPPER name #(
+DropForeignServerStmt: .$DROP .$SERVER opt_if_exists? name #opt_drop_behavior?
+AlterForeignServerStmt: .$ALTER .$SERVER name #( foreign_server_version alter_generic_options? | alter_generic_options )
+CreateForeignTableStmt: .$CREATE .$FOREIGN .$TABLE opt_if_not_exists? #qualified_name OptForeignTableElementList SERVER name create_generic_options
+AlterForeignTableStmt  : .$ALTER .$FOREIGN .$TABLE opt_if_exists? #relation_expr alter_table_cmds
+CreateUserMappingStmt: .$CREATE .$USER .$MAPPING .$FOR #auth_ident SERVER name create_generic_options
+DropUserMappingStmt  : .$DROP .$USER .$MAPPING opt_if_exists? #FOR auth_ident SERVER name
+AlterUserMappingStmt: .$ALTER .$USER .$MAPPING .$FOR #auth_ident SERVER name alter_generic_options
+CreateTrigStmt  : .$CREATE (
+     CreateTrigStmt_1
+   | CreateTrigStmt_2
+)
+CreateTrigStmt_1: .$TRIGGER name #TriggerActionTime TriggerEvents ON qualified_name TriggerForSpec TriggerWhen EXECUTE PROCEDURE func_name P_LPAREN TriggerFuncArgs P_RPAREN
+CreateTrigStmt_2: .$CONSTRAINT .$TRIGGER name .$AFTER #TriggerEvents ON qualified_name OptConstrFromTable ConstraintAttributeSpec FOR EACH ROW TriggerWhen EXECUTE PROCEDURE func_name P_LPAREN TriggerFuncArgs P_RPAREN
+DropTrigStmt  : .$DROP .$TRIGGER opt_if_exists? name .$ON #qualified_name opt_drop_behavior?
+CreateEventTrigStmt  : .$CREATE .$EVENT .$TRIGGER name .$ON #ColLabel (
+CreateAssertStmt: .$CREATE .$ASSERTION name CHECK #a_expr_with_parens ConstraintAttributeSpec
+DropAssertStmt: .$DROP .$ASSERTION name #opt_drop_behavior?
+DefineStmt   : .$CREATE (
+     DefineStmt_1
+   | DefineStmt_2
+   | DefineStmt_3
+   | DefineStmt_4
+   | DefineStmt_5
+   | DefineStmt_6
+   | DefineStmt_7
+   | DefineStmt_8
+   | DefineStmt_9
+   | DefineStmt_10
+   | DefineStmt_11
+   | DefineStmt_12
+   | DefineStmt_13
+   | DefineStmt_14
+)
+DefineStmt_1 : .$AGGREGATE #func_name aggr_args definition
+DefineStmt_2 : .$AGGREGATE #func_name old_aggr_definition
+DefineStmt_3 : .$OPERATOR #any_operator definition
+DefineStmt_4 : .$TYPE #any_name definition
+DefineStmt_5 : .$TYPE #any_name
+DefineStmt_6 : .$TYPE #any_name AS ~ <LPAREN> ~ TableFuncElementList? ~ <RPAREN> ~
+DefineStmt_7 : .$TYPE #any_name AS ENUM ~ <LPAREN> ~ opt_enum_val_list ~ <RPAREN> ~
+DefineStmt_8 : .$TYPE #any_name AS RANGE definition
+DefineStmt_9 : .$TEXT .$SEARCH .$PARSER        #any_name definition
+DefineStmt_10: .$TEXT .$SEARCH .$DICTIONARY    #any_name definition
+DefineStmt_11: .$TEXT .$SEARCH .$TEMPLATE      #any_name definition
+DefineStmt_12: .$TEXT .$SEARCH .$CONFIGURATION #any_name definition
+DefineStmt_13: .$COLLATION #any_name definition
+DefineStmt_14: .$COLLATION #any_name FROM any_name
+AlterEnumStmt  : .$ALTER .$TYPE #(
+CreateOpClassStmt: .$CREATE .$OPERATOR .$CLASS #any_name opt_default? FOR TYPE Typename USING access_method opt_opfamily? AS opclass_item_list
+CreateOpFamilyStmt: .$CREATE .$OPERATOR .$FAMILY #any_name USING access_method
+AlterOpFamilyStmt  : .$ALTER .$OPERATOR .$FAMILY #any_name USING access_method (
+DropOpClassStmt  : .$DROP .$OPERATOR .$CLASS opt_if_exists? #any_name USING access_method opt_drop_behavior?
+DropOpFamilyStmt  : .$DROP .$OPERATOR .$FAMILY opt_if_exists? #any_name USING access_method opt_drop_behavior?
+DropOwnedStmt: .$DROP .$OWNED .$BY #name_list opt_drop_behavior?
+ReassignOwnedStmt: .$REASSIGN .$OWNED .$BY #name_list TO name
+DropStmt  : .$DROP #(
+TruncateStmt: .$TRUNCATE .$TABLE? #relation_expr_list opt_restart_seqs opt_drop_behavior?
+CommentStmt   : .$COMMENT .$ON #(
+SecLabelStmt  : .$SECURITY .$LABEL #opt_provider? ON (
+FetchStmt  :
+     FetchStmt_1
+   | FetchStmt_2
+;
+FetchStmt_1: .$FETCH #fetch_args
+FetchStmt_2: .$MOVE #fetch_args
+GrantStmt: .$GRANT #privileges ON privilege_target TO grantee_list opt_grant_grant_option?
+RevokeStmt: .$REVOKE opt_grant_option? #privileges ON privilege_target FROM grantee_list opt_drop_behavior?
+GrantRoleStmt: .$GRANT #privilege_list TO name_list opt_grant_admin_option? opt_granted_by?
+RevokeRoleStmt  : .$REVOKE opt_admin_option_for? #privilege_list FROM name_list opt_granted_by? opt_drop_behavior?
+AlterDefaultPrivilegesStmt: .$ALTER .$DEFAULT .$PRIVILEGES #DefACLOptionList DefACLAction
+IndexStmt: .$CREATE opt_unique? .$INDEX opt_concurrently? #opt_index_name ON qualified_name access_method_clause P_LPAREN index_params P_RPAREN opt_reloptions? OptTableSpace? where_clause?
+CreateFunctionStmt: .$CREATE opt_or_replace? .$FUNCTION #func_name func_args_with_defaults (
+AlterFunctionStmt: .$ALTER .$FUNCTION #function_with_argtypes alterfunc_opt_list RESTRICT?  # RESTRICT? = Ignored, merely for SQL compliance
+RemoveFuncStmt: .$DROP .$FUNCTION opt_if_exists? #func_name func_args opt_drop_behavior?
+RemoveAggrStmt: .$DROP .$AGGREGATE opt_if_exists? #func_name aggr_args opt_drop_behavior?
+RemoveOperStmt: .$DROP .$OPERATOR opt_if_exists? #any_operator oper_argtypes opt_drop_behavior?
+DoStmt: .$DO #dostmt_opt_list
+CreateCastStmt  : .$CREATE .$CAST .$P_LPAREN #Typename AS Typename (
+DropCastStmt: .$DROP .$CAST opt_if_exists? .$P_LPAREN #Typename AS Typename P_RPAREN opt_drop_behavior?
+ReindexStmt  : .$REINDEX #(
+RenameStmt   : .$ALTER #(
+AlterObjectSchemaStmt   : .$ALTER #(
+AlterOwnerStmt   : .$ALTER #(
+RuleStmt: .$CREATE opt_or_replace? .$RULE name .$AS .$ON #event TO qualified_name where_clause? DO opt_instead RuleActionList
+DropRuleStmt  : .$DROP .$RULE opt_if_exists? name .$ON #qualified_name opt_drop_behavior?
+NotifyStmt: .$NOTIFY ColId ( .$P_COMMA Sconst )?
+ListenStmt: .$LISTEN ColId
+UnlistenStmt  : .$UNLISTEN ( ColId | .$P_STAR )
+TransactionStmt   :
+     TransactionStmt_1
+   | TransactionStmt_2
+   | TransactionStmt_3
+   | TransactionStmt_4
+   | TransactionStmt_5
+   | TransactionStmt_6
+   | TransactionStmt_7
+   | TransactionStmt_8
+   | TransactionStmt_9
+   | TransactionStmt_10
+   | TransactionStmt_11
+   | TransactionStmt_12
+   | TransactionStmt_13
+   | TransactionStmt_14
+;
+TransactionStmt_1 : .$ABORT (.$WORK|.$TRANSACTION)?
+TransactionStmt_2 : .$BEGIN (.$WORK|.$TRANSACTION)? #transaction_mode_list?
+TransactionStmt_3 : .$START .$TRANSACTION #transaction_mode_list?
+TransactionStmt_4 : .$COMMIT (.$WORK|.$TRANSACTION)?
+TransactionStmt_5 : .$END (.$WORK|.$TRANSACTION)?
+TransactionStmt_6 : .$ROLLBACK (.$WORK|.$TRANSACTION)?
+TransactionStmt_7 : .$SAVEPOINT ColId
+TransactionStmt_8 : .$RELEASE .$SAVEPOINT ColId
+TransactionStmt_9 : .$RELEASE ColId
+TransactionStmt_10: .$ROLLBACK (.$WORK|.$TRANSACTION)? .$TO .$SAVEPOINT ColId
+TransactionStmt_11: .$ROLLBACK (.$WORK|.$TRANSACTION)? .$TO ColId
+TransactionStmt_12: .$PREPARE .$TRANSACTION Sconst
+TransactionStmt_13: .$COMMIT .$PREPARED Sconst
+TransactionStmt_14: .$ROLLBACK .$PREPARED Sconst
+ViewStmt: .$CREATE opt_or_replace? OptTemp? .$VIEW #qualified_name opt_column_list? opt_reloptions? AS SelectStmt opt_check_option
+LoadStmt: .$LOAD #file_name
+CreatedbStmt: .$CREATE .$DATABASE #database_name WITH? createdb_opt_list
+AlterDatabaseStmt  : .$ALTER .$DATABASE #database_name (
+AlterDatabaseSetStmt: .$ALTER .$DATABASE #database_name SetResetClause
+DropdbStmt  : .$DROP .$DATABASE opt_if_exists? #database_name
+CreateDomainStmt: .$CREATE .$DOMAIN #any_name AS? Typename ColQualList
+AlterDomainStmt  : .$ALTER .$DOMAIN #any_name (
+AlterTSDictionaryStmt: .$ALTER .$TEXT .$SEARCH .$DICTIONARY #any_name definition
+AlterTSConfigurationStmt  : .$ALTER .$TEXT .$SEARCH .$CONFIGURATION #any_name (
+CreateConversionStmt: .$CREATE opt_default? .$CONVERSION #any_name .$FOR Sconst .$TO Sconst .$FROM any_name
+ClusterStmt  : .$CLUSTER #opt_verbose? (
+VacuumStmt  : .$VACUUM #(
+AnalyzeStmt: .$ANALYZE #opt_verbose? ( qualified_name opt_name_list )?
+ExplainStmt  : .$EXPLAIN #(
+PrepareStmt: .$PREPARE name #prep_type_clause .$AS PreparableStmt
+ExecuteStmt  :
+     ExecuteStmt_1
+   | ExecuteStmt_2
+;
+ExecuteStmt_1: .$EXECUTE name #( .$P_LPAREN expr_list .$P_RPAREN )?
+ExecuteStmt_2: .$CREATE OptTemp? .$TABLE #create_as_target .$AS .$EXECUTE name execute_param_clause? opt_with_data?
+DeallocateStmt  : .$DEALLOCATE .$PREPARE? #(
+InsertStmt: with_clause? .$INSERT .$INTO #qualified_name insert_rest returning_clause?
+with_clause  : .$WITH .$RECURSIVE? #cte_list
+DeleteStmt: with_clause? .$DELETE .$FROM #relation_expr_opt_alias using_clause? where_or_current_clause? returning_clause?
+LockStmt: .$LOCK .$TABLE? #relation_expr_list opt_lock? opt_nowait?
+UpdateStmt: with_clause? .$UPDATE #relation_expr_opt_alias .$SET set_clause_list from_clause? where_or_current_clause? returning_clause?
+DeclareCursorStmt: .$DECLARE #cursor_name cursor_options .$CURSOR opt_hold? .$FOR SelectStmt
+
+SelectStmt: select_no_parens | select_with_parens
+select_with_parens: .$P_LPAREN ( select_no_parens | select_with_parens ) .$P_RPAREN
+select_no_parens: simple_select | with_clause? select_clause ( sort_clause | sort_clause? for_locking_or_select_limit )
+select_clause: simple_select | select_with_parens
+for_locking_or_select_limit: for_locking_clause select_limit? | select_limit for_locking_clause?
+simple_select  :
+     simple_select_1
+   | simple_select_2
+   | simple_select_3
+   #| simple_select_4
+   #| simple_select_5
+   #| simple_select_6
+;
+simple_select_1: .$SELECT opt_distinct? #target_list into_clause? from_clause? where_clause? group_clause? having_clause? window_clause?
+simple_select_2: values_clause
+simple_select_3: .$TABLE #relation_expr
+#simple_select_4: select_clause UNION     #opt_all? select_clause
+#simple_select_5: select_clause INTERSECT #opt_all? select_clause
+#simple_select_6: select_clause EXCEPT    #opt_all? select_clause
+
+values_clause  :
+     values_clause_1
+   | values_clause_2
+;
+values_clause_1: .$VALUES ctext_row
+values_clause_2: <ctext_row>2+ % .$P_COMMA
+
+# (expr_lists dive into a_expr, which is farther than I'm willing to go for this small scale test...)
+ctext_row: .$P_LPAREN #ctext_expr_list .$P_RPAREN
+
+
+
+
+#############################################################################
+#
+#       QUERY:
+#             CREATE SERVER name [TYPE] [VERSION] [OPTIONS]
+#
+#############################################################################
+CreateForeignServerStmt: .$CREATE .$SERVER name opt_type? foreign_server_version? .$FOREIGN .$DATA .$WRAPPER name create_generic_options?
+
+opt_type: .$TYPE Sconst
+
+foreign_server_version  : .$VERSION ( Sconst | NULL )
+
+# Options definition for CREATE FDW, SERVER and USER MAPPING
+create_generic_options: .$OPTIONS .$P_LPAREN generic_option_list .$P_RPAREN
+
+generic_option_list: generic_option_elem+ % .$P_COMMA
+
+generic_option_elem: generic_option_name generic_option_arg
+
+generic_option_name: ColLabel
+
+# We could use def_arg here, but the spec only requires string literals
+generic_option_arg: Sconst
+
+#############################################################################
+#
+#   Names and constants
+#
+#############################################################################
+
+name: ColId
+
+Sconst: $SCONST
+
+# Name classification hierarchy.
+#
+# IDENT is the lexeme returned by the lexer for identifiers that match
+# no known keyword.  In most cases, we can accept certain keywords as
+# names, not only IDENTs.   We prefer to accept as many such keywords
+# as possible to minimize the impact of "reserved words" on programmers.
+# So, we divide names into several possible classes.  The classification
+# is chosen in part to make keywords acceptable as names wherever possible.
+
+# Column identifier --- names that can be column, table, etc names.
+ColId: $IDENT | unreserved_keyword | col_name_keyword
+
+# Type/function identifier --- names that can be type or function names.
+type_function_name: $IDENT | unreserved_keyword | type_func_name_keyword
+
+# Column label --- allowed labels in "AS" clauses.
+# This presently includes *all* Postgres keywords.
+ColLabel: $IDENT | any_keyword

@@ -1,0 +1,262 @@
+%grammar SQL::Transform::Lexer::Pg
+
+### Based and converted from PostgreSQL's src/backend/parser/scan.l and ###
+### src/interfaces/ecpg/preproc/parser.c                                ###
+
+### Some comments retained from those sources, marked as #*.            ###
+
+# These are sorted by likelyhood of occurrence, similar to 'stmt' in the parser
+tokens: .ws1 (
+   +KEYWORD |
+   +IDENT   |
+   
+   +ICONST  |
+   +FCONST  |
+   +SCONST  |
+   +BCONST  |
+   +XCONST  |
+   +PARAM   |
+   
+   # Okay, this is where the ordering gets hairy:
+   #    * Op will invalidate itself for SELF, so it's safe to put Op first here.
+   #    * TYPECAST, DOT_DOT, and COLON_EQUALS are -not- contained in the char sets for L_OP_CHARS,
+   #      so we're safe there, but they are in L_SELF, so they should be before SELF.
+   +Op           |
+   +TYPECAST     |
+   +DOT_DOT      |
+   +COLON_EQUALS |
+   +SELF
+)+
+
+L_SPACE       : /[\x20\t\n\r\f]/
+L_HORIZ_SPACE : /[\x20\t\f]/
+L_NEWLINE     : /[\n\r]/
+L_NON_NEWLINE : /[^\n\r]/
+
+L_COMMENT     : / -- <L_NON_NEWLINE>* /
+L_EXT_COMMENT : /(
+   <SLASH> <STAR>
+   (:
+      (?> [^ <SLASH> <STAR> ]+ ) |  # Most stuff (no backtracking...)
+      <SLASH> [^ <STAR> ]+       |  # Slash without a star
+      <STAR> [^ <SLASH> ]+       |  # Star without a slash
+      (?1)                          # Nesting comments
+   )*
+   <STAR> <SLASH> 
+)/
+ws          : / (: <L_SPACE>+ | <L_COMMENT> | <L_EXT_COMMENT> | <EOS> ) /
+
+### NOTE ###
+### SQL and Unicode have a bit of a shakey co-existence.  SQL was designed
+### with English phrases in mind, along with English digits and identifiers.
+### Thus, Unicode isn't allowed everywhere, so that proper detection between
+### ASCII and Unicode can be achieved.
+
+### However, Perl can already properly detect Unicode naturally.  So, instead
+### of allowing strictest ANSI/ISO SQL in this case, we'll allow identifiers
+### to be in UTF-8 without the need for the U& notation.
+
+L_IDENT_FIRST : / [ \p{Alphabetic} \x80-\xFF <UNDER> ] /
+L_IDENT_REST  : / [ \p{Alnum}      \x80-\xFF <UNDER> <DOLLAR> ] /
+L_IDENTIFIER  : / <L_IDENT_FIRST> <L_IDENT_REST>* /
+
+L_KEYWORD : / ((?i: 
+   ABORT|ABSOLUTE|ACCESS|ACTION|ADD|ADMIN|AFTER|AGGREGATE|ALL|ALSO|ALTER|ALWAYS|ANALYSE|ANALYZE|AND|ANY|ARRAY|AS|ASC|ASSERTION|ASSIGNMENT|ASYMMETRIC|AT|ATTRIBUTE|AUTHORIZATION|
+   BACKWARD|BEFORE|BEGIN|BETWEEN|BIGINT|BINARY|BIT|BOOLEAN|BOTH|BY|
+   CACHE|CALLED|CASCADE|CASCADED|CASE|CAST|CATALOG|CHAIN|CHAR|CHARACTER|CHARACTERISTICS|CHECK|CHECKPOINT|CLASS|CLOSE|CLUSTER|COALESCE|COLLATE|COLLATION|COLUMN|COMMENT|COMMENTS|COMMIT|COMMITTED|CONCURRENTLY|CONFIGURATION|CONNECTION|CONSTRAINT|CONSTRAINTS|CONTENT|CONTINUE|CONVERSION|COPY|COST|CREATE|CROSS|CSV|CURRENT|CURRENT_CATALOG|CURRENT_DATE|CURRENT_ROLE|CURRENT_SCHEMA|CURRENT_TIME|CURRENT_TIMESTAMP|CURRENT_USER|CURSOR|CYCLE|
+   DATA|DATABASE|DAY|DEALLOCATE|DEC|DECIMAL|DECLARE|DEFAULT|DEFAULTS|DEFERRABLE|DEFERRED|DEFINER|DELETE|DELIMITER|DELIMITERS|DESC|DICTIONARY|DISABLE|DISCARD|DISTINCT|DO|DOCUMENT|DOMAIN|DOUBLE|DROP|
+   EACH|ELSE|ENABLE|ENCODING|ENCRYPTED|END|ENUM|ESCAPE|EVENT|EXCEPT|EXCLUDE|EXCLUDING|EXCLUSIVE|EXECUTE|EXISTS|EXPLAIN|EXTENSION|EXTERNAL|EXTRACT|
+   FALSE|FAMILY|FETCH|FIRST|FLOAT|FOLLOWING|FOR|FORCE|FOREIGN|FORWARD|FREEZE|FROM|FULL|FUNCTION|FUNCTIONS|
+   GLOBAL|GRANT|GRANTED|GREATEST|GROUP|
+   HANDLER|HAVING|HEADER|HOLD|HOUR|
+   IDENTITY|IF|ILIKE|IMMEDIATE|IMMUTABLE|IMPLICIT|IN|INCLUDING|INCREMENT|INDEX|INDEXES|INHERIT|INHERITS|INITIALLY|INLINE|INNER|INOUT|INPUT|INSENSITIVE|INSERT|INSTEAD|INT|INTEGER|INTERSECT|INTERVAL|INTO|INVOKER|IS|ISNULL|ISOLATION|
+   JOIN|
+   KEY|
+   LABEL|LANGUAGE|LARGE|LAST|LATERAL|LC_COLLATE|LC_CTYPE|LEADING|LEAKPROOF|LEAST|LEFT|LEVEL|LIKE|LIMIT|LISTEN|LOAD|LOCAL|LOCALTIME|LOCALTIMESTAMP|LOCATION|LOCK|
+   MAPPING|MATCH|MAXVALUE|MINUTE|MINVALUE|MODE|MONTH|MOVE|
+   NAME|NAMES|NATIONAL|NATURAL|NCHAR|NEXT|NO|NONE|NOT|NOTHING|NOTIFY|NOTNULL|NOWAIT|NULL|NULLIF|NULLS|NUMERIC|
+   OBJECT|OF|OFF|OFFSET|OIDS|ON|ONLY|OPERATOR|OPTION|OPTIONS|OR|ORDER|OUT|OUTER|OVER|OVERLAPS|OVERLAY|OWNED|OWNER|
+   PARSER|PARTIAL|PARTITION|PASSING|PASSWORD|PLACING|PLANS|POSITION|PRECEDING|PRECISION|PREPARE|PREPARED|PRESERVE|PRIMARY|PRIOR|PRIVILEGES|PROCEDURAL|PROCEDURE|
+   QUOTE|
+   RANGE|READ|REAL|REASSIGN|RECHECK|RECURSIVE|REF|REFERENCES|REINDEX|RELATIVE|RELEASE|RENAME|REPEATABLE|REPLACE|REPLICA|RESET|RESTART|RESTRICT|RETURNING|RETURNS|REVOKE|RIGHT|ROLE|ROLLBACK|ROW|ROWS|RULE|
+   SAVEPOINT|SCHEMA|SCROLL|SEARCH|SECOND|SECURITY|SELECT|SEQUENCE|SEQUENCES|SERIALIZABLE|SERVER|SESSION|SESSION_USER|SET|SETOF|SHARE|SHOW|SIMILAR|SIMPLE|SMALLINT|SNAPSHOT|SOME|STABLE|STANDALONE|START|STATEMENT|STATISTICS|STDIN|STDOUT|STORAGE|STRICT|STRIP|SUBSTRING|SYMMETRIC|SYSID|SYSTEM|
+   TABLE|TABLES|TABLESPACE|TEMP|TEMPLATE|TEMPORARY|TEXT|THEN|TIME|TIMESTAMP|TO|TRAILING|TRANSACTION|TREAT|TRIGGER|TRIM|TRUE|TRUNCATE|TRUSTED|TYPE|TYPES|
+   UNBOUNDED|UNCOMMITTED|UNENCRYPTED|UNION|UNIQUE|UNKNOWN|UNLISTEN|UNLOGGED|UNTIL|UPDATE|USER|USING|
+   VACUUM|VALID|VALIDATE|VALIDATOR|VALUE|VALUES|VARCHAR|VARIADIC|VARYING|VERBOSE|VERSION|VIEW|VOLATILE|
+   WHEN|WHERE|WHITESPACE|WINDOW|WITH|WITHOUT|WORK|WRAPPER|WRITE|
+   XML|XMLATTRIBUTES|XMLCONCAT|XMLELEMENT|XMLEXISTS|XMLFOREST|XMLPARSE|XMLPI|XMLROOT|XMLSERIALIZE|
+   YEAR|YES|
+   ZONE
+) (! <L_IDENT_REST>)) /
+
+#* We use exclusive states for quoted strings, extended comments,
+#* and to eliminate parsing troubles for numeric strings.
+#* Exclusive states:
+#*  <xb> bit string literal
+#*  <xc> extended C-style comments
+#*  <xd> delimited identifiers (double-quoted identifiers)
+#*  <xh> hexadecimal numeric string
+#*  <xq> standard quoted strings
+#*  <xe> extended quoted strings (support backslash escape sequences)
+#*  <xdolq> $foo$ quoted strings
+#*  <xui> quoted identifier with Unicode escapes
+#*  <xus> quoted string with Unicode escapes
+#*  <xeu> Unicode surrogate pair in extended quoted string
+
+### Okay, screw all of this flex hackery.
+### This... is... PERL!  *kicks flex down the well*
+
+### Here's how it's going to work: I declare a RE that grabs everything,
+### and it f'ing works!  Fin.
+
+### FIXME: Include various <EOS> checks to produce errors on unterminated strings.
+
+#* SQL requires at least one newline in the whitespace separating
+#* string literals that are to be concatenated.  Silly, but who are we
+#* to argue?  Note that {whitespace_with_newline} should not have * after
+#* it, whereas {whitespace} should generally have a * after it...
+
+L_WHITESPACE_WITH_NEWLINE : / <L_HORIZ_WHITESPACE>* <L_NEWLINE> <L_SPECIAL_WHITESPACE>* /
+L_HORIZ_WHITESPACE        : / (: <L_HORIZ_SPACE> | <L_COMMENT> ) /
+L_SPECIAL_WHITESPACE      : / (: <L_SPACE>+ | <L_COMMENT> <L_NEWLINE> ) /
+
+L_QUOTECONTINUE : / <SINGLE> <L_WHITESPACE_WITH_NEWLINE> <SINGLE> /
+
+L_XBFULL : / [bB] <SINGLE> ( [01]* )     <SINGLE> /
+L_XHFULL : / [xX] <SINGLE> ( <HEX>* )    <SINGLE> /
+L_XNFULL : / [nN] / =L_XQFULL  # treat like a NCHAR keyword and not a full string
+L_XQFULL : /
+   <SINGLE> 
+   ( (:
+      (?> [^ <SINGLE> ]+ ) |  # Most stuff (no backtracking...)
+      <SINGLE><SINGLE>     |  # Double single-quotes
+      <L_QUOTECONTINUE>       # SQL-style concat (see above)
+   )* )
+   <SINGLE>
+/
+L_XEFULL : /
+   [eE] <SINGLE> 
+   ( (:
+      (?> [^ <BACK> <SINGLE> ]+ ) |  # Most stuff (no backtracking...)
+      <BACK>   <SINGLE>           |  # Escaped quotes (which are technically "insecure", but we'll take them anyway)
+      <SINGLE> <SINGLE>           |  # Double single-quotes
+      <BACK> [^ <SINGLE> ]+       |  # Any other escaped character
+      <L_QUOTECONTINUE>              # SQL-style concat (see above)
+   )* )
+   <SINGLE>
+/
+### Ha!  Perl REs can even process this one all in one bite, thanks to backreferences...
+L_XDOLQFULL : /
+   <DOLLAR> ( <L_IDENTIFIER>? ) <DOLLAR>
+   ( [^ <DOLLAR> ]* )
+   <DOLLAR> \g1 <DOLLAR>
+/
+L_XDFULL : /
+   <DOUBLE> ( [^ <DOUBLE> ]+ ) <DOUBLE>
+/
+
+### Unicode escapes ###
+L_UESCAPE : / (?i: UESCAPE ~ <SINGLE> ( [^<SINGLE>] ) <SINGLE> ) /
+L_XUIFULL : / [uU] <AMP> <L_XDFULL> ~ <L_UESCAPE> /
+L_XUSFULL : / [uU] <AMP> <L_XQFULL> ~ <L_UESCAPE> /
+
+#* "self" is the set of chars that should be returned as single-character
+#* tokens.  "op_chars" is the set of chars that can make up "Op" tokens,
+#* which can be one or more characters long (but if a single-char token
+#* appears in the "self" set, it is not to be returned as an Op).  Note
+#* that the sets overlap, but each has some chars that are not in the other.
+#*
+#* If you change either set, adjust the character lists appearing in the
+#* rule for "operator"!
+
+L_OP_CHARS     : / [
+   <TILDE>  <BANG>   <AT>
+   <HASH>   <CARET>  <AMP>
+   <PIPE>   <GRAVE>  <QMARK>
+   <PLUS>   <DASH>   <STAR>
+   <LANGLE> <RANGLE> <EQUAL>
+   <SLASH>  <PERCENT>
+] /
+L_TYPECAST     : / <COLON> <COLON> /
+L_DOT_DOT      : / <DOT>   <DOT>   /
+L_COLON_EQUALS : / <COLON> <EQUAL> /
+
+L_SELF : / [
+   <COMMA> <SEMI>  <COLON> <DOT> 
+   <PLUS>  <DASH>  <SLASH> <STAR>
+   <CARET> <EQUAL> <PERCENT>
+   <LPAREN>  <RPAREN>
+   <LSQUARE> <RSQUARE>
+   <LANGLE>  <RANGLE>
+] /
+L_NON_MATH : / [
+   <TILDE>  <BANG>   <AT>
+   <HASH>   <CARET>  <AMP>
+   <PIPE>   <GRAVE>  <QMARK>
+] /
+
+#* we no longer allow unary minus in numbers.
+#* instead we pass it separately to parser. there it gets
+#* coerced via doNegate() -- Leon aug 20 1999
+
+### We aren't allowing non-English here, else all coder's brains would spontaneously explode
+### at the prospect of making a Tibetian digit work with functions like int()...
+#L_DIGIT  # Atom already defined
+L_INTEGER : / <DIGIT>+ /
+L_DECIMAL : / (: <DIGIT>* <DOT> <DIGIT>+ | <DIGIT>+ <DOT> <DIGIT>* (! <DOT> ) ) /  
+L_REAL    : / (: <L_INTEGER> | <L_DECIMAL> ) [Ee] [-+]? <DIGIT>+ /
+L_PARAM   : / ( <DOLLAR> <L_INTEGER> ) /
+
+#* %%
+
+###########################
+### Lexer token returns ###
+###########################
+
+# At this point in the lexer, we have the tokens that the parser would process.
+# Obviously, a parser would expect its separation to processed like whitespace.
+# However, unlike a standard lexer/parser pair, a Pegex rule like "CREATE TABLE"
+# implies no whitespace in-between the keywords.  Thus, we add ~ checks to
+# each of the "parser tokens".
+
+# Actually, we're using .ws1 to make sure it never captures 'undef' in an array.
+
+### Constants ###
+
+BCONST : L_XBFULL .ws1
+XCONST : L_XHFULL .ws1
+SCONST : ( L_XQFULL | L_XEFULL | L_XUSFULL | L_XDOLQFULL ) .ws1
+ICONST : / (<L_INTEGER>) / .ws1
+FCONST : / (<L_REAL>|<L_DECIMAL>) / .ws1
+PARAM  : L_PARAM .ws1
+
+### Operators ###
+
+#* Check for embedded slash-star or dash-dash; those
+#* are comment starts, so operator must stop there.
+#* Note that slash-star or dash-dash at the first
+#* character will match a prior rule, not this one.
+L_Op : / (
+   <L_OP_CHARS>+? (?= <DASH><DASH> | <SLASH><STAR> ) |
+   <L_OP_CHARS>{2,} |
+   <L_NON_MATH>
+) /
+
+#Op: ---code rule---
+### FIXME: For some reason, if this is not here, L_Op doesn't get created, but then
+### I can't use the match_rule_Op method...
+Op: L_Op
+
+TYPECAST     : L_TYPECAST     .ws1
+DOT_DOT      : L_DOT_DOT      .ws1
+COLON_EQUALS : L_COLON_EQUALS .ws1
+
+SELF : / ( <L_SELF> ) / .ws1
+
+### Keywords ###
+
+IDENT : ( L_XDFULL | L_XUIFULL | ( !L_KEYWORD /( <L_IDENTIFIER> )/ ) ) .ws1
+
+### FIXME: some of these conflict with Atoms ###
+
+KEYWORD : L_KEYWORD .ws1
